@@ -62,6 +62,25 @@ const ICON_MAP: Record<string, any> = {
 // Games that should never show up in any list
 const HIDDEN_GAME_VIEW_IDS: string[] = ['HARDEES_MEMORY'];
 
+const HOST_ROUTE = '#/host';
+const isHostRoute = () =>
+  typeof window !== 'undefined' &&
+  (window.location.hash.replace(/^#\/?/, '').toLowerCase() === 'host' ||
+    new URLSearchParams(window.location.search).get('view') === 'host');
+
+const readSession = (key: string): any | null => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.valid || !parsed?.token || !parsed?.pinHash || !parsed?.issuedAt) return null;
+    if (Date.now() > (parsed.expiresAt || 0)) return null;
+    return parsed;
+  } catch (e) {
+    return null;
+  }
+};
+
 
 const App: React.FC = () => {
   // Initialize from URL params to prevent flicker
@@ -76,13 +95,16 @@ const App: React.FC = () => {
   };
 
   const initialParams = getInitialParams();
-  const [currentView, setCurrentView] = useState<ViewState | 'ADMIN_LOGIN' | 'ADMIN_PANEL'>(() => {
+  const [hostRoute, setHostRoute] = useState<boolean>(() => isHostRoute());
+  const [hostUnlocked, setHostUnlocked] = useState<boolean>(() => !!readSession('host_access_granted'));
+  const [currentView, setCurrentView] = useState<ViewState | 'ADMIN_LOGIN' | 'ADMIN_PANEL' | 'HOST_GATE'>(() => {
+    if (isHostRoute()) return 'HOST_GATE';
     if (initialParams.view !== 'ABOUT' && initialParams.view !== 'HOME') return initialParams.view;
     try {
       const stored = localStorage.getItem('site_access_granted');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed.valid && parsed.role === 'user') return 'USER_DASHBOARD';
+        if (parsed && parsed.valid && parsed.role === 'user') return 'USER_DASHBOARD';
       }
     } catch (e) { }
     return initialParams.view;
@@ -96,24 +118,13 @@ const App: React.FC = () => {
   // Authorization State - bypass for OBS
   const [isAuthorized, setIsAuthorized] = useState<boolean>(() => {
     if (initialParams.obs) return true;
-    try {
-      const stored = localStorage.getItem('site_access_granted');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return parsed.valid === true;
-      }
-    } catch (e) { }
-    return false;
+    return !!readSession('site_access_granted');
   });
   const [userRole, setUserRole] = useState<'admin' | 'user'>(() => {
-    try {
-      const stored = localStorage.getItem('site_access_granted');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return parsed.role || 'admin';
-      }
-    } catch (e) { }
-    return 'admin';
+    const adminSession = readSession('site_access_granted');
+    if (adminSession?.role === 'admin') return 'admin';
+    if (adminSession?.role === 'user') return 'user';
+    return 'user'; // ⚠️ لا أحد أدمن افتراضياً — الدخولالأدمن بالكلمة السر فقط
   });
 
   const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
@@ -139,6 +150,35 @@ const App: React.FC = () => {
   useEffect(() => {
     loadGames();
   }, []);
+
+  // ===== رابط صفحة الاستضافة المستقل: #/host =====
+  useEffect(() => {
+    const sync = () => {
+      const active = isHostRoute();
+      setHostRoute(active);
+      if (active) {
+        setHostUnlocked(!!readSession('host_access_granted'));
+        setCurrentView('HOST_GATE');
+      } else if (currentView === 'HOST_GATE' || currentView === 'HOST_LOGIN') {
+        setCurrentView('ABOUT');
+      }
+    };
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, [currentView]);
+
+  // لا يمكن الوصول لصفحة الاستضافة إلا عبر رابطها الخاص
+  useEffect(() => {
+    if ((currentView === 'HOST_LOGIN' || currentView === 'HOST_GATE') && !hostRoute) {
+      setCurrentView('ABOUT');
+    }
+  }, [currentView, hostRoute]);
+
+  const openHostPage = () => {
+    window.location.hash = 'host';
+    setHostRoute(true);
+    setCurrentView('HOST_GATE');
+  };
 
   const moveGame = (index: number, direction: 'up' | 'down') => {
     const newGames = [...games];
@@ -316,26 +356,16 @@ const App: React.FC = () => {
     }
   }, [currentView]);
 
-  // Security Check for Admin Panel
-  useEffect(() => {
+// Security Check for Admin Panel
+useEffect(() => {
     if (currentView === 'ADMIN_PANEL') {
-      if (userRole === 'admin') {
-        const adminAuth = localStorage.getItem('admin_access_granted');
-        if (!adminAuth) {
-          const siteAuth = localStorage.getItem('site_access_granted');
-          if (siteAuth) localStorage.setItem('admin_access_granted', siteAuth);
-        }
-        return;
-      }
-      try {
-        const stored = localStorage.getItem('admin_access_granted');
-        const parsed = stored ? JSON.parse(stored) : null;
-        if (!parsed || !parsed.valid) setCurrentView('ADMIN_LOGIN');
-      } catch (e) {
+      const adminAuth = readSession('site_access_granted');
+      if (!adminAuth || adminAuth.role !== 'admin') {
+        setUserRole('user');
         setCurrentView('ADMIN_LOGIN');
       }
     }
-  }, [currentView, userRole]);
+  }, [currentView]);
 
   // PROTECTION: Prevent regular users from accessing the HOME page
   useEffect(() => {
@@ -469,7 +499,15 @@ const App: React.FC = () => {
 
   const renderContent = (obsMode: boolean = false) => {
     switch (currentView) {
-      case 'ADMIN_PANEL': return <AdminDashboard onLogout={handleGoHome} />;
+      case 'ADMIN_PANEL': {
+        const adminOk = userRole === 'admin' && !!readSession('site_access_granted');
+        if (!adminOk) {
+          window.location.hash = '';
+          setCurrentView('ABOUT');
+          return null;
+        }
+        return <AdminDashboard onLogout={handleGoHome} />;
+      }
       case 'ADMIN_LOGIN': return (
         <GlobalPasswordPage
           onSuccess={() => setCurrentView('ADMIN_PANEL')}
@@ -514,15 +552,27 @@ const App: React.FC = () => {
       case 'HARDEES_MEMORY': return null;
       case 'ABOUT': return <AboutPage onBack={handleGoHome} />;
 
+      case 'HOST_GATE': return (
+        <GlobalPasswordPage
+          onSuccess={() => {
+            setHostUnlocked(true);
+            setCurrentView('HOST_LOGIN');
+          }}
+          storageKey="host_access_granted"
+          configKey="host_password"
+          fallbackConfigKey="admin_password"
+          adminOnly
+          title="دخول المستضيف"
+          subtitle="HOST ACCESS — RESTRICTED"
+          newTitle="أدخل كلمة السر"
+          returningTitle="دخول المستضيف"
+        />
+      );
+
       case 'HOST_LOGIN': return (
         <div className="flex-1 w-full flex items-center justify-center p-4 md:p-8">
           <HostLoginPage
             onSuccess={(hostData) => {
-              if (userRole === 'admin') {
-                const siteAuth = localStorage.getItem('site_access_granted');
-                if (siteAuth) localStorage.setItem('admin_access_granted', siteAuth);
-              }
-              
               localStorage.setItem('iabs_user', JSON.stringify({
                 id: '',
                 display_name: hostData.name,
@@ -534,7 +584,11 @@ const App: React.FC = () => {
               setIsAuthorized(true);
               setCurrentView('USER_DASHBOARD');
             }}
-            onBack={() => setCurrentView('HOME')}
+            onBack={() => {
+              window.location.hash = '';
+              setHostRoute(false);
+              setCurrentView('ABOUT');
+            }}
           />
         </div>
       );
@@ -887,9 +941,9 @@ const App: React.FC = () => {
               </button>
 
               {/* Admin Button */}
-              {userRole === 'admin' && (
+              {readSession('site_access_granted')?.role === 'admin' && (
                 <button onClick={() => {
-                  const adminAuth = localStorage.getItem('admin_access_granted') || localStorage.getItem('site_access_granted');
+                  const adminAuth = readSession('site_access_granted');
                   if (adminAuth) {
                     setCurrentView('ADMIN_PANEL');
                   } else {
@@ -908,7 +962,7 @@ const App: React.FC = () => {
               )}
 
               {/* Host Login Button */}
-              <button onClick={() => setCurrentView('HOST_LOGIN')}
+              <button onClick={openHostPage}
                 className="group relative flex items-center gap-4 px-8 py-4 bg-gradient-to-b from-emerald-600/20 to-emerald-700/10 border border-emerald-500/20 hover:border-emerald-400/50 rounded-2xl transition-all duration-500 hover:scale-105 active:scale-95 overflow-hidden"
                 style={{transform:'rotateX(2deg) translateZ(15px)', transformStyle:'preserve-3d', perspective:'500px'}}>
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/10 to-emerald-500/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 skew-x-[-20deg]"></div>
@@ -990,7 +1044,8 @@ const App: React.FC = () => {
     >
       <OBSLinksModal isOpen={showOBSModal} onClose={() => setShowOBSModal(false)} />
       
-      {!isAuthorized && currentView !== 'ABOUT' && (
+      {/* بوابة الموقع العامة — لا تظهر إطلاقاً داخل رابط الاستضافة */}
+      {!isAuthorized && currentView !== 'ABOUT' && !hostRoute && (
         <GlobalPasswordPage onSuccess={(role) => {
           setUserRole(role);
           setIsAuthorized(true);
@@ -998,7 +1053,7 @@ const App: React.FC = () => {
         }} />
       )}
 
-      {(isAuthorized || currentView === 'ABOUT') && (
+      {(isAuthorized || currentView === 'ABOUT' || hostRoute) && (
         <div className="relative w-full h-full flex flex-col items-center">
           {renderContent(false)}
         </div>

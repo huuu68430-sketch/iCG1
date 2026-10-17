@@ -3,12 +3,52 @@ import { Lock, Unlock, Fingerprint, Sparkles, UserPlus, ArrowRight } from 'lucid
 import { supabase } from '../services/supabase';
 import { UserAuthPage } from './UserAuthPage';
 
-const hashPassword = async (pin: string): Promise<string> => {
+const sha256hex = async (input: string): Promise<string> => {
     const encoder = new TextEncoder();
-    const data = encoder.encode(pin + 'iABS_salt_2024');
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(input));
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+const hashPassword = (pin: string) => sha256hex(pin + 'iABS_salt_2024');
+
+const SESSION_TTL = 12 * 60 * 60 * 1000; // 12 ساعة
+const MAX_ATTEMPTS = 5;
+const LOCK_MS = 90 * 1000;
+
+/* طبقة أمان الجلسة:
+   - كلمة السر نفسها لا تُخزَّن أبداً (نخزّن hash فقط)
+   - التوكن مربوط بالجهاز + وقت الإصدار + صلاحية محدودة */
+const getDeviceSalt = (): string => {
+    try {
+        let salt = sessionStorage.getItem('iabs_device_salt');
+        if (!salt) {
+            salt = crypto.getRandomValues(new Uint8Array(16)).reduce((acc, b) => acc + b.toString(16).padStart(2, '0'), '');
+            sessionStorage.setItem('iabs_device_salt', salt);
+        }
+        return salt;
+    } catch (e) {
+        return 'no-salt';
+    }
+};
+
+const buildSession = async (pin: string, role: 'admin' | 'user') => {
+    const issuedAt = Date.now();
+    const pinHash = await sha256hex(pin + '|iABS_pin|');
+    const token = await sha256hex(pinHash + '|' + issuedAt + '|' + getDeviceSalt());
+    return { token, pinHash, issuedAt, expiresAt: issuedAt + SESSION_TTL, valid: true, role };
+};
+
+const validateSession = async (raw: string | null): Promise<boolean> => {
+    try {
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        if (!parsed?.valid || !parsed.token || !parsed.pinHash || !parsed.issuedAt) return false;
+        if (Date.now() > (parsed.expiresAt || 0)) return false;
+        const expected = await sha256hex(parsed.pinHash + '|' + parsed.issuedAt + '|' + getDeviceSalt());
+        return expected === parsed.token;
+    } catch (e) {
+        return false;
+    }
 };
 
 interface GlobalPasswordPageProps {
@@ -19,6 +59,9 @@ interface GlobalPasswordPageProps {
     newTitle?: string;
     returningTitle?: string;
     configKey?: string;
+    fallbackConfigKey?: string;
+    /** وضع أدمن فقط: لا اسم مستخدم ولا تسجيل ولا دخول مستخدمين — كلمة السر فقط */
+    adminOnly?: boolean;
 }
 
 type AuthStep = 'LOADING' | 'PASSWORD' | 'FINGERPRINT' | 'SCANNING' | 'SUCCESS' | 'WELCOME' | 'USER_AUTH';
@@ -30,7 +73,9 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
     subtitle = 'RESTRICTED ACCESS AREA',
     newTitle = 'بروتوكول الأمان',
     returningTitle = 'تسجيل الدخول',
-    configKey = 'admin_password'
+    configKey = 'admin_password',
+    fallbackConfigKey,
+    adminOnly = false
 }) => {
     const [step, setStep] = useState<AuthStep>('LOADING');
     const [pin, setPin] = useState<string[]>([]);
@@ -38,9 +83,12 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
     const [error, setError] = useState(false);
     const [shake, setShake] = useState(false);
     const [role, setRole] = useState<'admin' | 'user'>('admin');
-    const [isAdminMode, setIsAdminMode] = useState(false);
+    const [isAdminMode, setIsAdminMode] = useState(adminOnly);
     const [loginUsername, setLoginUsername] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
+    const [lockedUntil, setLockedUntil] = useState(0);
+    const [fails, setFails] = useState(0);
+    const [pinLen, setPinLen] = useState(6);
     const inputs = useRef<(HTMLInputElement | null)[]>([]);
     const [userType, setUserType] = useState<'NEW' | 'RETURNING'>('NEW');
 
@@ -56,75 +104,83 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
 
     useEffect(() => {
         const initAuth = async () => {
-            // Check LocalStorage first (Instant)
-            const storedSession = localStorage.getItem(storageKey);
-            let storedToken: string | null = null;
-            let hasStoredSession = false;
-
+            // ---- 1) قفل المحاولات (محاولات فاشلة متتالية) ----
             try {
-                if (storedSession) {
-                    const parsed = JSON.parse(storedSession);
-                    if (parsed && parsed.token) {
-                        storedToken = parsed.token;
-                        if (parsed.role) setRole(parsed.role as 'admin' | 'user');
-                        hasStoredSession = true;
-                    }
+                const lockRaw = localStorage.getItem(`auth_lock_${storageKey}`);
+                if (lockRaw) {
+                    const lock = JSON.parse(lockRaw);
+                    if (lock.until > Date.now()) setLockedUntil(lock.until);
+                    if (typeof lock.fails === 'number') setFails(lock.fails);
                 }
             } catch (e) { }
 
-            // Fail-safe: Always move to PASSWORD screen after 3.5s if still loading
+            // ---- 2) جلسة سابقة؟ (متوكن موقّع + صلاحية + مربوط بالجهاز) ----
+            const storedSession = localStorage.getItem(storageKey);
+            const sessionValid = await validateSession(storedSession);
+            if (storedSession && !sessionValid) localStorage.removeItem(storageKey);
+
+            let storedRole: 'admin' | 'user' | null = null;
+            try {
+                if (sessionValid && storedSession) storedRole = JSON.parse(storedSession).role || null;
+            } catch (e) { }
+
             const failSafe = setTimeout(() => {
-                setStep(current => {
-                    if (current === 'LOADING') {
-                        console.warn("[iABS] Auth init timed out, forcing UI...");
-                        return 'PASSWORD';
-                    }
-                    return current;
-                });
+                setStep(current => (current === 'LOADING' ? 'PASSWORD' : current));
             }, 3500);
 
-            // Use a fallback if DB is unreachable
-            const fallback = process.env.ADMIN_FALLBACK_PASSWORD || "";
+            const pickLength = (value: string) => {
+                const len = Math.min(12, Math.max(4, value.length));
+                setPinLen(len);
+                setPin(new Array(len).fill(''));
+                inputs.current = inputs.current.slice(0, len);
+            };
 
-            try {
-                // Primary: Fetch Security Protocol from Cloud (Supabase)
+            const fetchConfig = async (key: string) => {
                 const { data, error } = await Promise.race([
-                    supabase.from('app_config').select('value').eq('key', configKey).maybeSingle(),
+                    supabase.from('app_config').select('value').eq('key', key).maybeSingle(),
                     new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500))
                 ]) as any;
+                if (error || !data?.value) throw new Error('no-config');
+                return data.value as string;
+            };
+
+            try {
+                let remotePin: string | null = null;
+                try {
+                    remotePin = await fetchConfig(configKey);
+                } catch (e) {
+                    if (fallbackConfigKey) {
+                        try { remotePin = await fetchConfig(fallbackConfigKey); } catch (e2) { remotePin = null; }
+                    }
+                }
 
                 clearTimeout(failSafe);
 
-                if (data && data.value) {
+                if (remotePin) {
                     console.log("[iABS] 🟢 Cloud Security Protocol Loaded");
-                    setTargetPin(data.value);
-                    setPin(new Array(6).fill(''));
-                    inputs.current = inputs.current.slice(0, 6);
+                    setTargetPin(remotePin);
+                    pickLength(remotePin);
 
-                    if (hasStoredSession && storedToken === data.value) {
+                    if (sessionValid && storedRole) {
+                        setRole(storedRole);
                         setUserType('RETURNING');
                         setStep('FINGERPRINT');
                     } else {
-                        if (hasStoredSession) localStorage.removeItem(storageKey);
                         setUserType('NEW');
                         setStep('PASSWORD');
                     }
                 } else {
-                    // DB is connected but key not found or error occurred
-                    console.warn("[iABS] 🟡 Using Local Security Protocol (Key Not Found)");
-                    setTargetPin(fallback);
-                    setPin(new Array(6).fill(''));
-                    inputs.current = inputs.current.slice(0, 6);
+                    // ⚠️ Fail-closed: بدون مصدر موثوق = لا دخول إطلاقاً
+                    clearTimeout(failSafe);
+                    console.warn("[iABS] 🔒 No server config available — access denied");
+                    setTargetPin(null);
                     setUserType('NEW');
                     setStep('PASSWORD');
                 }
             } catch (e) {
-                // Totally offline or timeout
                 clearTimeout(failSafe);
-                console.warn("[iABS] 🔴 Cloud Connection Failed. Using Emergency Protocol.");
-                setTargetPin(fallback);
-                setPin(new Array(6).fill(''));
-                inputs.current = inputs.current.slice(0, 6);
+                console.warn("[iABS] 🔒 Cloud unreachable — access denied (fail closed)");
+                setTargetPin(null);
                 setUserType('NEW');
                 setStep('PASSWORD');
             }
@@ -136,15 +192,13 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
     // Focus effect for inputs
     useEffect(() => {
         if (step === 'PASSWORD') {
-            if (!loginUsername && !isAdminMode) {
-                // Focus username first if empty
-                const usernameInput = document.getElementById('login-username');
-                usernameInput?.focus();
+            if (!adminOnly && !isAdminMode && !loginUsername) {
+                document.getElementById('login-username')?.focus();
             } else if (inputs.current[0]) {
                 setTimeout(() => inputs.current[0]?.focus(), 100);
             }
         }
-    }, [step, isAdminMode]);
+    }, [step, isAdminMode, adminOnly]);
 
     const handleInput = (index: number, value: string) => {
         const char = value.slice(-1);
@@ -167,17 +221,39 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
         }
     };
 
+    const registerFail = () => {
+        const next = fails + 1;
+        setFails(next);
+        if (next >= MAX_ATTEMPTS) {
+            const until = Date.now() + LOCK_MS;
+            setLockedUntil(until);
+            try { localStorage.setItem(`auth_lock_${storageKey}`, JSON.stringify({ until, fails: 0 })); } catch (e) { }
+            setFails(0);
+        } else {
+            try { localStorage.setItem(`auth_lock_${storageKey}`, JSON.stringify({ until: 0, fails: next })); } catch (e) { }
+        }
+    };
+
+    const clearFails = () => {
+        setFails(0);
+        setLockedUntil(0);
+        try { localStorage.removeItem(`auth_lock_${storageKey}`); } catch (e) { }
+    };
+
     const verifyPin = async (enteredPin: string) => {
-        // 1. Check Admin PIN first (if in admin mode or if it matches target)
-        if (enteredPin === targetPin) {
+        if (Date.now() < lockedUntil) return;
+
+        // 1) كلمة سر الأدمن (المصدر: Supabase فقط — لا توجد نسخة داخل الحزمة)
+        if (targetPin && enteredPin === targetPin) {
+            clearFails();
             setError(false);
             setRole('admin');
             setStep('FINGERPRINT');
             return;
         }
 
-        // 2. If not admin, check as User Login (requires username)
-        if (!isAdminMode && loginUsername.trim()) {
+        // 2) دخول مستخدمين (غير مفعّل في وضع الأدمن فقط)
+        if (!adminOnly && !isAdminMode && loginUsername.trim()) {
             try {
                 const hashedPin = await hashPassword(enteredPin);
                 const { data } = await supabase
@@ -204,6 +280,7 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
                         avatar: data.avatar || undefined,
                         points: points
                     }));
+                    clearFails();
                     setError(false);
                     setRole('user');
                     setUserType('RETURNING');
@@ -215,7 +292,8 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
             }
         }
 
-        // 3. Deny access
+        // 3) رفض + تسجيل المحاولة الفاشلة
+        registerFail();
         setError(true);
         setShake(true);
         setTimeout(() => {
@@ -248,15 +326,14 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
         }
         setStep('SUCCESS');
 
-        // Save persistence now with TOKEN for security validation
-        localStorage.setItem(storageKey, JSON.stringify({
-            token: targetPin,
-            timestamp: Date.now(),
-            valid: true,
-            role: finalRole
-        }));
+        // نحفظ توكن موقّع (hash) فقط — كلمة السر لا تُلمس القرص أبداً
+        (async () => {
+            if (targetPin) {
+                const session = await buildSession(targetPin, finalRole);
+                localStorage.setItem(storageKey, JSON.stringify(session));
+            }
+        })();
 
-        // Wait for "Access Granted" / "Welcome Back" message
         setTimeout(() => {
             onSuccess(finalRole);
         }, 2000);
@@ -283,20 +360,32 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
                 {step === 'PASSWORD' && (
                     <div className={`flex flex-col items-center w-full max-w-lg px-4 animate-in fade-in zoom-in duration-700 ${shake ? 'animate-shake' : ''}`}>
 
+                        {lockedUntil > Date.now() && (
+                            <div className="mb-4 px-4 py-2 rounded-xl bg-red-900/30 border border-red-600/40 text-red-300 text-xs font-black tracking-widest animate-pulse">
+                                تم القفل مؤقتاً — انتظر {Math.ceil((lockedUntil - Date.now()) / 1000)} ثانية
+                            </div>
+                        )}
+
+                        {lockedUntil === 0 && !targetPin && (
+                            <div className="mb-4 px-4 py-2 rounded-xl bg-red-900/30 border border-red-600/40 text-red-300 text-[11px] font-black text-center leading-relaxed">
+                                تعذّر الاتصال بخادم التحقق — الدخول مغلق حالياً (Fail-Closed)
+                            </div>
+                        )}
+
                         <div className="mb-4 relative group">
                             <div className="absolute inset-0 bg-red-600/40 blur-[40px] rounded-full group-hover:bg-red-600/60 transition-all duration-500 animate-pulse"></div>
                             <Lock size={50} strokeWidth={1.5} className={`relative z-10 transition-all duration-300 ${error ? 'text-red-500 drop-shadow-[0_0_20px_rgba(255,0,0,1)]' : 'text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]'}`} />
                         </div>
 
                         <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter mb-2 text-center text-transparent bg-clip-text bg-gradient-to-b from-white to-neutral-500 drop-shadow-2xl">
-                            {isAdminMode ? 'بروتوكول القائد' : (userType === 'NEW' ? (title || newTitle) : (title || returningTitle))}
+                            {adminOnly ? (title || 'دخول المستضيف') : isAdminMode ? 'بروتوكول القائد' : (userType === 'NEW' ? (title || newTitle) : (title || returningTitle))}
                         </h2>
 
                         <p className="text-red-500 font-bold tracking-[0.3em] text-[9px] md:text-xs uppercase mb-6 text-center drop-shadow-[0_0_8px_rgba(255,0,0,0.5)]">
-                            {isAdminMode ? 'RESTRICTED COMMAND INTERFACE' : subtitle}
+                            {adminOnly ? (subtitle || 'HOST ACCESS — RESTRICTED') : isAdminMode ? 'RESTRICTED COMMAND INTERFACE' : subtitle}
                         </p>
 
-                        {!isAdminMode && (
+                        {!isAdminMode && !adminOnly && (
                             <div className="w-full max-w-xs mb-6 animate-in slide-in-from-top-4 duration-500">
                                 <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2 block text-center flex items-center justify-center gap-1.5">
                                     <span className="text-green-500">K</span> حساب Kick
@@ -324,14 +413,19 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
                         {error && <div className="text-red-500 font-black tracking-[0.4em] animate-bounce text-xs drop-shadow-[0_0_8px_red]">ACCESS DENIED</div>}
 
                         <div className="mt-4 flex flex-col items-center gap-4">
-                            {!isAdminMode && (
+                            {!isAdminMode && !adminOnly && (
                                 <button onClick={() => setStep('USER_AUTH')} className="text-gray-500 hover:text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center gap-2 bg-white/5 px-5 py-2 rounded-xl border border-white/10">
                                     ليس لديك حساب؟ <span className="text-red-500">سجّل الآن</span>
                                 </button>
                             )}
-                            <button type="button" onClick={() => { setIsAdminMode(!isAdminMode); setPin(new Array(pin.length).fill('')); setError(false); }} className="text-red-900/40 hover:text-red-600 font-black text-[9px] uppercase tracking-[0.3em] transition-all hover:scale-110">
-                                {isAdminMode ? 'العودة لتسجيل المستخدم' : 'انت محمااااا ؟؟؟'}
-                            </button>
+                            {!adminOnly && (
+                                <button type="button" onClick={() => { setIsAdminMode(!isAdminMode); setPin(new Array(pin.length).fill('')); setError(false); }} className="text-red-900/40 hover:text-red-600 font-black text-[9px] uppercase tracking-[0.3em] transition-all hover:scale-110">
+                                    {isAdminMode ? 'العودة لتسجيل المستخدم' : 'انت محمااااا ؟؟؟'}
+                                </button>
+                            )}
+                            {adminOnly && fails > 0 && (
+                                <span className="text-red-500/60 font-black text-[9px] uppercase tracking-[0.3em]">محاولات متبقية: {MAX_ATTEMPTS - fails}</span>
+                            )}
                         </div>
                     </div>
                 )}

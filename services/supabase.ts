@@ -314,9 +314,10 @@ export const leaderboardService = {
     return res;
   },
   async verifyAdminPassword(inputPassword: string): Promise<boolean> {
-    if (!isConfigured) return inputPassword === (process.env.ADMIN_FALLBACK_PASSWORD || '');
+    // 🔒 لا توجد نسخة محلية من كلمة السر داخل الحزمة — مصدر واحد فقط: Supabase
+    if (!isConfigured) return false;
     const { data, error } = await supabase.from('app_config').select('value').eq('key', 'admin_password').single();
-    if (error || !data) return inputPassword === (process.env.ADMIN_FALLBACK_PASSWORD || '');
+    if (error || !data?.value) return false;
     return data.value === inputPassword;
   },
   async resetLeaderboard() {
