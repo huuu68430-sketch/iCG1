@@ -31,8 +31,6 @@ import { LetterHexagonGame } from './components/LetterHexagonGame';
 import { BuzzerPad } from './components/BuzzerPad';
 import { SafeCode } from './components/SafeCode';
 import { MapGuesser } from './components/MapGuesser';
-import { HardeesMemory } from './components/HardeesMemory';
-import { HardeesAdPopup } from './components/HardeesAdPopup';
 import { AboutPage } from './components/AboutPage';
 import { AdminDashboard } from './components/AdminDashboard';
 import { GlobalAnnouncement } from './components/GlobalAnnouncement';
@@ -60,6 +58,9 @@ import { IabsLogo } from './components/IabsLogo';
 const ICON_MAP: Record<string, any> = {
   Sparkles, Armchair, TecshIcon, ImageIcon, Zap, Gift, Flag, Users2, Keyboard, Swords, Coffee, PaintBucket, AlertTriangle, Video, Sword, Globe, Brain, Vote, Bomb, Type, Footprints, Flame, Smile
 };
+
+// Games that should never show up in any list
+const HIDDEN_GAME_VIEW_IDS: string[] = ['HARDEES_MEMORY'];
 
 
 const App: React.FC = () => {
@@ -131,7 +132,7 @@ const App: React.FC = () => {
   const loadGames = async () => {
     const { data } = await gamesService.getAllGames();
     if (data && data.length > 0) {
-      setGames(data);
+      setGames(data.filter((g: any) => !HIDDEN_GAME_VIEW_IDS.includes(g.view_id)));
     }
   };
 
@@ -510,7 +511,7 @@ const App: React.FC = () => {
       case 'BUZZER_PAD': return <BuzzerPad />;
       case 'SAFE_CODE': return <SafeCode onHome={() => setCurrentView('HOME')} isOBS={isOBSMode} />;
       case 'MAP_GUESSER': return <MapGuesser onHome={() => setCurrentView('HOME')} isOBS={isOBSMode} />;
-      case 'HARDEES_MEMORY': return <HardeesMemory onHome={() => setCurrentView('HOME')} isOBS={isOBSMode} />;
+      case 'HARDEES_MEMORY': return null;
       case 'ABOUT': return <AboutPage onBack={handleGoHome} />;
 
       case 'HOST_LOGIN': return (
@@ -662,26 +663,20 @@ const App: React.FC = () => {
         return (
           <div className="flex-1 flex flex-col items-center w-full max-w-5xl mx-auto px-2 pt-6 pb-3 animate-in fade-in duration-700">
             {/* Hero Section */}
-            <div className="w-full relative flex flex-col items-center mt-4 mb-4 perspective-[1000px]">
+            <div className="w-full relative flex flex-col items-center mt-4 mb-4">
               {/* Glow orbs */}
               <div className="absolute top-12 w-56 h-56 bg-red-600/15 blur-[100px] rounded-full animate-pulse"></div>
               <div className="absolute top-20 -right-10 w-32 h-32 bg-yellow-500/10 blur-[80px] rounded-full animate-pulse" style={{animationDelay:'1s'}}></div>
               <div className="absolute top-20 -left-10 w-32 h-32 bg-purple-600/10 blur-[80px] rounded-full animate-pulse" style={{animationDelay:'2s'}}></div>
 
-              {/* Logo image */}
-              <div className="relative" style={{transform:'rotateX(5deg) rotateY(-2deg) translateZ(30px)', transformStyle:'preserve-3d', perspective:'800px'}}>
-                <div className="absolute inset-0 bg-red-600/20 blur-[60px] rounded-full scale-150 animate-pulse"></div>
-                <div className="animate-float drop-shadow-[0_0_60px_rgba(255,0,0,0.6)]">
-                  <img src="/logo2.png" className="h-28 md:h-36 relative" alt="iABS Logo"
-                    style={{filter:'drop-shadow(0 0 30px rgba(255,0,0,0.8)) brightness(1.2)', transform:'translateZ(30px)'}} />
+              {/* iABS — علامة 5 طبقات (نفس تصميم الدليل).
+                  بدون preserve-3d/perspective: في سياق ثلاثي الأبعاد
+                  تُرتَّب الطبقات حسب العمق فتختفي الحروف تحت اللمعة. */}
+              <div className="relative w-full flex justify-center">
+                <div className="absolute inset-x-0 top-1/2 h-40 bg-red-600/15 blur-[100px] rounded-full animate-pulse -translate-y-1/2"></div>
+                <div className="relative">
+                  <IabsLogo size="lg" />
                 </div>
-                <div className="absolute -inset-4 rounded-full border border-red-500/20 animate-ping opacity-30" style={{animationDuration:'3s'}}></div>
-                <div className="absolute -inset-8 rounded-full border border-red-500/10 animate-ping opacity-20" style={{animationDuration:'4s', animationDelay:'0.5s'}}></div>
-              </div>
-
-              {/* iABS ARENA text */}
-              <div className="relative mt-4" style={{transform:'rotateX(3deg) translateZ(20px)', transformStyle:'preserve-3d', perspective:'800px'}}>
-                <IabsLogo />
               </div>
 
               {/* Subtitle */}
@@ -1016,8 +1011,7 @@ const App: React.FC = () => {
         />
       )}
 
-      <HardeesAdPopup />
-    </Layout>
+      </Layout>
   );
 };
 

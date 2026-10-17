@@ -19,6 +19,22 @@ interface RaffleProps {
 
 type RafflePhase = 'SETUP' | 'LOBBY' | 'DRAWING' | 'WINNER';
 
+type EntryMode = 'ALL' | 'MODS' | 'SUBS';
+
+const BOOST_OPTIONS = [5, 10, 25, 50];
+
+const MOD_BADGES = ['moderator', 'broadcaster'];
+const SUB_BADGES = ['subscriber', 'sub_gifter', 'vip', 'founder'];
+
+const hasBadge = (user: ChatUser, types: string[]) =>
+   !!(user.badges || []).some(b => b && types.includes(b.type));
+
+export const isModeratorUser = (user: ChatUser) =>
+   hasBadge(user, MOD_BADGES) || user.role === 'moderator' || user.role === 'owner';
+
+export const isSubscriberUser = (user: ChatUser) =>
+   hasBadge(user, SUB_BADGES) || user.role === 'subscriber' || user.role === 'gifter' || user.role === 'vip' || user.role === 'founder';
+
 const STICKERS_IABS_MAPPING: Record<string, string | null> = {
    'iabs324244': '3544675', 'iabsdance': '4428507', 'iabsddddddd': '3109207', 'iabshhhh': '3689146',
    'iabsKSA1': '2942650', 'iabst79eer': '4338825', 'iabst7yyhhh': '3989626', 'iabsw6nn': '4428504',
@@ -60,17 +76,26 @@ export const Raffle: React.FC<RaffleProps> = ({ channelConnected, onHome }) => {
    const cycleWonRef = useRef<Set<string>>(new Set());
    const [cycleRemaining, setCycleRemaining] = useState(0);
    const [cycleNum, setCycleNum] = useState(1);
-   const [cycleFlash, setCycleFlash] = useState(false);
-   const [botCount, setBotCount] = useState(0);
+const [cycleFlash, setCycleFlash] = useState(false);
+const [botCount, setBotCount] = useState(0);
+const [entryMode, setEntryMode] = useState<EntryMode>('ALL');
+const [subBoost, setSubBoost] = useState(0);
+const [skippedCount, setSkippedCount] = useState(0);
 
-   const phaseRef = useRef(phase);
-   const keywordRef = useRef(keyword);
-   const participantsRef = useRef(participants);
-   useEffect(() => {
-      phaseRef.current = phase;
-      keywordRef.current = keyword;
-      participantsRef.current = participants;
-   }, [phase, keyword, participants]);
+const phaseRef = useRef(phase);
+const keywordRef = useRef(keyword);
+const participantsRef = useRef(participants);
+const entryModeRef = useRef<EntryMode>('ALL');
+useEffect(() => {
+   phaseRef.current = phase;
+   keywordRef.current = keyword;
+   participantsRef.current = participants;
+}, [phase, keyword, participants]);
+
+useEffect(() => { entryModeRef.current = entryMode; }, [entryMode]);
+
+const modCount = useMemo(() => participants.filter(isModeratorUser).length, [participants]);
+const subCount = useMemo(() => participants.filter(isSubscriberUser).length, [participants]);
 
    useEffect(() => {
       cycleWonRef.current.clear();
@@ -106,6 +131,12 @@ export const Raffle: React.FC<RaffleProps> = ({ channelConnected, onHome }) => {
          }, ...prev].slice(0, 5));
 
          if (isKeywordMatch || isStickerIdMatch || isStickerTagMatch) {
+            const mode = entryModeRef.current;
+            const allowed = mode === 'ALL' || (mode === 'MODS' ? isModeratorUser(msg.user) : isSubscriberUser(msg.user));
+            if (!allowed) {
+               setSkippedCount(prev => prev + 1);
+               return;
+            }
             setParticipants(prev => {
                if (prev.find(p => p.username.toLowerCase() === msg.user.username.toLowerCase())) return prev;
                return [...prev, msg.user];
@@ -142,20 +173,30 @@ export const Raffle: React.FC<RaffleProps> = ({ channelConnected, onHome }) => {
       // Round-robin: pick from participants who haven't won this cycle
       const wonSet = cycleWonRef.current;
       const eligible = participants.filter(p => !wonSet.has(p.id));
-      let winnerIndex: number;
+      const boostActive = entryMode === 'ALL' && subBoost > 0;
+
+      const pickWeighted = (pool: ChatUser[]): ChatUser => {
+         if (!boostActive) return pool[Math.floor(Math.random() * pool.length)];
+         const weights = pool.map(p => (isSubscriberUser(p) ? 1 + subBoost / 100 : 1));
+         const total = weights.reduce((a, b) => a + b, 0);
+         let roll = Math.random() * total;
+         for (let i = 0; i < pool.length; i++) {
+            roll -= weights[i];
+            if (roll <= 0) return pool[i];
+         }
+         return pool[pool.length - 1];
+      };
+
       let winUser: ChatUser;
       if (eligible.length > 0) {
-         const pick = eligible[Math.floor(Math.random() * eligible.length)];
-         winnerIndex = participants.findIndex(p => p.id === pick.id);
-         winUser = { ...participants[winnerIndex] };
+         winUser = { ...pickWeighted(eligible) };
       } else {
          // Everyone has won → reset cycle
          wonSet.clear();
          setCycleNum(prev => prev + 1);
          setCycleFlash(true);
          setTimeout(() => setCycleFlash(false), 800);
-         winnerIndex = Math.floor(Math.random() * participants.length);
-         winUser = { ...participants[winnerIndex] };
+         winUser = { ...pickWeighted(participants) };
       }
       wonSet.add(winUser.id);
       setCycleRemaining(participants.length - wonSet.size);
@@ -219,6 +260,7 @@ export const Raffle: React.FC<RaffleProps> = ({ channelConnected, onHome }) => {
    const fullReset = () => {
       resetGame();
       setParticipants([]);
+      setSkippedCount(0);
       cycleWonRef.current.clear();
       setCycleNum(1);
       setCycleRemaining(0);
@@ -258,6 +300,49 @@ export const Raffle: React.FC<RaffleProps> = ({ channelConnected, onHome }) => {
                               </div>
                            </div>
                         </div>
+                        <div className="space-y-3">
+                           <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">نـوع الـسـحـب</label>
+                           <div className="grid grid-cols-3 gap-2">
+                              {([
+                                 { id: 'ALL', label: 'الـعـاد', icon: Users, on: 'bg-red-600 border-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)] scale-105' },
+                                 { id: 'MODS', label: 'الـمـودات', icon: Shield, on: 'bg-red-600 border-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)] scale-105' },
+                                 { id: 'SUBS', label: 'الـمـشـتـركـون', icon: Crown, on: 'bg-red-600 border-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)] scale-105' }
+                              ] as const).map(opt => (
+                                 <button
+                                    key={opt.id}
+                                    onClick={() => { setEntryMode(opt.id); setParticipants([]); setSkippedCount(0); }}
+                                    className={`py-3 rounded-[1rem] text-[11px] font-black border-2 transition-all flex flex-col items-center gap-1 ${entryMode === opt.id ? opt.on : 'bg-white/5 border-transparent text-gray-500 hover:text-white'}`}
+                                 >
+                                    <opt.icon size={14} />
+                                    {opt.label}
+                                 </button>
+                              ))}
+                           </div>
+                        </div>
+
+                        <div className={`space-y-3 transition-all duration-300 ${entryMode !== 'ALL' ? 'opacity-40 pointer-events-none' : ''}`}>
+                           <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center justify-between">
+                              <span>مـيـزة الـفـوز لـلـمشـترك</span>
+                              <span className="text-[10px] text-red-500 tracking-normal normal-case">اختياري</span>
+                           </label>
+                           <div className="grid grid-cols-4 gap-2">
+                              {BOOST_OPTIONS.map(b => (
+                                 <button
+                                    key={b}
+                                    onClick={() => setSubBoost(prev => (prev === b ? 0 : b))}
+                                    className={`py-3 rounded-[1rem] text-[12px] font-black border-2 transition-all ${subBoost === b ? 'bg-gradient-to-br from-amber-500 to-yellow-600 border-amber-300 text-black shadow-[0_0_20px_rgba(245,158,11,0.6)] scale-105' : 'bg-white/5 border-transparent text-gray-500 hover:text-white'}`}
+                                 >
+                                    {subBoost === b ? <span>+{b}%</span> : <>{b}%</>}
+                                 </button>
+                              ))}
+                           </div>
+                           {subBoost > 0 && (
+                              <p className="text-[10px] font-bold text-amber-400/90 text-center animate-in fade-in duration-300">
+                                 ✦ للمشتركين ترجيح +{subBoost}% في السحب العادي
+                              </p>
+                           )}
+                        </div>
+
                         <div className="space-y-3">
                            <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">الـمـدة الـزمـنية</label>
                            <div className="grid grid-cols-3 gap-2">
@@ -323,9 +408,28 @@ export const Raffle: React.FC<RaffleProps> = ({ channelConnected, onHome }) => {
                      <span className="text-[12px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
                         <Users size={16} className="text-red-600 animate-pulse" /> قـائمـة الأبطـال
                      </span>
-                     <span className="bg-white text-red-600 px-4 py-1.5 rounded-[1rem] text-[14px] font-black italic shadow-2xl border-b-4 border-red-600">
-                        {participants.length}
-                     </span>
+                     <div className="flex items-center gap-2">
+                        {entryMode !== 'ALL' && (
+                           <span className="px-2 py-1 rounded-lg bg-red-600/20 border border-red-600/40 text-[9px] font-black text-red-400">
+                              {entryMode === 'MODS' ? 'المودات فقط' : 'المشتركون فقط'}
+                           </span>
+                        )}
+                        {entryMode === 'ALL' && subBoost > 0 && (
+                           <span className="px-2 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-[9px] font-black text-amber-400">
+                              +{subBoost}% مشتركين
+                           </span>
+                        )}
+                        <span className="bg-white text-red-600 px-4 py-1.5 rounded-[1rem] text-[14px] font-black italic shadow-2xl border-b-4 border-red-600">
+                           {participants.length}
+                        </span>
+                     </div>
+                  </div>
+                  <div className="px-4 py-2 border-b border-white/5 bg-black/40 flex items-center justify-between text-[9px] font-black text-gray-500">
+                     <span className="flex items-center gap-1.5 text-emerald-400/80"><Shield size={10} /> مودات {modCount}</span>
+                     <span className="flex items-center gap-1.5 text-fuchsia-400/80"><Crown size={10} /> مشتركون {subCount}</span>
+                     {skippedCount > 0 && (
+                        <span className="text-gray-600">مستبعدون {skippedCount}</span>
+                     )}
                   </div>
                   <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2">
                      {participants.length === 0 ? (
@@ -342,10 +446,25 @@ export const Raffle: React.FC<RaffleProps> = ({ channelConnected, onHome }) => {
                                  size="w-12 h-12"
                                  className="overflow-visible"
                               />
-                              <div className="flex flex-col">
-                                 <span className="text-xs font-black text-white group-hover:text-red-500 transition-colors">{p.username}</span>
-                                 <span className="text-[8px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Participant Verified</span>
-                              </div>
+<div className="flex flex-col">
+                                  <span className="text-xs font-black text-white group-hover:text-red-500 transition-colors flex items-center gap-2">
+                                     {p.username}
+                                     {entryMode === 'ALL' && subBoost > 0 && isSubscriberUser(p) && (
+                                        <span className="px-1.5 py-0.5 rounded-md bg-gradient-to-br from-amber-400 to-yellow-600 text-black text-[9px] font-black shadow-[0_0_10px_rgba(245,158,11,0.7)]">
+                                           +{subBoost}%
+                                        </span>
+                                     )}
+                                     {entryMode === 'MODS' && isModeratorUser(p) && (
+                                        <Shield size={11} className="text-emerald-400" />
+                                     )}
+                                     {entryMode === 'SUBS' && (
+                                        <Crown size={11} className="text-fuchsia-400" />
+                                     )}
+                                  </span>
+                                  <span className="text-[8px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">
+                                     {entryMode === 'MODS' ? 'Moderator' : entryMode === 'SUBS' ? 'Subscriber' : 'Participant Verified'}
+                                  </span>
+                               </div>
                               <Sparkles size={14} className="text-amber-500 ml-auto opacity-0 group-hover:opacity-100 group-hover:scale-150 transition-all duration-500" />
                            </div>
                         ))
@@ -442,6 +561,18 @@ export const Raffle: React.FC<RaffleProps> = ({ channelConnected, onHome }) => {
                                  <span className="text-[8px] text-gray-500 font-black uppercase mb-1">مـفـتاح الـدخـول</span>
                                  <span className="text-sm font-black text-red-600 italic">{keyword}</span>
                               </div>
+                              <div className="glass-card bg-white/5 border border-white/10 px-4 py-2 rounded-[1rem] flex flex-col items-center shadow-xl">
+                                 <span className="text-[8px] text-gray-500 font-black uppercase mb-1">نـوع الـسـحـب</span>
+                                 <span className="text-sm font-black text-white italic">
+                                    {entryMode === 'ALL' ? 'الـعـاد' : entryMode === 'MODS' ? 'الـمـودات' : 'الـمشتركون'}
+                                 </span>
+                              </div>
+                              {entryMode === 'ALL' && subBoost > 0 && (
+                                 <div className="glass-card bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-[1rem] flex flex-col items-center shadow-xl">
+                                    <span className="text-[8px] text-amber-500/70 font-black uppercase mb-1">مـيـزة الـمشترك</span>
+                                    <span className="text-sm font-black text-amber-400 italic">+{subBoost}%</span>
+                                 </div>
+                              )}
                            </div>
 
                            <div className="flex gap-2">
@@ -517,7 +648,14 @@ export const Raffle: React.FC<RaffleProps> = ({ channelConnected, onHome }) => {
                                        size="w-16 h-16"
                                        className="overflow-visible"
                                     />
-                                    <div className="text-sm font-black text-white truncate max-w-[120px] italic drop-shadow-[0_5px_10px_black] tracking-tighter uppercase">{p.username}</div>
+                                    <div className="flex flex-col items-center gap-2">
+                                     <div className="text-sm font-black text-white truncate max-w-[120px] italic drop-shadow-[0_5px_10px_black] tracking-tighter uppercase text-center leading-tight">{p.username}</div>
+                                     {entryMode === 'ALL' && subBoost > 0 && isSubscriberUser(p) && (
+                                        <span className="px-2 py-0.5 rounded-md bg-gradient-to-br from-amber-400 to-yellow-600 text-black text-[10px] font-black shadow-[0_0_12px_rgba(245,158,11,0.8)]">
+                                           +{subBoost}%
+                                        </span>
+                                     )}
+                                  </div>
                                  </div>
                               </div>
                            ))}
@@ -551,10 +689,29 @@ export const Raffle: React.FC<RaffleProps> = ({ channelConnected, onHome }) => {
                            size="w-24 h-24 md:w-32 md:h-32"
                            className="overflow-visible"
                         />
-                        <div className="text-2xl md:text-3xl font-black text-white italic tracking-tighter uppercase drop-shadow-[0_20px_60px_black] leading-none select-all">{winner.username}</div>
+                        <div className="flex flex-col items-center gap-2">
+                        <div className="text-2xl md:text-3xl font-black text-white italic tracking-tighter uppercase drop-shadow-[0_20px_60px_black] leading-none select-all text-center">{winner.username}</div>
+                        <div className="flex items-center gap-2 flex-wrap justify-center">
+                           {entryMode === 'ALL' && subBoost > 0 && isSubscriberUser(winner) && (
+                              <span className="px-3 py-1 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-600 text-black text-[12px] font-black shadow-[0_0_20px_rgba(245,158,11,0.8)]">
+                                 +{subBoost}% ترجيح
+                              </span>
+                           )}
+                           {isModeratorUser(winner) && (
+                              <span className="px-3 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[11px] font-black flex items-center gap-1">
+                                 <Shield size={12} /> مود
+                              </span>
+                           )}
+{isSubscriberUser(winner) && (
+                              <span className="px-3 py-1 rounded-lg bg-fuchsia-500/20 border border-fuchsia-400/50 text-fuchsia-300 text-[11px] font-black flex items-center gap-1">
+                                 <Crown size={12} /> مشترك
+                              </span>
+                            )}
+                        </div>
+                      </div>
                      </div>
 
-                     <div className="flex gap-4 justify-center mt-4 relative z-20" dir="rtl">
+                      <div className="flex gap-4 justify-center mt-4 relative z-20" dir="rtl">
                                <button onClick={resetGame} className="px-6 py-2 bg-white text-black font-black text-xs rounded-[1.5rem] hover:scale-110 active:scale-95 transition-all italic shadow-xl flex items-center gap-2 border-b-[6px] border-gray-300">
                                   <RotateCcw size={16} className="text-red-600" /> جـولة جـديـدة
                                </button>

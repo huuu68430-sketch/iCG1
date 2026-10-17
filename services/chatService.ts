@@ -41,8 +41,14 @@ class ChatService {
   private KICK_BOT_REFRESH_TOKEN = "MDY0MJQ4MZCTZJE3OS01OTQWLWFMZTATZMU5YJNHMGE4NZC1";
 
   private KNOWN_CHATROOM_IDS: Record<string, number> = {
+    'iabs': 1060205,
     'xeid': 47582,
   };
+
+  // Kick rotates its Pusher app key. These are the last known values and are
+  // refreshed at runtime from Kick's realtime endpoint whenever possible.
+  private static readonly PUSHER_FALLBACK = { key: '34bf7a0ff419a2a775b9', cluster: 'us2' };
+  private pusherCredentials: { key: string; cluster: string } | null = null;
 
   // Auto-reconnect state
   private connectionId = 0;
@@ -63,18 +69,27 @@ class ChatService {
       return this.KNOWN_CHATROOM_IDS[slug];
     }
 
+    // Primary source: Kick web API directly. It allows cross-origin reads,
+    // so this works from the browser without any proxy.
+    const directId = await this.fetchChatroomIdFromKick(slug);
+    if (directId) {
+      try { localStorage.setItem(`kick_chatroom_id_${slug}`, directId.toString()); } catch (e) {}
+      return directId;
+    }
+
     const cachedId = localStorage.getItem(`kick_chatroom_id_${slug}`);
     if (cachedId) {
-      console.log(`[ChatService] Using cached ID for ${slug}: ${cachedId}`);
-      return parseInt(cachedId);
+      const parsed = parseInt(cachedId, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        console.log(`[ChatService] Using cached ID for ${slug}: ${parsed}`);
+        return parsed;
+      }
     }
 
     const proxies = [
       `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://kick.com/api/v2/channels/${slug}`)}`,
       `https://corsproxy.io/?${encodeURIComponent(`https://kick.com/api/v2/channels/${slug}`)}`,
-      `https://proxy.cors.sh/https://kick.com/api/v2/channels/${slug}`,
-      `https://api.codetabs.com/v1/proxy/quest=${encodeURIComponent(`https://kick.com/api/v2/channels/${slug}`)}`,
-      `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(`https://kick.com/api/v2/channels/${slug}`)}`
+      `https://api.codetabs.com/v1/proxy/quest=${encodeURIComponent(`https://kick.com/api/v2/channels/${slug}`)}`
     ];
 
     const results = await Promise.allSettled(
@@ -87,17 +102,15 @@ class ChatService {
         try {
           const rawData = await result.value.json();
           const data = this.parseProxyResponse(proxies[i], rawData);
-          let foundId = null;
-          if (data?.chatroom?.id) foundId = data.chatroom.id;
-          else if (data?.id) foundId = data.id;
+          const foundId = data?.chatroom?.id || data?.id;
 
           if (foundId) {
-            console.log(`[ChatService] ✅ Found ID: ${foundId} via ${proxies[i].substring(0, 50)}`);
+            console.log(`[ChatService] ✅ Found ID: ${foundId} via proxy`);
             localStorage.setItem(`kick_chatroom_id_${slug}`, foundId.toString());
             return foundId;
           }
         } catch (e) {
-          console.warn(`[ChatService] Parse error for ${proxies[i]}`);
+          console.warn(`[ChatService] Parse error for proxy ${i}`);
         }
       }
     }
@@ -105,15 +118,107 @@ class ChatService {
     return null;
   }
 
-  private async fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
+  private async fetchChatroomIdFromKick(slug: string): Promise<number | null> {
+    const targets = [
+      { url: `https://kick.com/api/v2/channels/${slug}/chatroom`, fromChatroomEndpoint: true },
+      { url: `https://kick.com/api/v2/channels/${slug}`, fromChatroomEndpoint: false }
+    ];
+
+    for (const target of targets) {
+      try {
+        const response = await this.fetchWithTimeout(target.url, 6000);
+        if (!response.ok) continue;
+        const data: any = await response.json();
+        const id = data?.chatroom?.id || (target.fromChatroomEndpoint ? data?.id : null);
+        if (id && !isNaN(parseInt(String(id), 10))) {
+          console.log(`[ChatService] ✅ Chatroom ID for ${slug}: ${id}`);
+          return parseInt(String(id), 10);
+        }
+      } catch (e) {
+        console.warn(`[ChatService] Direct Kick lookup failed for ${slug}`);
+      }
+    }
+
+    return null;
+  }
+
+  private async getPusherCredentials(): Promise<{ key: string; cluster: string }> {
+    if (this.pusherCredentials) return this.pusherCredentials;
+
+    const cacheKey = 'kick_pusher_credentials';
+    const maxAge = 6 * 60 * 60 * 1000;
+
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.key && parsed?.cluster && Date.now() - (parsed.ts || 0) < maxAge) {
+          this.pusherCredentials = { key: parsed.key, cluster: parsed.cluster };
+          return this.pusherCredentials;
+        }
+      }
+    } catch (e) {}
+
+    // Ask Kick for the current realtime credentials (works when the request is
+    // same-origin or CORS is reachable, e.g. through a dev proxy).
+    try {
+      const clientId = this.generateUuid();
+      const response = await this.fetchWithTimeout(
+        'https://web.kick.com/api/v1/realtime/connection',
+        6000,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'x-app-platform': 'web' },
+          body: JSON.stringify({
+            client: { id: clientId, type: 'web' },
+            capabilities: { accepted_providers: [{ provider: 'pusher' }] }
+          })
+        }
+      );
+
+      if (response.ok) {
+        const data: any = await response.json();
+        const creds = data?.data?.connections?.find((c: any) => c.provider === 'pusher')?.credentials;
+        if (creds?.app_key && creds?.cluster) {
+          this.pusherCredentials = { key: creds.app_key, cluster: creds.cluster };
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify({ ...this.pusherCredentials, ts: Date.now() }));
+          } catch (e) {}
+          console.log(`[ChatService] Pusher credentials refreshed from Kick (cluster ${creds.cluster})`);
+          return this.pusherCredentials;
+        }
+      }
+    } catch (e) {
+      console.warn('[ChatService] Could not refresh Pusher credentials, using cached fallback');
+    }
+
+    this.pusherCredentials = { ...ChatService.PUSHER_FALLBACK };
+    return this.pusherCredentials;
+  }
+
+  private generateUuid(): string {
+    try {
+      if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') {
+        return (crypto as any).randomUUID();
+      }
+    } catch (e) {}
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
+  private async fetchWithTimeout(url: string, timeoutMs: number, init?: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(url, {
+        ...init,
         signal: controller.signal,
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          ...(init?.headers as any || {})
         }
       });
       return response;
@@ -186,9 +291,13 @@ class ChatService {
 
       this.cleanupPusher();
 
+      const credentials = await this.getPusherCredentials();
+      if (myConnectionId !== this.connectionId) return;
+      console.log(`[ChatService] Using Pusher key ${credentials.key} (cluster ${credentials.cluster})`);
+
       const PusherClient = (Pusher as any).default || Pusher;
-      this.pusher = new PusherClient('32cbd69e4b950bf97679', {
-        cluster: 'us2',
+      this.pusher = new PusherClient(credentials.key, {
+        cluster: credentials.cluster,
         forceTLS: true,
         enabledTransports: ['ws', 'wss'],
         statsTimeout: 0,
@@ -203,6 +312,8 @@ class ChatService {
 
       this.channel.bind('App\\Events\\ChatMessageEvent', (data: any) => {
         this.lastMessageTime = Date.now();
+        const role = getRoleFromIdentity(data.sender?.identity);
+        const badges = mapBadges(data.sender?.identity);
         const message: ChatMessage = {
           id: data.id || Math.random().toString(36).substr(2, 9),
           user: {
@@ -210,10 +321,12 @@ class ChatService {
             username: data.sender?.username || 'Unknown',
             color: data.sender?.identity?.color || '#31d6d6',
             avatar: data.sender?.profile_pic || '',
+            role,
+            badges
           },
           content: data.content || '',
-          role: getRoleFromIdentity(data.sender?.identity),
-          badges: mapBadges(data.sender?.identity),
+          role,
+          badges,
           timestamp: Date.now()
         };
 
@@ -247,6 +360,12 @@ class ChatService {
       this.pusher.connection.bind('error', (err: any) => {
         if (myConnectionId !== this.connectionId) return;
         console.error("[ChatService] Pusher Error:", err);
+        const code = err?.error?.data?.code;
+        if (code === 4001 || code === 4000) {
+          console.warn('[ChatService] Pusher credentials rejected - clearing cache for refresh');
+          this.pusherCredentials = null;
+          try { localStorage.removeItem('kick_pusher_credentials'); } catch (e) {}
+        }
         if (this.connectionTimeoutTimer) { clearTimeout(this.connectionTimeoutTimer); this.connectionTimeoutTimer = null; }
         this.isConnected = false;
         this.isConnecting = false;

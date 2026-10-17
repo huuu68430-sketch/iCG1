@@ -5,6 +5,8 @@ export interface ChatUser {
   color?: string;
   avatar?: string;
   isBot?: boolean;
+  role?: 'owner' | 'moderator' | 'vip' | 'subscriber' | 'founder' | 'gifter' | 'user';
+  badges?: ChatBadge[];
 }
 
 export interface ChatBadge {

@@ -227,3 +227,240 @@ body.obs-mode *::-webkit-scrollbar {
   animation: tilt-3d 10s ease-in-out infinite;
 }
 
+/* ============================================================
+   iABS mark (5-layer) — verbatim from REPLICA_IABS_DESIGN.md
+   هالة + عمق بعيد + عمق قريب + حروف متتابعة + لمعة زاحفة
+   ============================================================ */
+:root {
+  --kick: #FF2D2D;
+  --neon: #53FC18;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* --- الطبقة 0: الهالة --- */
+.wm-mark::before {
+  content: "";
+  position: absolute;
+  inset: -12% -6%;
+  background: radial-gradient(ellipse 55% 45% at 50% 55%, rgba(255, 45, 45, 0.28), transparent 70%);
+  filter: blur(30px);
+  animation: wm-aura 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes wm-aura {
+
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+/* --- الطبقة 3: الحروف (stroke) --- */
+.wm-stroke {
+  color: transparent;
+  -webkit-text-stroke: 2px rgba(255, 70, 70, 0.9);
+  paint-order: stroke fill;
+}
+
+@media (min-width: 768px) {
+  .wm-stroke {
+    -webkit-text-stroke-width: 2.5px;
+  }
+}
+
+/* --- الطبقتان 1 + 2: العمق --- */
+.wm-depth {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+  color: transparent;
+  paint-order: stroke fill;
+  user-select: none;
+}
+
+.wm-depth-1 {
+  transform: translate(3px, 3px);
+  -webkit-text-stroke: 2px rgba(255, 45, 45, 0.22);
+}
+
+.wm-depth-2 {
+  transform: translate(7px, 7px);
+  -webkit-text-stroke: 2px rgba(255, 45, 45, 0.10);
+}
+
+/* دخول متتابع (90ms لكل حرف) + موجة طفو دائمة
+   — كل حركة على عنصر مستقل: طبقة خارجية للدخول (opacity+transform)
+     وطبقة داخلية للطفو (transform). لا تعارض properties أبداً. */
+.wm-letter {
+  display: inline-block;
+  opacity: 0;
+  animation: wm-in 0.6s var(--ease) forwards;
+  animation-delay: calc(var(--i, 0) * 90ms);
+  will-change: opacity, transform;
+}
+
+/* الطبقة الداخلية: موجة الطفو — لا نهائي بلا أي transform متعارض */
+.wm-wave {
+  display: inline-block;
+  transform: translateY(0) rotate(0deg);
+  animation: wm-wave 4s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 450ms);
+  will-change: transform;
+}
+
+.wm-mark .wm-letter:nth-child(1) {
+  --i: 0;
+}
+
+.wm-mark .wm-letter:nth-child(2) {
+  --i: 1;
+}
+
+.wm-mark .wm-letter:nth-child(3) {
+  --i: 2;
+}
+
+.wm-mark .wm-letter:nth-child(4) {
+  --i: 3;
+}
+
+@keyframes wm-in {
+
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes wm-wave {
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-7px) rotate(-1deg);
+  }
+}
+
+/* كلمة ARENA — خط مختلف + دخول خاص بها */
+.wm-arena {
+  display: inline-block;
+  opacity: 0;
+  animation: wm-arena-in 0.9s var(--ease) 0.35s forwards;
+}
+
+@keyframes wm-arena-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-26px) scale(0.92);
+    filter: blur(8px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* الفاصل بين iABS و ARENA */
+.wm-divider {
+  background: linear-gradient(to bottom, transparent, rgba(255, 45, 45, 0.75) 22%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 45, 45, 0.75) 78%, transparent);
+  box-shadow: 0 0 14px rgba(255, 45, 45, 0.55);
+  animation: wm-divider-glow 3.4s ease-in-out infinite;
+}
+
+@keyframes wm-divider-glow {
+
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scaleY(0.92);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.wm-mark:hover .wm-stroke {
+  color: rgba(255, 45, 45, 0.14);
+  -webkit-text-stroke-color: rgba(255, 90, 90, 1);
+}
+
+/* --- الطبقة 4: اللمعة الزاحفة --- */
+.wm-sheen {
+  position: absolute;
+  inset: 0;
+  display: block;
+  color: transparent;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.55) 46%, rgba(255, 120, 120, 0.6) 50%, rgba(255, 255, 255, 0.55) 54%, transparent 70%);
+  background-size: 280% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: wm-sheen 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes wm-sheen {
+
+  0% {
+    background-position: 130% 0;
+  }
+
+  55%,
+  100% {
+    background-position: -130% 0;
+  }
+}
+
+/* الشعار الفرعي — حد فقط بدون تعبئة */
+.text-stroke {
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.22);
+  color: transparent;
+}
+
+.text-stroke-red {
+  -webkit-text-stroke: 1.5px rgba(255, 45, 45, 0.65);
+  color: transparent;
+}
+
+@media (min-width: 768px) {
+
+  .text-stroke,
+  .text-stroke-red {
+    -webkit-text-stroke-width: 2px;
+  }
+}
+
+/* المستخدم ما يبي الحركات */
+@media (prefers-reduced-motion: reduce) {
+
+  .wm-mark::before,
+  .wm-sheen,
+  .wm-letter,
+  .wm-wave,
+  .wm-arena,
+  .wm-divider {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
