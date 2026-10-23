@@ -52,7 +52,7 @@ const KICK_SOCIAL: SocialLink = {
 };
 
 const TRANSLATIONS = {
-    en: {
+en: {
         status: 'LIVE NOW', statusOffline: 'OFFLINE',
         headerTitle: 'iCG1 STREAM HUB',
         eyebrow: 'THE OFFICIAL iCG1 STREAM HUB',
@@ -63,7 +63,7 @@ const TRANSLATIONS = {
         defaultCategory: 'Offline',
         footer: '© 2026 iCG1. All Rights Reserved.',
         watchLive: 'Watch Live', joinDiscord: 'Join Discord',
-        subOnly: 'SUB ONLY', dropsEnabled: 'DROPS ENABLED', noTags: 'No tags',
+        subOnly: 'SUB ONLY', dropsEnabled: 'DROPS ENABLED', noTags: 'No Tags',
         shareTitle: 'iCG1 Stream Hub', shareText: 'Check out iCG1 live on Kick!', copied: 'Link copied!',
         lastSessionReport: 'Last session report', ago: 'Ago', duration: 'Duration',
         categoriesSpent: 'Categories in this stream', highlights: 'Stream highlights',
@@ -73,6 +73,11 @@ const TRANSLATIONS = {
         theaterTitle: 'Live Theater', viewers: 'watching',
         statsFollowers: 'Total Followers', statsKick: 'Total Followers', statsViews: 'Site visits', statsPlatforms: 'Platforms', statsStatus: 'Status',
         follow: 'Follow', open: 'Open', followers: 'followers',
+        // Marquee translations
+        liveNow: '🔴 LIVE NOW', offline: '⚫ OFFLINE', lastGame: 'Last Game', topClip: 'Top Clip', views: 'views',
+        kickFollowers: 'Kick Followers', discordMembers: 'Discord', totalFollowers: 'Total Followers',
+        topSupporter: 'Top Supporter', sar: 'SAR', lastVod: 'Last VOD', activeDrops: 'Active Drops',
+        schedule: 'Schedule', totalViews: 'Total Views', totalHours: 'Total Hours', clipsCount: 'Clips',
     },
     ar: {
         status: 'بث مباشر الآن', statusOffline: 'غير متصل حالياً',
@@ -95,6 +100,11 @@ const TRANSLATIONS = {
         theaterTitle: 'مسرح البث المباشر', viewers: 'مشاهد',
         statsFollowers: 'إجمالي المتابعين', statsKick: 'إجمالي المتابعين', statsViews: 'زيارة للموقع', statsPlatforms: 'منصة', statsStatus: 'الحالة',
         follow: 'تابع', open: 'افتح', followers: 'متابع',
+        // Marquee translations
+        liveNow: '🔴 بث مباشر الآن', offline: '⚫ غير متصل', lastGame: 'آخر لعبة', topClip: 'أفضل لقطة', views: 'مشاهدة',
+        kickFollowers: 'متابعو كيك', discordMembers: 'الديسكورد', totalFollowers: 'إجمالي المتابعين',
+        topSupporter: 'أكبر داعم', sar: 'ريال', lastVod: 'آخر بث', activeDrops: 'جوائز نشطة',
+        schedule: 'جدول البث', totalViews: 'إجمالي المشاهدات', totalHours: 'إجمالي الساعات', clipsCount: 'اللقطات',
     }
 };
 
@@ -298,18 +308,146 @@ const DeferredMount: React.FC<{ children: React.ReactNode; rootMargin?: string; 
     return <div ref={ref} className="h-full" style={show ? undefined : { minHeight }}>{show ? children : null}</div>;
 };
 
-const Marquee: React.FC<{ lang: Language }> = ({ lang }) => {    const items = lang === 'ar'
-        ? ['بث يومي مباشر', 'ملك القبول', 'مجتمع الأساطير', 'تفاعل لا يتوقف', 'جوائز ودروبس', 'ألعاب وتحديات', 'سوالف وفعاليات']
-        : ['DAILY LIVE', 'KING OF ACCEPTANCE', 'LEGENDS COMMUNITY', 'NONSTOP HYPE', 'DROPS & REWARDS', 'GAMES & CHALLENGES', 'CHATTING & EVENTS'];
-    const row = [...items, ...items];
+const Marquee: React.FC<{ 
+    lang: Language; 
+    streamInfo: any; 
+    clips: any[]; 
+    socialStats: Record<string, string>;
+    supporters: any[];
+    pastSessions: any[];
+}> = ({ lang, streamInfo, clips, socialStats, supporters, pastSessions }) => {
+    const t = TRANSLATIONS[lang];
+    const [currentIndex, setCurrentIndex] = useState(0);
+    
+    // Build dynamic content items based on real data
+    const buildItems = useMemo(() => {
+        const items: Array<{ text: string; icon?: React.ReactNode; color?: string; type: string }> = [];
+        
+        // 1. Live status / Current game
+        if (streamInfo.isLive) {
+            items.push({
+                text: `${t.liveNow} | ${streamInfo.category || t.defaultCategory} | ${streamInfo.viewers.toLocaleString()} ${t.viewers}`,
+                icon: <span className="w-1.5 h-1.5 rounded-full bg-[#53FC18] animate-pulse" />,
+                color: '#53FC18',
+                type: 'live'
+            });
+            if (streamInfo.title) {
+                items.push({
+                    text: `🎮 ${streamInfo.title}`,
+                    color: '#C6A474',
+                    type: 'title'
+                });
+            }
+        } else {
+            // Show next scheduled or last game
+            items.push({
+                text: `${t.offline} | ${t.lastGame}: ${pastSessions[0]?.category || 'Rocket League'}`,
+                icon: <span className="w-1.5 h-1.5 rounded-full bg-white/40" />,
+                color: '#888',
+                type: 'offline'
+            });
+        }
+        
+        // 2. Top clip this week
+        if (clips.length > 0) {
+            const topClip = clips.reduce((a, b) => a.views > b.views ? a : b);
+            items.push({
+                text: `🏆 ${t.topClip}: "${topClip.title}" — ${topClip.views} ${t.views} | ${topClip.creator}`,
+                color: '#FFD700',
+                type: 'topclip'
+            });
+        }
+        
+        // 3. Community milestones
+        items.push({
+            text: `👑 ${t.kickFollowers}: ${socialStats.KICK} | ${t.discordMembers}: ${socialStats.Discord} | ${t.totalFollowers}: ${socialStats.KICK}`,
+            color: '#53FC18',
+            type: 'social'
+        });
+        
+        // 4. Top supporter
+        if (supporters.length > 0) {
+            const topSupporter = supporters[0];
+            items.push({
+                text: `💎 ${t.topSupporter}: ${topSupporter.name} — ${topSupporter.amount?.toLocaleString()} ${t.sar}`,
+                color: '#C6A474',
+                type: 'supporter'
+            });
+        }
+        
+        // 5. Recent VOD stats
+        if (pastSessions.length > 0) {
+            const lastVod = pastSessions[0];
+            items.push({
+                text: `📺 ${t.lastVod}: "${lastVod.title}" — ${lastVod.views?.toLocaleString()} ${t.views} | ${lastVod.durationFormatted}`,
+                color: '#FF6B9D',
+                type: 'vod'
+            });
+        }
+        
+        // 6. Active drops/events
+        items.push({
+            text: `🎁 ${t.activeDrops}: Kick Drops مفعّلة | تابع البث للفرصة!`,
+            color: '#53FC18',
+            type: 'drops'
+        });
+        
+        // 7. Schedule / Next stream
+        items.push({
+            text: `📅 ${t.schedule}: يومياً 10 مساءً | Rocket League • Just Chatting • Challenges`,
+            color: '#C6A474',
+            type: 'schedule'
+        });
+        
+        // 8. Community stats
+        const totalViews = pastSessions.reduce((sum, v) => sum + (v.views || 0), 0);
+        items.push({
+            text: `📊 ${t.totalViews}: ${totalViews.toLocaleString()} | ${t.totalHours}: ${Math.round(pastSessions.reduce((sum, v) => sum + (v.minutes || 0), 0) / 60)}h | ${t.clipsCount}: ${clips.length}`,
+            color: '#888',
+            type: 'stats'
+        });
+        
+        return items;
+    }, [lang, streamInfo, clips, socialStats, supporters, pastSessions, t]);
+    
+    const items = buildItems;
+    const row = [...items, ...items]; // Duplicate for seamless loop
+    
+    // Auto-rotate every 4 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentIndex(prev => (prev + 1) % items.length);
+        }, 4000);
+        return () => clearInterval(interval);
+    }, [items.length]);
+    
     return (
         <div className="relative -mx-3 sm:-mx-4 md:-mx-8 overflow-hidden border-y border-white/10 bg-black/75 marquee-mask" dir="ltr" aria-hidden="true">
-            <div className="flex w-max animate-marquee gap-0 py-2.5 md:py-3">
-                {row.map((t, i) => (
-                    <span key={i} className="flex items-center gap-6 px-6 whitespace-nowrap text-[12px] md:text-sm font-black tracking-[0.25em] text-white/60">
-                        <span className={i % 2 ? 'text-white/60' : 'text-[#FF2D2D]'}>{t}</span>
-                        <span className="w-1.5 h-1.5 rotate-45 bg-[#FF2D2D]/70 inline-block" />
+            <div className="flex w-max animate-marquee gap-0 py-2.5 md:py-3" style={{ animationDuration: `${Math.max(items.length * 3, 20)}s` }}>
+                {row.map((item, i) => (
+                    <span 
+                        key={`${item.type}-${i}`} 
+                        className="flex items-center gap-6 px-6 whitespace-nowrap text-[12px] md:text-sm font-black tracking-[0.25em] transition-colors duration-500"
+                        style={{ color: item.color || 'rgba(255,255,255,0.6)' }}
+                    >
+                        {item.icon}
+                        <span>{item.text}</span>
+                        <span className="w-1.5 h-1.5 rotate-45 inline-block" style={{ backgroundColor: item.color || '#53FC18', opacity: 0.7 }} />
                     </span>
+                ))}
+            </div>
+            {/* Current indicator */}
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex gap-1.5 pb-1" aria-hidden="true">
+                {items.map((_, i) => (
+                    <span 
+                        key={i} 
+                        className="w-1.5 h-1.5 rounded-full transition-all duration-300"
+                        style={{ 
+                            backgroundColor: i === currentIndex ? '#53FC18' : 'rgba(255,255,255,0.2)',
+                            transform: i === currentIndex ? 'scale(1.3)' : 'scale(1)',
+                            boxShadow: i === currentIndex ? '0 0 8px #53FC18' : 'none'
+                        }} 
+                    />
                 ))}
             </div>
         </div>
@@ -1096,7 +1234,14 @@ export default function App() {
                             </div>
                         </section>
 
-                        <Marquee lang={lang} />
+                        <Marquee 
+                            lang={lang} 
+                            streamInfo={streamInfo} 
+                            clips={clips} 
+                            socialStats={socialStats} 
+                            supporters={supporters} 
+                            pastSessions={pastSessions} 
+                        />
 
                         {/* ===== SOCIALS BENTO ===== */}
                         <section id="socials" className="pt-12 md:pt-16 scroll-mt-28">
