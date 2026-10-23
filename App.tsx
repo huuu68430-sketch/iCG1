@@ -412,17 +412,22 @@ const Marquee: React.FC<{
     }, [lang, streamInfo, clips, socialStats, supporters, pastSessions, t]);
     
     const items = buildItems;
-    // Create continuous text stream - join all items with " • " separator
-    const continuousText = items.map(item => item.text).join('  •  ');
-    // Duplicate for seamless infinite loop
-    const loopText = `${continuousText}  •  ${continuousText}  •  ${continuousText}`;
+    // Duplicate items twice for seamless infinite loop
+    const loopItems = [...items, ...items, ...items];
     
     return (
-        <div className="-mx-3 sm:-mx-4 md:-mx-8 overflow-hidden border-y border-white/10 bg-black/75 marquee-mask" dir="ltr" aria-hidden="true">
-            <div className="flex w-max animate-marquee py-2.5 md:py-3" style={{ animationDuration: '60s' }}>
-                <span className="whitespace-nowrap text-[12px] md:text-sm font-black tracking-[0.15em] text-white/60 px-6">
-                    {loopText}
-                </span>
+        <div className="relative -mx-3 sm:-mx-4 md:-mx-8 overflow-hidden border-y border-white/10 bg-black/75 marquee-mask" dir="ltr" aria-hidden="true">
+            <div className="flex w-max animate-marquee gap-0 py-2.5 md:py-3" style={{ animationDuration: '50s' }}>
+                {loopItems.map((item, i) => (
+                    <span key={`${item.type}-${i}`} className="flex items-center gap-2 whitespace-nowrap text-[12px] md:text-sm font-black tracking-[0.2em] text-white/70 px-2 py-1">
+                        {/* Left triangle separator */}
+                        <span className="w-1 h-1.5 rotate-45 inline-block" style={{ backgroundColor: item.color || 'rgba(255,255,255,0.3)', marginRight: '2px', opacity: 0.8 }} />
+                        <span className="mr-1">{item.icon}</span>
+                        <span>{item.text}</span>
+                        {/* Right triangle separator */}
+                        <span className="w-1 h-1.5 -rotate-45 ml-1 inline-block" style={{ backgroundColor: item.color || 'rgba(255,255,255,0.3)', opacity: 0.8 }} />
+                    </span>
+                ))}
             </div>
         </div>
     );
