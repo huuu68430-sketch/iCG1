@@ -185,7 +185,7 @@ export const DiscordWidget: React.FC<CommunityWidgetsProps> = ({ lang }) => {
                                     alt="Friends ッ"
                                     className="w-full h-full object-cover"
                                     onError={(e) => {
-                                       (e.target as HTMLImageElement).src = '/brand/icg1-logo.webp';
+                                       (e.target as HTMLImageElement).src = '/brand/512.gif';
                                     }}
                                  />
                               </div>
@@ -406,7 +406,7 @@ export const XWidget: React.FC<CommunityWidgetsProps> = ({ lang, xFollowers, xFo
                         <div className="relative shrink-0">
                            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-[#c49a70] shadow-[0_0_24px_rgba(196,154,112,0.4)] bg-black">
                               <img
-                                 src="/brand/icg1-logo.webp"
+                                 src="/brand/512.gif"
                                  alt={`${BRAND_NAME} profile`}
                                  className="w-full h-full object-cover"
                               />
@@ -474,7 +474,7 @@ export const XWidget: React.FC<CommunityWidgetsProps> = ({ lang, xFollowers, xFo
                               <span className="text-[11px] text-white/40 font-bold">• {lang === 'ar' ? 'الآن' : 'Latest'}</span>
                            </div>
                            <div className="w-8 h-8 rounded-full overflow-hidden border border-[#c49a70]/50 bg-black shrink-0">
-                              <img src="/brand/icg1-logo.webp" alt="iCG1" className="w-full h-full object-cover" />
+                              <img src="/brand/512.gif" alt="iCG1" className="w-full h-full object-cover" />
                            </div>
                         </div>
 

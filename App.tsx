@@ -17,12 +17,12 @@ const ChatWidget = lazy(() => import('./components/Chat').then(m => ({ default: 
 const LastSessionReport = lazy(() => import('./components/SessionReport').then(m => ({ default: m.SessionReport })));
 
 // --- Constants (preserved) ---
-const DEFAULT_PROFILE_IMAGE = "/brand/icg1-logo.webp";
+const DEFAULT_PROFILE_IMAGE = "/brand/512.gif";
 import { kickFetch } from './utils/kickApi';
 import { getAllSocialMediaStats, formatFollowerCount, readSocialCache, SOCIAL_TTL_MS, SocialMediaStats } from './utils/socialMediaApi';
 
-const PC_BACKGROUND = "/brand/4543.webp";
-const MOBILE_BACKGROUND = "/brand/4543-mobile.webp";
+const PC_BACKGROUND = "/brand/4543.png";
+const MOBILE_BACKGROUND = "/brand/4543.png";
 const CHANNEL_SLUG = KICK_CHANNEL_SLUG;
 
 const createSocialLink = (key: string, value: string, followerCount?: string, specialDetail?: string): SocialLink | null => {
@@ -236,7 +236,7 @@ const ArenaBackground: React.FC = () => {
               rgba(11, 9, 7, 0.6) 85%, 
               #0b0907 100%
             ),
-            url('/brand/4543.webp')
+            url('/brand/4543.png')
           `,
           backgroundSize: 'cover',
           backgroundPosition: 'center center',
@@ -581,7 +581,7 @@ const SupportArena: React.FC<{ lang: Language; supporters: Supporter[] }> = ({ l
                 <div className="absolute -top-10 right-0 w-64 h-64 rounded-full animate-aurora pointer-events-none" aria-hidden="true"
                     style={{ background: 'radial-gradient(circle, rgba(198,164,116,0.2) 0%, rgba(198,164,116,0.07) 40%, transparent 68%)' }} />
                 <div className="relative max-w-2xl mx-auto grid grid-cols-1 gap-3 md:gap-5" dir="rtl">
-                    <DonateGate lang={lang} title="CREATORS" url={BRAND_LINKS.support} color="#C6A474" markImg="/creators-mark.png"
+                    <DonateGate lang={lang} title="CREATORS" url={BRAND_LINKS.support} color="#C6A474" markImg="/brand/512.gif"
                         label={lang === 'en' ? 'OFFICIAL SUPPORT' : 'صفحة الدعم الرسمية'}
                         secure={lang === 'en' ? 'SECURE' : 'آمن'}
                         cta={lang === 'en' ? 'Support on Creators.sa' : 'ادعم عبر كريترز'} />
@@ -1037,7 +1037,7 @@ export default function App() {
                                             <span className="font-gaming text-base sm:text-lg md:text-xl text-[#eed6b6] tracking-wider group-hover:text-white transition-colors leading-none select-none" dir="ltr">ICG1</span>
                                             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full p-[1.5px] bg-gradient-to-b from-[#f5d8a8] via-[#c49a70] to-[#7e5535] shadow-[0_0_12px_rgba(214,174,114,0.35)] shrink-0">
                                                 <div className="w-full h-full rounded-full bg-[#120c08] overflow-hidden flex items-center justify-center p-0.5">
-                                                    <img src="/brand/icg1-crest.png" alt="iCG1" className="w-full h-full object-contain" />
+                                                    <img src="/brand/512.gif" alt="iCG1" className="w-full h-full object-contain" />
                                                 </div>
                                             </div>
                                         </a>
