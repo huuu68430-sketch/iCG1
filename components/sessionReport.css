@@ -1415,6 +1415,31 @@
   .sr-bars {
     gap: 8px;
   }
+  .sr-cr {
+    padding: 8px 10px;
+    gap: 10px;
+  }
+  .sr-cimg, .sr-cav {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+  }
+  .sr-cr b {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sr-cr small {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sr-cr em {
+    font-size: 15px;
+    margin-inline-start: 6px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

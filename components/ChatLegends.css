@@ -447,3 +447,157 @@ linear-gradient(62deg,transparent 70%,rgba(255,255,255,.12) 72%,transparent 78%)
   .cl .hero .vis{order:-1}
   .cl .hero .info{order:0}
 }
+
+/* ===== الجوال: تنسيق أساطير الشات والقائمة (الصفوف 4 للأخير لعدم تداخل الكلام رأسياً) ===== */
+@media (max-width: 680px) {
+  .cl .lg {
+    padding: 16px 10px;
+    border-radius: 20px;
+  }
+  .cl .card {
+    padding: 14px 10px;
+    border-radius: 18px;
+  }
+  .cl .list {
+    padding: 2px;
+    gap: 7px;
+    max-height: 480px;
+  }
+  .cl .row {
+    display: grid !important;
+    grid-template-columns: 24px 38px minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 8px 10px !important;
+    padding: 9px 10px !important;
+    border-radius: 14px !important;
+  }
+  .cl .row:hover {
+    transform: none !important;
+  }
+  .cl .rk {
+    font-size: 13px !important;
+    width: 24px !important;
+    letter-spacing: -0.5px !important;
+    text-align: center !important;
+  }
+  .cl .row .av {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    max-width: 38px !important;
+    max-height: 38px !important;
+    border-width: 1.5px !important;
+  }
+  .cl .row .av-fallback-svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  .cl .nm {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+  }
+  .cl .nm b {
+    font-size: 13.5px !important;
+    font-weight: 800 !important;
+    color: #fff !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+    line-height: 1.3 !important;
+  }
+  .cl .nm small {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: var(--m) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+    margin-top: 1px !important;
+    line-height: 1.3 !important;
+  }
+  .cl .st {
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  /* On mobile: keep points badge prominent, hide redundant hours pill since hours are already in small */
+  .cl .st span:not(.h) {
+    display: none !important;
+  }
+  .cl .st .h {
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    padding: 3px 8px !important;
+    border-radius: 99px !important;
+    white-space: nowrap !important;
+  }
+  .cl .bar {
+    grid-column: 1 / -1 !important;
+    height: 2.5px !important;
+    margin-top: 2px !important;
+  }
+
+  /* Pod podium on mobile */
+  .cl .pod {
+    gap: 6px !important;
+    margin: 16px 0 10px !important;
+  }
+  .cl .pi {
+    width: calc(33.33% - 4px) !important;
+    max-width: 110px !important;
+  }
+  .cl .pi .av {
+    width: 52px !important;
+    height: 52px !important;
+    min-width: 52px !important;
+    min-height: 52px !important;
+    max-width: 52px !important;
+    max-height: 52px !important;
+  }
+  .cl .p1 .av {
+    width: 66px !important;
+    height: 66px !important;
+    min-width: 66px !important;
+    min-height: 66px !important;
+    max-width: 66px !important;
+    max-height: 66px !important;
+  }
+  .cl .crown {
+    font-size: 22px !important;
+    margin-bottom: -4px !important;
+  }
+  .cl .pi b {
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+    display: block !important;
+  }
+  .cl .pi .pi-points {
+    font-size: 11.5px !important;
+  }
+  .cl .pi .pi-hours {
+    font-size: 9.5px !important;
+    padding: 1px 6px !important;
+  }
+  .cl .base {
+    font-size: 20px !important;
+  }
+  .cl .p1 .base {
+    height: 64px !important;
+  }
+  .cl .p2 .base {
+    height: 48px !important;
+  }
+  .cl .p3 .base {
+    height: 36px !important;
+  }
+}
