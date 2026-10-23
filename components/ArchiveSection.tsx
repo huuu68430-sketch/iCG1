@@ -240,7 +240,13 @@ export const ArchiveSection: React.FC<ArchiveSectionProps> = ({ lang }) => {
   const [videoError, setVideoError] = useState<string | null>(null);
   const prevVolumeRef = useRef(1);
 
-  const openPlayer = (title: string, source: string, kickUrl: string, thumbnail?: string) => {
+  const openPlayer = (title: string, source: string, kickUrl: string, thumbnail?: string, isClip = false) => {
+    // For clips, redirect directly to Kick since clip HLS streams often have CORS/expiry issues
+    if (isClip) {
+      window.open(kickUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    
     setActiveReportVod(null);
     setCurrentTime(0);
     setDuration(0);
@@ -1043,7 +1049,7 @@ export const ArchiveSection: React.FC<ArchiveSectionProps> = ({ lang }) => {
                         key={c.id}
                         className="arc-card arc-frame"
                         type="button"
-                        onClick={() => openPlayer(c.title, c.source, c.clipUrl, c.thumbnail)}
+onClick={() => openPlayer(c.title, c.source, c.clipUrl, c.thumbnail, true)}
                       >
                         <div className="arc-th">
                           <img src={c.thumbnail} alt={c.title} loading="lazy" />
