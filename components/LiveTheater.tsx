@@ -111,21 +111,30 @@ export const LiveTheater: React.FC<LiveTheaterProps> = ({
 
   return (
     <div className="lt-wrap">
-      {/* --- Section Header --- */}
-      <header className="lt-hd">
-        <div className="lt-num">02</div>
-        <div className="lt-tt">
-          <span className="lt-eyebrow">LIVE THEATER</span>
-          <h2 className="lt-h2">{lang === 'en' ? 'Live Theater' : 'مسرح البث المباشر'}</h2>
-          <p className="lt-sub">
+      {/* --- Section Header (Matching Site Style) --- */}
+      <div className="flex items-end gap-3 md:gap-4 mb-6 md:mb-9">
+        <span className="font-gaming text-3xl sm:text-4xl md:text-6xl leading-none text-stroke-red select-none shrink-0" dir="ltr">
+          02
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h2 className="text-xl sm:text-2xl md:text-4xl font-black tracking-tight text-white">
+              {lang === 'en' ? 'Live Theater' : 'مسرح البث المباشر'}
+            </h2>
+            <span className="hidden sm:inline text-[10px] font-bold tracking-[0.3em] text-white/30 uppercase" dir="ltr">
+              LIVE THEATER
+            </span>
+          </div>
+          <p className="text-[13px] md:text-sm text-white/50 mt-1 font-medium">
             {isLive && viewers > 0
               ? `${viewers.toLocaleString('en-US')} ${lang === 'en' ? 'viewers' : 'مشاهد'}`
               : lang === 'en'
               ? `${displayName} channel on Kick`
               : `قناة ${displayName} على Kick`}
           </p>
+          <div className="mt-2.5 md:mt-3 h-px w-full bg-gradient-to-l from-[#FF2D2D]/60 via-white/10 to-transparent" />
         </div>
-      </header>
+      </div>
 
       {/* --- Main Stage --- */}
       <section className="lt-stage" aria-label={lang === 'en' ? 'Live Theater' : 'مسرح البث المباشر'}>
@@ -296,15 +305,6 @@ export const LiveTheater: React.FC<LiveTheaterProps> = ({
                   </div>
                 </div>
               )}
-            </div>
-
-            <div className="lt-cf">
-              <a className="lt-btn lt-gold" href={popoutChatUrl} target="_blank" rel="noopener noreferrer">
-                <svg className="lt-i" viewBox="0 0 24 24">
-                  <path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none" />
-                </svg>
-                {lang === 'en' ? 'Chat on Kick' : 'شارك في الشات على Kick'}
-              </a>
             </div>
           </aside>
         </div>
