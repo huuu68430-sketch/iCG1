@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مسرح البث المباشر | iCG1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&family=Oswald:ital,wght@1,700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0908;--ln:rgba(214,179,132,.22);--gd:#d6b384;--gd2:#9c7a4c;--tx:#f4ede2;--mt:#9b9082;--kick:#53fc18;--red:#ff5a4f;--amb:#f5b942}
+*{box-sizing:border-box;margin:0}
+body{font-family:'Readex Pro','Tajawal',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;
+background:radial-gradient(900px 500px at 85% -10%,rgba(214,179,132,.13),transparent 60%),radial-gradient(700px 500px at 0% 100%,rgba(156,122,76,.12),transparent 60%),var(--bg)}
+.wrap{max-width:1240px;margin:0 auto;padding:clamp(20px,4vw,48px) clamp(12px,3vw,32px)}
+.i{width:1.1em;height:1.1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.hd{display:flex;align-items:center;gap:18px;margin-bottom:26px}
+.num{font:italic 700 clamp(54px,9vw,88px)/1 'Oswald',sans-serif;color:transparent;-webkit-text-stroke:1.5px var(--gd2);letter-spacing:-2px}
+.hd .tt{flex:1;padding-bottom:10px;border-bottom:1px solid var(--ln)}
+.eyebrow{display:block;font:600 11px 'Oswald',sans-serif;letter-spacing:.35em;color:var(--mt);text-transform:uppercase;margin-bottom:4px;direction:ltr;text-align:right}
+h2{font-size:clamp(26px,4.4vw,40px);font-weight:700;line-height:1.2}
+#sub{color:var(--mt);font-size:14px;margin-top:4px}
+.stage{position:relative;border:1px solid var(--ln);border-radius:28px;padding:14px;background:linear-gradient(160deg,#16120d,#0b0907);box-shadow:0 30px 80px -30px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.04)}
+.stage::before{content:"";position:absolute;inset:-1px;border-radius:28px;padding:1px;background:linear-gradient(135deg,rgba(226,198,153,.7),transparent 30%,transparent 70%,rgba(176,139,91,.5));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:4px 6px 14px}
+.grp{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--ln);background:rgba(255,255,255,.03);font-size:13px;font-weight:600;color:var(--tx)}
+.pill[hidden]{display:none}
+.pill .i{color:var(--kick)}
+#tm{font-variant-numeric:tabular-nums;direction:ltr}
+.badge{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 16px;border-radius:999px;font:700 12px 'Oswald','Readex Pro',sans-serif;letter-spacing:.12em;background:linear-gradient(135deg,#e2c699,#b08b5b);color:#1a130a}
+.badge b{width:8px;height:8px;border-radius:50%;background:#1a130a}
+.badge.on b{background:var(--red);box-shadow:0 0 0 0 rgba(255,90,79,.7);animation:pl 1.6s infinite}
+.badge.off{background:#26211b;color:var(--mt)}.badge.off b{background:var(--mt)}
+.cat{color:var(--mt);font-size:13px;font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;height:44px;padding:0 22px;border:0;border-radius:14px;font:700 14px 'Readex Pro',sans-serif;cursor:pointer;text-decoration:none;transition:transform .2s,filter .2s,background .2s}
+.gold{background:linear-gradient(135deg,#e6cca2,#b08b5b);color:#1a130a;box-shadow:0 10px 24px -12px rgba(214,179,132,.7)}
+.gold:hover{transform:translateY(-2px);filter:brightness(1.07)}
+.ghost{background:rgba(255,255,255,.04);border:1px solid var(--ln);color:var(--tx);height:34px;padding:0 14px;font-size:13px;border-radius:12px}
+.ghost:hover{background:rgba(255,255,255,.09)}
+.sq{width:44px;padding:0;background:rgba(255,255,255,.04);border:1px solid var(--ln);color:var(--tx)}
+.sq:hover{background:rgba(255,255,255,.1)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;align-items:stretch}
+.vid{position:relative;aspect-ratio:16/9;border-radius:20px;overflow:hidden;border:1px solid var(--ln);background:linear-gradient(110deg,#0e0c09 30%,#1a160f 50%,#0e0c09 70%) 0 0/200% 100%;animation:sh 2s linear infinite}
+.vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
+.meta{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:16px}
+.meta h3{font-size:clamp(20px,3vw,26px);font-weight:700}
+.meta p{color:var(--mt);font-size:13px;margin-top:4px}
+.meta p b{color:var(--gd);font-weight:600}
+.acts{display:flex;gap:10px}
+.tags{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--ln);font-size:12px}
+.chip{padding:5px 12px;border-radius:999px;border:1px solid var(--ln);color:var(--gd);background:rgba(214,179,132,.07)}
+.chip.gv{color:var(--kick);border-color:rgba(83,252,24,.4);background:rgba(83,252,24,.08);font-weight:700}
+.chip.gv.no{color:var(--mt);border-color:var(--ln);background:none}
+.none{color:var(--mt);font-style:italic}
+.chat{display:flex;flex-direction:column;min-height:0;border:1px solid var(--ln);border-radius:20px;overflow:hidden;background:#0d0b09}
+.ch{display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid var(--ln);background:linear-gradient(180deg,rgba(214,179,132,.09),transparent)}
+.ci{position:relative;width:42px;height:42px;display:grid;place-items:center;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--ln);color:var(--gd)}
+.dot{position:absolute;top:-3px;inset-inline-start:-3px;width:11px;height:11px;border-radius:50%;border:2px solid #0d0b09;background:var(--amb)}
+.dot.ok{background:var(--kick)}.dot.err{background:var(--red)}
+.ch strong{display:block;font-size:15px}
+.ch small{color:var(--mt);font-size:12px}
+.ch .ghost{margin-inline-start:auto}
+.cb{position:relative;flex:1;min-height:420px}
+.cb iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#0d0b09}
+.ov{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:12px;text-align:center;padding:24px;background:rgba(13,11,9,.94);color:var(--mt);font-size:14px}
+.ov[hidden]{display:none}
+.cf{padding:12px}
+.cf .btn{width:100%}
+@keyframes pl{70%{box-shadow:0 0 0 9px rgba(255,90,79,0)}100%{box-shadow:0 0 0 0 rgba(255,90,79,0)}}
+@keyframes sh{to{background-position:-200% 0}}
+.toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:#1d1812;border:1px solid var(--ln);padding:10px 18px;border-radius:12px;font-size:13px;opacity:0;pointer-events:none;transition:.3s}
+.toast.s{opacity:1;transform:translate(-50%,0)}
+@media(max-width:960px){.grid{grid-template-columns:1fr}.cb{min-height:0;height:520px}.num{display:none}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+<symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.7 7L4 20l1.1-4.6A8 8 0 1 1 21 12z"/></symbol>
+<symbol id="i-re" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+</svg>
+
+<main class="wrap">
+  <header class="hd">
+    <div class="num">02</div>
+    <div class="tt">
+      <span class="eyebrow">Live Theater</span>
+      <h2>مسرح البث المباشر</h2>
+      <p id="sub"></p>
+    </div>
+  </header>
+
+  <section class="stage" aria-label="مسرح البث المباشر">
+    <div class="bar">
+      <div class="grp">
+        <span class="badge" id="badge"><b></b><span id="bt">KICK</span></span>
+        <span class="pill" id="vw" hidden><svg class="i"><use href="#i-eye"/></svg><span id="vn">0</span></span>
+        <span class="pill" id="tmw" hidden><svg class="i"><use href="#i-clock"/></svg><span id="tm">00:00:00</span></span>
+        <span class="cat" id="cat"></span>
+      </div>
+      <a class="btn ghost" id="kl" target="_blank" rel="noopener">Kick <svg class="i"><use href="#i-ext"/></svg></a>
+    </div>
+
+    <div class="grid">
+      <div>
+        <div class="vid"><iframe id="pl" title="بث Kick المباشر" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+        <div class="meta">
+          <div>
+            <h3 id="ti"></h3>
+            <p><b id="c2"></b> · <span id="ch2"></span></p>
+          </div>
+          <div class="acts">
+            <button class="btn sq" id="sh" type="button" aria-label="مشاركة"><svg class="i"><use href="#i-share"/></svg></button>
+            <a class="btn gold" id="wl" target="_blank" rel="noopener"><svg class="i"><use href="#i-play"/></svg> شاهد البث</a>
+          </div>
+        </div>
+        <div class="tags"><span class="chip gv" id="gv"></span><span id="tg" style="display:contents"></span></div>
+      </div>
+
+      <aside class="chat" aria-label="شات البث">
+        <div class="ch">
+          <div class="ci"><svg class="i"><use href="#i-chat"/></svg><span class="dot" id="dot"></span></div>
+          <div><strong>شات البث المباشر</strong><small id="cs">جارٍ الاتصال…</small></div>
+          <button class="btn ghost" id="rt" type="button"><svg class="i"><use href="#i-re"/></svg> إعادة المحاولة</button>
+        </div>
+        <div class="cb" id="cb">
+          <div class="ov" id="ov" hidden>
+            <svg class="i" style="width:34px;height:34px;color:var(--gd)"><use href="#i-chat"/></svg>
+            <span>تعذّر تحميل الشات هنا.<br>جرّب مرة ثانية أو افتحه مباشرة على Kick.</span>
+            <div class="grp" style="justify-content:center">
+              <button class="btn ghost" id="rt2" type="button">إعادة المحاولة</button>
+              <a class="btn ghost" id="po" target="_blank" rel="noopener">افتح الشات</a>
+            </div>
+          </div>
+        </div>
+        <div class="cf"><a class="btn gold" id="jc" target="_blank" rel="noopener"><svg class="i"><use href="#i-play"/></svg> شارك في الشات على Kick</a></div>
+      </aside>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== الإعدادات: عدّل هنا فقط ===== */
+var CONFIG={
+  channel:"icg1",              // اسم القناة في Kick
+  title:"بثنا اليوم ايش ؟",     // عنوان البث (يُستبدل بعنوان البث الحقيقي لو فعّلت statusUrl)
+  category:"Rocket League",
+  displayName:"iCG1",
+  giveaways:true,              // شارة «الجوائز مفعلة»
+  tags:[],                     // مثال: ["عربي","تحديات"]
+  /* اختياري: رابط من سيرفرك (مثلاً سيرفر البوت) يرجّع JSON بهالشكل:
+     {"live":true,"viewers":128,"title":"...","category":"...","startedAt":"2026-10-23T18:00:00Z","tags":["..."]}
+     ويحدّث حالة LIVE وعدد المشاهدين والمؤقت تلقائياً. اتركه فاضي لإخفائها. */
+  statusUrl:"",
+  pollMs:30000
+};
+
+(function(){
+var C=CONFIG,$=function(i){return document.getElementById(i)};
+var kick="https://kick.com/"+C.channel,popout=kick.replace("kick.com/","kick.com/popout/")+"/chat";
+var started=0,tm=0,state="wait";
+
+function toast(t){var e=$("toast");e.textContent=t;e.classList.add("s");clearTimeout(toast.t);toast.t=setTimeout(function(){e.classList.remove("s")},2200)}
+
+/* ---- ثوابت الواجهة ---- */
+$("kl").href=kick;$("wl").href=kick;$("jc").href=popout;$("po").href=popout;
+$("pl").src="https://player.kick.com/"+encodeURIComponent(C.channel)+"?autoplay=true&muted=true";
+$("ch2").textContent=C.displayName;
+$("sub").textContent="قناة "+C.displayName+" على Kick";
+function setInfo(title,cat){$("ti").textContent=title||C.title;$("cat").textContent=cat||C.category;$("c2").textContent=cat||C.category}
+function setTags(list){var box=$("tg");box.textContent="";
+  if(!list||!list.length){var n=document.createElement("span");n.className="none";n.textContent="لا يوجد وسوم";box.appendChild(n);return}
+  list.forEach(function(t){var s=document.createElement("span");s.className="chip";s.textContent=t;box.appendChild(s)})}
+setInfo();setTags(C.tags);
+$("gv").textContent=C.giveaways?"الجوائز مفعلة":"الجوائز متوقفة";$("gv").classList.toggle("no",!C.giveaways);
+
+/* ---- مشاركة ---- */
+$("sh").onclick=function(){
+  var u=location.href.split("#")[0];
+  if(navigator.share){navigator.share({title:document.title,url:u}).catch(function(){})}
+  else if(navigator.clipboard){navigator.clipboard.writeText(u).then(function(){toast("تم نسخ الرابط")},function(){toast("تعذّر النسخ")})}
+  else toast("تعذّر النسخ");
+};
+
+/* ---- الشات (Kick الرسمي داخل iframe) ---- */
+function setSt(s,t){state=s;$("dot").className="dot"+(s==="ok"?" ok":s==="err"?" err":"");$("cs").textContent=t}
+function mountChat(){
+  var old=$("chat");if(old)old.remove();
+  $("ov").hidden=true;setSt("wait","جارٍ الاتصال…");
+  var f=document.createElement("iframe");f.id="chat";f.title="شات Kick";f.src=popout;
+  f.addEventListener("load",function(){clearTimeout(tm);setSt("ok","متصل")});
+  $("cb").prepend(f);
+  clearTimeout(tm);
+  tm=setTimeout(function(){if(state!=="ok"){setSt("err","مشكلة اتصال");$("ov").hidden=false}},12000);
+}
+$("rt").onclick=mountChat;$("rt2").onclick=mountChat;mountChat();
+
+/* ---- حالة البث (اختياري) ---- */
+function fmt(s){return[Math.floor(s/3600),Math.floor(s%3600/60),s%60].map(function(n){return String(n).padStart(2,"0")}).join(":")}
+setInterval(function(){if(started)$("tm").textContent=fmt(Math.max(0,Math.floor((Date.now()-started)/1000)))},1000);
+function apply(d){
+  var live=!!d.live,b=$("badge");
+  b.className="badge "+(live?"on":"off");$("bt").textContent=live?"LIVE":"OFFLINE";
+  var hasV=live&&typeof d.viewers==="number";
+  $("vw").hidden=!hasV;if(hasV){$("vn").textContent=d.viewers.toLocaleString("ar-EG");$("sub").textContent=d.viewers.toLocaleString("ar-EG")+" مشاهد"}
+  started=live&&d.startedAt?Date.parse(d.startedAt)||0:0;$("tmw").hidden=!started;
+  setInfo(d.title,d.category);if(d.tags)setTags(d.tags);
+}
+function poll(){
+  fetch(C.statusUrl,{cache:"no-store"}).then(function(r){return r.json()}).then(apply).catch(function(){});
+}
+if(C.statusUrl){poll();setInterval(poll,C.pollMs)}
+})();
+</script>
+</body>
+</html>

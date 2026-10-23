@@ -66,7 +66,7 @@ export const LiveTheater: React.FC<LiveTheaterProps> = ({
     setChatState('wait');
     const timer = setTimeout(() => {
       setChatState((prev) => (prev === 'wait' ? 'err' : prev));
-    }, 12000);
+    }, 18000);
 
     return () => clearTimeout(timer);
   }, [chatKey]);
@@ -273,6 +273,8 @@ export const LiveTheater: React.FC<LiveTheaterProps> = ({
                 title={lang === 'en' ? 'Kick Chat' : 'شات Kick'}
                 src={popoutChatUrl}
                 onLoad={handleChatLoad}
+                onError={() => setChatState('err')}
+                loading="eager"
               />
 
               {chatState === 'err' && (
