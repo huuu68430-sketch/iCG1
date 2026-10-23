@@ -613,7 +613,7 @@ export default function App() {
     });
 
     const totalFollowersCount = useMemo(() => {
-        return Object.values(rawSocialCounts).reduce((sum, n) => sum + (n || 0), 0);
+        return Object.values(rawSocialCounts).reduce((sum: number, n: number) => sum + (n || 0), 0);
     }, [rawSocialCounts]);
 
     const formattedTotalFollowers = useMemo(() => {

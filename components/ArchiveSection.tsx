@@ -237,6 +237,7 @@ export const ArchiveSection: React.FC<ArchiveSectionProps> = ({ lang }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isScrubbing, setIsScrubbing] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
   const prevVolumeRef = useRef(1);
 
   const openPlayer = (title: string, source: string, kickUrl: string, thumbnail?: string) => {
@@ -244,6 +245,7 @@ export const ArchiveSection: React.FC<ArchiveSectionProps> = ({ lang }) => {
     setCurrentTime(0);
     setDuration(0);
     setBuffered(0);
+    setVideoError(null);
     setIsPlaying(true);
     setShowControls(true);
     setVideoPlayer({
@@ -597,8 +599,16 @@ export const ArchiveSection: React.FC<ArchiveSectionProps> = ({ lang }) => {
           hls.on(Hls.Events.ERROR, (_, data) => {
             if (data.fatal) {
               setVideoLoading(false);
-              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls?.startLoad();
-              else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls?.recoverMediaError();
+              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                hls?.startLoad();
+                showToast('خطأ في الشبكة - جاري إعادة المحاولة...');
+              } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                hls?.recoverMediaError();
+                showToast('فشل تحميل البث - الرابط قد يكون منتهي الصلاحية. جرب المشاهدة على Kick مباشرة');
+              } else {
+                showToast('خطأ في تشغيل الفيديو - جرب المشاهدة على Kick مباشرة');
+                hls?.destroy();
+              }
             }
           });
         } else {
@@ -788,25 +798,6 @@ export const ArchiveSection: React.FC<ArchiveSectionProps> = ({ lang }) => {
             </button>
           ))}
         </div>
-
-        {/* Bottom Button */}
-        {vods.length > 3 && (
-          <button
-            type="button"
-            className="arc-bottom-btn"
-            onClick={() => {
-              setSearchQuery('');
-              setSelectedCategory('الكل');
-              setSortOption('new');
-              setFullView('vods');
-            }}
-          >
-            مشاهدة جميع الفيديوهات ({vods.length})
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-        )}
       </div>
 
       {/* ==================== 2) SECTION: LATEST CLIPS (آخر اللقطات) ==================== */}
@@ -867,24 +858,6 @@ export const ArchiveSection: React.FC<ArchiveSectionProps> = ({ lang }) => {
             </button>
           ))}
         </div>
-
-        {/* Bottom Button */}
-        {clips.length > 4 && (
-          <button
-            type="button"
-            className="arc-bottom-btn arc-bottom-red"
-            onClick={() => {
-              setSearchQuery('');
-              setSortOption('views');
-              setFullView('clips');
-            }}
-          >
-            مشاهدة جميع اللقطات ({clips.length})
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-        )}
       </div>
 
       {/* ==================== 3) DEDICATED FULL ARCHIVE VIEW (PORTAL) ==================== */}
@@ -1333,8 +1306,49 @@ export const ArchiveSection: React.FC<ArchiveSectionProps> = ({ lang }) => {
                 </div>
               )}
 
+              {/* Video Error State */}
+              {videoError && (
+                <div className="sr-player-error">
+                  <div className="sr-player-error-content">
+                    <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <h4>تعذر تشغيل الفيديو</h4>
+                    <p>{videoError}</p>
+                    {videoPlayer && (
+                      <a
+                        className="sr-player-kick-fallback"
+                        href={videoPlayer.kickUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                          <path d="M4 3h4v6.5l3.5-6.5h4.5l-5 8.5 5.5 9.5H12l-4-7v7H4V3z" />
+                        </svg>
+                        المشاهدة على Kick
+                      </a>
+                    )}
+                    <button
+                      className="sr-player-retry"
+                      type="button"
+                      onClick={() => {
+                        setVideoError(null);
+                        if (videoRef.current) {
+                          videoRef.current.load();
+                          videoRef.current.play().catch(() => {});
+                        }
+                      }}
+                    >
+                      إعادة المحاولة
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Big Center Play Icon when paused */}
-              {!isPlaying && !videoLoading && (
+              {!isPlaying && !videoLoading && !videoError && (
                 <button
                   className="sr-player-center-play"
                   onClick={togglePlay}
@@ -1366,6 +1380,25 @@ export const ArchiveSection: React.FC<ArchiveSectionProps> = ({ lang }) => {
                 }}
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => setIsPlaying(false)}
+                onError={(e) => {
+                  console.error('Video error:', e);
+                  setVideoLoading(false);
+                  if (videoRef.current) {
+                    const error = videoRef.current.error;
+                    if (error) {
+                      let msg = 'فشل تشغيل الفيديو';
+                      if (error.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+                        msg = 'تنسيق الفيديو غير مدعوم في هذا المتصفح';
+                      } else if (error.code === MediaError.MEDIA_ERR_NETWORK) {
+                        msg = 'خطأ في الشبكة - قد يكون الرابط منتهي الصلاحية';
+                      } else if (error.code === MediaError.MEDIA_ERR_DECODE) {
+                        msg = 'خطأ في فك تشفير الفيديو';
+                      }
+                      setVideoError(msg);
+                      showToast(msg + ' - جرب المشاهدة على Kick مباشرة');
+                    }
+                  }
+                }}
               />
 
               {/* Custom Controls Bar */}
