@@ -401,8 +401,9 @@ const Marquee: React.FC<{
         
         // 8. Community stats
         const totalViews = pastSessions.reduce((sum, v) => sum + (v.views || 0), 0);
+        const totalMinutes = pastSessions.reduce((sum, v) => sum + (v.minutes || 0), 0);
         items.push({
-            text: `📊 ${t.totalViews}: ${totalViews.toLocaleString()} | ${t.totalHours}: ${Math.round(pastSessions.reduce((sum, v) => sum + (v.minutes || 0), 0) / 60)}h | ${t.clipsCount}: ${clips.length}`,
+            text: `📊 ${t.totalViews}: ${totalViews.toLocaleString()} | ${t.totalHours}: ${Math.round(totalMinutes / 60)}h | ${t.clipsCount}: ${clips.length}`,
             color: '#888',
             type: 'stats'
         });
@@ -411,44 +412,17 @@ const Marquee: React.FC<{
     }, [lang, streamInfo, clips, socialStats, supporters, pastSessions, t]);
     
     const items = buildItems;
-    const row = [...items, ...items]; // Duplicate for seamless loop
-    
-    // Auto-rotate every 4 seconds
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentIndex(prev => (prev + 1) % items.length);
-        }, 4000);
-        return () => clearInterval(interval);
-    }, [items.length]);
+    // Create continuous text stream - join all items with " • " separator
+    const continuousText = items.map(item => item.text).join('  •  ');
+    // Duplicate for seamless infinite loop
+    const loopText = `${continuousText}  •  ${continuousText}  •  ${continuousText}`;
     
     return (
-        <div className="relative -mx-3 sm:-mx-4 md:-mx-8 overflow-hidden border-y border-white/10 bg-black/75 marquee-mask" dir="ltr" aria-hidden="true">
-            <div className="flex w-max animate-marquee gap-0 py-2.5 md:py-3" style={{ animationDuration: `${Math.max(items.length * 3, 20)}s` }}>
-                {row.map((item, i) => (
-                    <span 
-                        key={`${item.type}-${i}`} 
-                        className="flex items-center gap-6 px-6 whitespace-nowrap text-[12px] md:text-sm font-black tracking-[0.25em] transition-colors duration-500"
-                        style={{ color: item.color || 'rgba(255,255,255,0.6)' }}
-                    >
-                        {item.icon}
-                        <span>{item.text}</span>
-                        <span className="w-1.5 h-1.5 rotate-45 inline-block" style={{ backgroundColor: item.color || '#53FC18', opacity: 0.7 }} />
-                    </span>
-                ))}
-            </div>
-            {/* Current indicator */}
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex gap-1.5 pb-1" aria-hidden="true">
-                {items.map((_, i) => (
-                    <span 
-                        key={i} 
-                        className="w-1.5 h-1.5 rounded-full transition-all duration-300"
-                        style={{ 
-                            backgroundColor: i === currentIndex ? '#53FC18' : 'rgba(255,255,255,0.2)',
-                            transform: i === currentIndex ? 'scale(1.3)' : 'scale(1)',
-                            boxShadow: i === currentIndex ? '0 0 8px #53FC18' : 'none'
-                        }} 
-                    />
-                ))}
+        <div className="-mx-3 sm:-mx-4 md:-mx-8 overflow-hidden border-y border-white/10 bg-black/75 marquee-mask" dir="ltr" aria-hidden="true">
+            <div className="flex w-max animate-marquee py-2.5 md:py-3" style={{ animationDuration: '60s' }}>
+                <span className="whitespace-nowrap text-[12px] md:text-sm font-black tracking-[0.15em] text-white/60 px-6">
+                    {loopText}
+                </span>
             </div>
         </div>
     );
