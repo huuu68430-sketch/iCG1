@@ -1,0 +1,33 @@
+{
+  "name": "icg1-stream-hub",
+  "description": "Official Stream Hub for iCG1 - live streaming, social links, and community updates.",
+  "author": "iCG1",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:pages": "vite build --base=/iABS_AR/",
+    "preview": "vite preview",
+    "predeploy": "npm run build:pages",
+    "deploy": "gh-pages -d dist"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.105.0",
+    "hls.js": "latest",
+    "pusher-js": "7.6.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.6.1",
+    "gh-pages": "^6.3.0",
+    "postcss": "^8.5.29",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

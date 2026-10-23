@@ -1,0 +1,31 @@
+{
+  "name": "iCG1 Official Hub | منصة البث المباشر ومجتمع الألعاب",
+  "short_name": "iCG1",
+  "description": "المركز الرسمي للستريمر وصانع المحتوى iCG1 - بثوث مباشرة، كود، روكت ليق، جست شاتينغ ومجتمع الأساطير",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0907",
+  "theme_color": "#0b0907",
+  "orientation": "portrait",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/favicon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/96.gif",
+      "sizes": "96x96",
+      "type": "image/gif"
+    }
+  ]
+}
