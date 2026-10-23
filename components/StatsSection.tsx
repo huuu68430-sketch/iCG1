@@ -11,7 +11,7 @@ interface StatsSectionProps {
   lang: Language;
 }
 
-const FALLBACK_IMAGE = "/brand/512.gif";
+const FALLBACK_IMAGE = "/brand/icg1-logo.png";
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat('en-US', { notation: "compact", maximumFractionDigits: 1 }).format(num || 0);
