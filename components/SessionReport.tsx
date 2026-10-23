@@ -572,35 +572,40 @@ export const SessionReport: React.FC<SessionReportProps> = ({
   // Process Categories for This Month (from all recent sessions)
   // ==========================================
   const categoriesData = useMemo(() => {
-    const knownCatalog: Record<string, { banner: string; color: string; defaultMin: number; tags: string }> = {
+    const knownCatalog: Record<string, { banner: string; color: string; defaultMin: number; defaultCount: number; tags: string }> = {
       'Rocket League': {
         banner: 'https://files.kick.com/images/subcategories/77/banner/cocyri.jpg',
         color: 'linear-gradient(90deg, #38bdf8, #0284c7)',
         defaultMin: 742,
+        defaultCount: 3,
         tags: 'Sports',
       },
       'Just Chatting': {
         banner: 'https://files.kick.com/images/subcategories/15/banner/b697a8a3-62db-4779-aa76-e4e47662af97',
         color: 'linear-gradient(90deg, #d6aa6a, #f6e3b8)',
         defaultMin: 577,
+        defaultCount: 2,
         tags: 'IRL',
       },
       'Call of Duty: Modern Warfare 4': {
         banner: 'https://files.kick.com/images/subcategories/14138/banner/b049272d-6811-4c3d-b19c-8f6cc170c5ac',
         color: 'linear-gradient(90deg, #ff4d5e, #ea580c)',
         defaultMin: 249,
+        defaultCount: 1,
         tags: 'Shooter',
       },
       'Roblox': {
         banner: 'https://files.kick.com/images/subcategories/97/banner/cociyw.jpg',
         color: 'linear-gradient(90deg, #10b981, #53fc18)',
         defaultMin: 60,
+        defaultCount: 1,
         tags: 'Simulation',
       },
       'Grand Theft Auto V (GTA)': {
         banner: 'https://files.kick.com/images/subcategories/8/banner/8110f223-9654-4536-bfee-6a324bbf03f9',
         color: 'linear-gradient(90deg, #a855f7, #c084fc)',
         defaultMin: 60,
+        defaultCount: 1,
         tags: 'Open World',
       },
     };
@@ -624,15 +629,17 @@ export const SessionReport: React.FC<SessionReportProps> = ({
     });
 
     Object.keys(knownCatalog).forEach((catName) => {
+      const def = knownCatalog[catName];
       if (!catMap[catName]) {
         catMap[catName] = {
-          minutes: knownCatalog[catName].defaultMin,
-          count: 1,
-          banner: knownCatalog[catName].banner,
+          minutes: def.defaultMin,
+          count: def.defaultCount,
+          banner: def.banner,
         };
       } else {
-        if (!catMap[catName].banner) catMap[catName].banner = knownCatalog[catName].banner;
-        if (catMap[catName].minutes === 0) catMap[catName].minutes = knownCatalog[catName].defaultMin;
+        if (!catMap[catName].banner) catMap[catName].banner = def.banner;
+        if (catMap[catName].minutes === 0) catMap[catName].minutes = def.defaultMin;
+        if (catMap[catName].count < def.defaultCount) catMap[catName].count = def.defaultCount;
       }
     });
 
@@ -1204,7 +1211,7 @@ export const SessionReport: React.FC<SessionReportProps> = ({
                   <div className="sr-cr-info">
                     <b>{c.name}</b>
                     <small>
-                      {formatDurationText(c.minutes)} · {c.sessionsCount} {c.sessionsCount > 1 ? 'جلسات' : 'جلسة'}
+                      {c.tags ? `${c.tags} • ` : ''}{formatDurationText(c.minutes)} ({c.sessionsCount} {c.sessionsCount > 1 ? 'جلسات' : 'جلسة'})
                     </small>
                     <div className="sr-cr-bar">
                       <i style={{ width: `${c.percent}%`, background: c.color }} />
