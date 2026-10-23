@@ -8,9 +8,7 @@ import { DiscordWidget, XWidget } from './components/CommunityWidgets';
 import { BRAND_LINKS, BRAND_NAME, KICK_CHANNEL_SLUG } from './brand';
 
 // Heavy below-fold / on-demand chunks — split out of the first paint
-const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const StatsSection = lazy(() => import('./components/StatsSection').then(m => ({ default: m.StatsSection })));
-const AIChat = lazy(() => import('./components/AIChat').then(m => ({ default: m.AIChat })));
 // الشات يجيب معه pusher-js (~70KB) — ينزّل فقط وقت البث المباشر
 const ChatWidget = lazy(() => import('./components/Chat').then(m => ({ default: m.ChatWidget })));
 // تقرير الجلسة معزول بحزمة منفصلة لتسريع أول إطار في الصفحة
@@ -632,13 +630,6 @@ export default function App() {
     const [clips, setClips] = useState<any[]>([]);
     const [supporters, setSupporters] = useState<any[]>([]);
 
-    const [showAdminLogin, setShowAdminLogin] = useState(false);
-    const [adminEmail, setAdminEmail] = useState('');
-    const [adminPassword, setAdminPassword] = useState('');
-    const [adminBusy, setAdminBusy] = useState(false);
-    const [adminSessionUserId, setAdminSessionUserId] = useState<string | null>(null);
-    const [isAdmin, setIsAdmin] = useState(false);
-    const [showAdminDashboard, setShowAdminDashboard] = useState(false);
     const [visitorCount, setVisitorCount] = useState(0);
     const [activePoll, setActivePoll] = useState<any>(null);
 
@@ -698,26 +689,31 @@ export default function App() {
             if (!sessionStorage.getItem('site_visited') && !isTracked) {
                 isTracked = true;
                 sessionStorage.setItem('site_visited', 'true');
-                const { data: overall } = await supabase.from('site_stats').select('visits').eq('id', 1).single();
-                if (overall) {
-                    const newVisits = overall.visits + 1;
-                    await supabase.from('site_stats').update({ visits: newVisits }).eq('id', 1);
-                    setVisitorCount(newVisits);
+                try {
+                    const { data: rpcCount, error: rpcErr } = await supabase.rpc('increment_site_visitors');
+                    if (!rpcErr && typeof rpcCount === 'number') {
+                        setVisitorCount(rpcCount);
+                    } else {
+                        const { data: overall } = await supabase.from('site_stats').select('visits').eq('id', 1).single();
+                        if (overall) {
+                            const newVisits = (Number(overall.visits) || 0) + 1;
+                            await supabase.from('site_stats').update({ visits: newVisits }).eq('id', 1);
+                            setVisitorCount(newVisits);
+                        }
+                    }
+                } catch {
+                    /* offline or db initializing */
                 }
-                const today = new Date().toISOString().split('T')[0];
-                const { data: todayStats } = await supabase.from('daily_views').select('*').eq('view_date', today).single();
-                if (todayStats) await supabase.from('daily_views').update({ views_count: todayStats.views_count + 1 }).eq('id', todayStats.id);
-                else await supabase.from('daily_views').insert([{ view_date: today, views_count: 1 }]);
+            } else {
+                try {
+                    const { data: overall } = await supabase.from('site_stats').select('visits').eq('id', 1).single();
+                    if (overall) setVisitorCount(Number(overall.visits) || 0);
+                } catch {}
             }
             fetchPublicData();
         };
         initData();
-        const initAdmin = async () => {
-            try { const { data } = await supabase.auth.getSession(); setAdminSessionUserId(data.session?.user?.id ?? null); }
-            catch { setAdminSessionUserId(null); }
-        };
-        initAdmin();
-        const { data: authSub } = supabase.auth.onAuthStateChange((_event, session) => setAdminSessionUserId(session?.user?.id ?? null));
+
 
         const fetchLive = async () => {
             const [statRes, pollRes] = await Promise.all([
@@ -735,7 +731,7 @@ export default function App() {
         const onVis = () => { if (document.visibilityState === 'visible') { fetchLive(); startLive(); } else stopLive(); };
         startLive();
         document.addEventListener('visibilitychange', onVis);
-        return () => { stopLive(); authSub?.subscription?.unsubscribe(); document.removeEventListener('visibilitychange', onVis); };
+        return () => { stopLive(); document.removeEventListener('visibilitychange', onVis); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -793,52 +789,12 @@ export default function App() {
         return () => { stopSocials(); document.removeEventListener('visibilitychange', onVis); };
     }, [applySocialStats, refreshAllSocialStats]);
 
-    const refreshIsAdmin = async (userId: string | null) => {
-        if (!userId) { setIsAdmin(false); setShowAdminDashboard(false); return; }
-        const { data, error } = await supabase.from('admin_users').select('user_id,is_active,role').eq('user_id', userId).eq('is_active', true).maybeSingle();
-        if (error) { setIsAdmin(false); return; }
-        setIsAdmin(!!data);
-        if (!data) setShowAdminDashboard(false);
-    };
-
-    useEffect(() => { refreshIsAdmin(adminSessionUserId); }, [adminSessionUserId]);
-
     const handleVote = async (optionId: number) => {
         if (!activePoll || localStorage.getItem(`voted_${activePoll.id}`)) return;
         const newOptions = activePoll.options.map((opt: any) => opt.id === optionId ? { ...opt, votes: opt.votes + 1 } : opt);
         await supabase.from('polls').update({ options: newOptions }).eq('id', activePoll.id);
         setActivePoll({ ...activePoll, options: newOptions });
         localStorage.setItem(`voted_${activePoll.id}`, 'true');
-    };
-
-    const handleAdminLogin = async () => {
-        if (!adminEmail || !adminPassword) { alert(lang === 'en' ? 'Enter email and password' : 'اكتب الإيميل وكلمة المرور'); return; }
-        setAdminBusy(true);
-        try {
-            const { data, error } = await supabase.auth.signInWithPassword({ email: adminEmail, password: adminPassword });
-            if (error) { alert((lang === 'en' ? 'Login failed: ' : 'فشل تسجيل الدخول: ') + error.message); return; }
-            const userId = data.user?.id ?? null;
-            setAdminSessionUserId(userId);
-            await refreshIsAdmin(userId);
-            if (userId) {
-                const { data: adminRow } = await supabase.from('admin_users').select('user_id').eq('user_id', userId).eq('is_active', true).maybeSingle();
-                if (adminRow) { setShowAdminLogin(false); setAdminPassword(''); setShowAdminDashboard(true); }
-                else {
-                    const email = data.user?.email || adminEmail;
-                    const username = email.split('@')[0];
-                    const { error: insertError } = await supabase.from('admin_users').insert([{ user_id: userId, username, email, password_hash: '', full_name: username, role: 'admin', is_active: true }]);
-                    if (insertError) alert((lang === 'en' ? 'This account is not an admin: ' : 'هذا الحساب ليس أدمن: ') + insertError.message);
-                    else { await refreshIsAdmin(userId); setShowAdminLogin(false); setAdminPassword(''); setShowAdminDashboard(true); }
-                }
-            }
-        } catch (err: any) { alert((lang === 'en' ? 'Unexpected error: ' : 'خطأ غير متوقع: ') + (err?.message || '')); }
-        finally { setAdminBusy(false); }
-    };
-
-    const handleAdminLogout = async () => {
-        setAdminBusy(true);
-        try { await supabase.auth.signOut(); }
-        finally { setAdminBusy(false); setIsAdmin(false); setAdminSessionUserId(null); setShowAdminDashboard(false); }
     };
 
     useEffect(() => {
@@ -944,15 +900,7 @@ export default function App() {
 
     return (
         <div className={`icg1-theme grain relative min-h-screen w-full overflow-x-hidden ${lang === 'ar' ? 'font-arabic' : 'font-sans'}`}>
-            {isAdmin && showAdminDashboard && (
-                <Suspense fallback={<div className="min-h-screen bg-[#050505] flex items-center justify-center"><div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-[#FF2D2D] animate-spin" /></div>}>
-                    <AdminDashboard supabase={supabase} visitorCount={visitorCount} activePoll={activePoll} setActivePoll={setActivePoll}
-                        onLogout={handleAdminLogout} onBack={() => setShowAdminDashboard(false)} fetchLive={fetchPublicData} />
-                </Suspense>
-            )}
-            {isAdmin && showAdminDashboard ? null : (
-                <>
-                    <ArenaBackground />
+            <ArenaBackground />
 
                     {/* ===== NAV — Mech Esports Arena Header ===== */}
                     <header className="fixed top-2 md:top-3 left-0 right-0 z-[60] w-full max-w-[1200px] mx-auto px-3 sm:px-4 md:px-8" style={{ isolation: 'isolate' }}>
@@ -1353,47 +1301,9 @@ export default function App() {
                                     ))}
                                 </div>
                                 <p className="text-[11px] text-white/35 mt-1">{t.footer}</p>
-                                <button onClick={() => { if (isAdmin) setShowAdminDashboard(true); else setShowAdminLogin(true); }}
-                                    className="mt-4 text-white/20 hover:text-white/60 transition-colors" aria-label="Admin">
-                                    <svg className="w-4 h-4 mx-auto" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
-                                </button>
                             </div>
                         </footer>
                     </div>
-
-                    <Suspense fallback={null}><AIChat lang={lang} /></Suspense>
-
-                    {showAdminLogin && !isAdmin && (
-                        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4" onClick={() => setShowAdminLogin(false)}>
-                            <div className="bg-[#0c0c0c] border border-[#FF2D2D]/25 rounded-[28px] p-8 w-full max-w-sm shadow-[0_0_80px_rgba(255,45,45,0.2)] animate-fade-in-up relative overflow-hidden" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Admin login">
-                                <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-l from-transparent via-[#FF2D2D] to-transparent" />
-                                <div className="flex justify-center mb-6">
-                                    <span className="w-14 h-14 rounded-2xl bg-[#FF2D2D]/10 border border-[#FF2D2D]/30 flex items-center justify-center">
-                                        <svg className="w-7 h-7 text-[#FF2D2D]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                                    </span>
-                                </div>
-                                <h2 className="text-xl font-black text-white mb-1 text-center">{lang === 'en' ? 'Welcome Back' : 'مرحباً بعودتك'}</h2>
-                                <p className="text-white/40 text-sm text-center mb-6">{lang === 'en' ? 'Sign in to access the admin panel' : 'سجل الدخول للوحة التحكم'}</p>
-                                <label className="block text-xs font-bold text-white/40 mb-1.5">{lang === 'en' ? 'Email' : 'البريد الإلكتروني'}</label>
-                                <input type="email" autoComplete="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)}
-                                    placeholder={lang === 'en' ? 'Email address' : 'البريد الإلكتروني'}
-                                    className="w-full bg-black/60 border border-white/10 rounded-xl p-3.5 text-white font-bold focus:border-[#FF2D2D]/60 outline-none transition-colors placeholder:text-white/20 mb-3" />
-                                <label className="block text-xs font-bold text-white/40 mb-1.5">{lang === 'en' ? 'Password' : 'كلمة المرور'}</label>
-                                <input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAdminLogin()} autoFocus
-                                    placeholder={lang === 'en' ? 'Password' : 'كلمة المرور'}
-                                    className="w-full bg-black/60 border border-white/10 rounded-xl p-3.5 text-white font-bold focus:border-[#FF2D2D]/60 outline-none transition-colors placeholder:text-white/20 mb-6" />
-                                <div className="flex gap-2.5">
-                                    <button onClick={() => setShowAdminLogin(false)} className="flex-1 bg-white/5 hover:bg-white/10 text-white/70 font-bold py-3.5 rounded-xl transition-colors border border-white/10">{lang === 'en' ? 'Cancel' : 'إلغاء'}</button>
-                                    <button disabled={adminBusy} onClick={handleAdminLogin}
-                                        className="flex-1 bg-[#FF2D2D] hover:bg-[#ff4d4d] text-black font-black py-3.5 rounded-xl transition-colors disabled:opacity-60">
-                                        {adminBusy ? (lang === 'en' ? 'Signing in…' : 'جاري الدخول…') : (lang === 'en' ? 'Sign In' : 'تسجيل الدخول')}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </>
-            )}
         </div>
     );
 }
