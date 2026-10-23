@@ -37,7 +37,7 @@ export const LiveTheater: React.FC<LiveTheaterProps> = ({
   const [uptime, setUptime] = useState('00:00:00');
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const displayTitle = title || (lang === 'en' ? 'Live Stream' : 'بثنا اليوم ايش ؟');
+  const displayTitle = title || (lang === 'en' ? 'Live Stream' : 'البث المباشر');
   const displayCategory = category || 'Rocket League';
 
   // --- Uptime timer ---
