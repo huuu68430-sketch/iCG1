@@ -51,7 +51,7 @@ box-shadow:inset 0 0 40px rgba(180,230,255,.35),inset 6px 6px 18px rgba(255,255,
 .cl .ogw img{position:relative;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 8px #2ee6ff)}
 .cl .who{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800}.cl .who .av{width:24px;height:24px;font-size:11px;border-width:1px}
 .cl .veil{position:absolute;inset:0;backdrop-filter:blur(var(--bl,8px));-webkit-backdrop-filter:blur(var(--bl,8px));background:rgba(0,0,0,var(--a,.7))}
-.cl .lab{position:absolute;inset:auto 0 9px;text-align:center;z-index:2;text-shadow:0 1px 6px #000}.cl .lab span{display:block;font-weight:900;font-size:13px}.cl .lab small{font-size:11px;color:#ff8a8a;font-weight:700}
+.cl .lab{position:absolute;inset:auto 0 9px;text-align:center;z-index:2;text-shadow:0 1px 6px #000}.cl .lab span{display:block;font-weight:900;font-size:13px}.cl .lab small{font-size:11px;color:#d6aa6a;font-weight:700}
 .cl .av {
   width: 46px;
   height: 46px;
@@ -67,9 +67,9 @@ box-shadow:inset 0 0 40px rgba(180,230,255,.35),inset 6px 6px 18px rgba(255,255,
   flex: none;
   flex-shrink: 0;
   overflow: hidden;
-  background: radial-gradient(circle at 35% 35%, #2a0a0f, #110406);
-  border: 2px solid rgba(255, 61, 61, 0.35);
-  box-shadow: 0 0 14px rgba(255, 61, 61, 0.15);
+  background: radial-gradient(circle at 35% 35%, #2a180a, #110804);
+  border: 2px solid rgba(214, 170, 106, 0.35);
+  box-shadow: 0 0 14px rgba(214, 170, 106, 0.15);
   position: relative;
 }
 
@@ -89,7 +89,7 @@ box-shadow:inset 0 0 40px rgba(180,230,255,.35),inset 6px 6px 18px rgba(255,255,
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 35% 35%, #2a0b12, #0d0406);
+  background: radial-gradient(circle at 35% 35%, #2a180a, #0d0604);
   border-radius: 50%;
 }
 
@@ -121,7 +121,7 @@ box-shadow:inset 0 0 40px rgba(180,230,255,.35),inset 6px 6px 18px rgba(255,255,
 .cl .p3 .base{height:50px}
 .cl .list{max-height:580px;overflow:auto;margin-top:18px;display:grid;gap:8px;padding:2px 4px 2px 8px;scrollbar-width:thin;scrollbar-color:var(--r) transparent}
 .cl .row{display:grid;grid-template-columns:36px 46px 1fr auto;align-items:center;gap:12px 14px;padding:12px 16px;border-radius:18px;background:#0e0e0e;border:1px solid var(--b);transition:.25s;animation:up .5s both;animation-delay:calc(var(--i)*30ms)}
-.cl .row:hover{transform:translateX(-4px);border-color:rgba(255,61,61,.45);background:#150909;box-shadow:0 4px 24px rgba(255,61,61,.18)}
+.cl .row:hover{transform:translateX(-4px);border-color:rgba(214,170,106,.45);background:#1a1208;box-shadow:0 4px 24px rgba(214,170,106,.18)}
 .cl .rk{font-weight:900;font-style:italic;color:#ffffff40;font-size:17px;text-align:center}
 .cl .nm b{display:block;font-size:14.5px;font-weight:800;color:#fff}
 .cl .nm small{display:block;color:var(--m);font-size:12px;font-weight:700;margin-top:2px}
@@ -134,7 +134,7 @@ box-shadow:inset 0 0 40px rgba(180,230,255,.35),inset 6px 6px 18px rgba(255,255,
 
 .cl .hero{display:grid;grid-template-columns:1.05fr 1fr;align-items:center;gap:10px;margin-top:24px;padding:30px;border-color:#c8965a33;background:radial-gradient(500px 320px at 18% 60%,#6ad0ff22,transparent 70%),radial-gradient(520px 300px at 90% 0,#c8965a33,transparent 70%),linear-gradient(160deg,#170a0a,#080808)}
 .cl .bdg{display:inline-block;font-size:12px;font-weight:800;color:#fff;background:linear-gradient(90deg,#c8965a,#8b6f47);border-radius:99px;padding:5px 14px;box-shadow:0 0 22px #c8965a66}
-.cl .info h4{font-size:38px;font-weight:900;line-height:1.2;margin:12px 0 8px;background:linear-gradient(120deg,#fff,#ff9db1 60%,#b0304e);-webkit-background-clip:text;background-clip:text;color:transparent}
+.cl .info h4{font-size:38px;font-weight:900;line-height:1.2;margin:12px 0 8px;background:linear-gradient(120deg,#fff,#f6e3b8 60%,#c8965a);-webkit-background-clip:text;background-clip:text;color:transparent}
 .cl .info p{font-size:14px;color:#bdbdbd;line-height:1.7;max-width:420px}.cl .info .note{text-align:start;margin:12px 0 10px}
 .cl .hero .tm{margin:18px 0 14px}.cl .hero .tm div{min-width:74px;padding:12px 8px}.cl .hero .tm b{font-size:36px}
 .cl .pbar{height:6px;max-width:420px;border-radius:9px;background:#1b1b1b;overflow:hidden}.cl .pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--g),var(--r));box-shadow:0 0 12px var(--r)}
@@ -272,7 +272,7 @@ background:radial-gradient(circle,#fff 0 1.3px,transparent 2px) 12% 22%/auto no-
 /* celebration */
 .cl .rays, .cl .halo{position:absolute;left:50%;top:46%;pointer-events:none;opacity:0;transition:opacity 1.6s 2.2s}
 .cl .rays{width:640px;height:640px;margin:-320px 0 0 -320px;border-radius:50%;background:repeating-conic-gradient(rgba(255,205,120,.34) 0 5deg,transparent 5deg 16deg);-webkit-mask-image:radial-gradient(closest-side,#000 25%,transparent 72%);mask-image:radial-gradient(closest-side,#000 25%,transparent 72%);animation:sp 26s linear infinite}
-.cl .halo{width:460px;height:460px;margin:-230px 0 0 -230px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,90,120,.55),rgba(255,61,61,.18) 55%,transparent);animation:hl 2.6s ease-in-out infinite}
+.cl .halo{width:460px;height:460px;margin:-230px 0 0 -230px;border-radius:50%;background:radial-gradient(closest-side,rgba(214,170,106,.55),rgba(200,150,90,.18) 55%,transparent);animation:hl 2.6s ease-in-out infinite}
 @keyframes hl{50%{transform:scale(1.1)}}
 .cl .done .rays, .cl .done .halo{opacity:1}
 .cl .done .duo{animation:flo 3.4s ease-in-out 2.8s infinite}
@@ -387,7 +387,7 @@ linear-gradient(62deg,transparent 70%,rgba(255,255,255,.12) 72%,transparent 78%)
 @keyframes fl2{from{opacity:1}to{opacity:0}}
 .cl .fin .r2{position:absolute;left:50%;top:50%;width:160vmax;height:160vmax;margin:-80vmax 0 0 -80vmax;border-radius:50%;background:repeating-conic-gradient(rgba(255,205,120,.24) 0 4deg,transparent 4deg 14deg);-webkit-mask-image:radial-gradient(closest-side,#000 8%,transparent 60%);mask-image:radial-gradient(closest-side,#000 8%,transparent 60%);animation:r2s 34s linear infinite,r2i 2s ease both}
 @keyframes r2s{to{transform:rotate(1turn)}}@keyframes r2i{from{opacity:0}}
-.cl .fin .gl{position:absolute;left:50%;top:50%;width:80vmin;height:80vmin;translate:-50% -50%;border-radius:50%;background:radial-gradient(closest-side,rgba(255,100,130,.65),rgba(255,61,61,.2) 55%,transparent);animation:hl2 2.4s ease-in-out infinite}
+.cl .fin .gl{position:absolute;left:50%;top:50%;width:80vmin;height:80vmin;translate:-50% -50%;border-radius:50%;background:radial-gradient(closest-side,rgba(214,170,106,.65),rgba(200,150,90,.2) 55%,transparent);animation:hl2 2.4s ease-in-out infinite}
 @keyframes hl2{50%{transform:scale(1.12)}}
 .cl .fin .fstage{position:relative;width:290px;height:290px;transform-style:preserve-3d;animation:pin 2.4s cubic-bezier(.2,.9,.25,1.08) .2s both}
 @keyframes pin{0%{opacity:0;transform:translateY(60vh) rotateY(-720deg) scale(.15)}25%{opacity:1}65%{transform:translateY(-3vh) rotateY(18deg) scale(1.07)}100%{opacity:1;transform:none}}
