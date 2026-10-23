@@ -3,14 +3,12 @@ import { KickIcon, XIcon, SnapchatIcon, DiscordIcon, TikTokIcon, InstagramIcon, 
 import { SocialLink, Language } from './types';
 import { supabase } from './supabaseClient';
 import { SponsorsSection, ClipsSection, ScheduleSection, FAQSection } from './components/PublicWidgets';
-import { StreamPlayer } from './components/StreamPlayer';
+import { LiveTheater } from './components/LiveTheater';
 import { DiscordWidget, XWidget } from './components/CommunityWidgets';
 import { BRAND_LINKS, BRAND_NAME, KICK_CHANNEL_SLUG } from './brand';
 
 // Heavy below-fold / on-demand chunks — split out of the first paint
 const StatsSection = lazy(() => import('./components/StatsSection').then(m => ({ default: m.StatsSection })));
-// الشات يجيب معه pusher-js (~70KB) — ينزّل فقط وقت البث المباشر
-const ChatWidget = lazy(() => import('./components/Chat').then(m => ({ default: m.ChatWidget })));
 // تقرير الجلسة معزول بحزمة منفصلة لتسريع أول إطار في الصفحة
 const LastSessionReport = lazy(() => import('./components/SessionReport').then(m => ({ default: m.SessionReport })));
 
@@ -1122,90 +1120,25 @@ export default function App() {
                             </div>
                         </section>
 
-                        {/* ===== LIVE THEATER — CINEMA EDITION ===== */}
-                        {streamInfo.isLive && (
-                            <section id="live" className="relative pt-12 md:pt-16 scroll-mt-28 animate-slide-down">
-                                {/* ambient stage glow (تدرّج شعاعي بدون فلتر) */}
-                                <div className="pointer-events-none absolute -top-10 right-[10%] w-[420px] h-[220px] rounded-full"
-                                    style={{ background: 'radial-gradient(ellipse, rgba(196,154,112,0.16) 0%, transparent 68%)' }} />
-                                <div className="pointer-events-none absolute bottom-0 left-[5%] w-[300px] h-[180px] rounded-full"
-                                    style={{ background: 'radial-gradient(ellipse, rgba(83,252,24,0.06) 0%, transparent 68%)' }} />
-                                <Reveal><SectionHeading no="02" title={t.theaterTitle} sub={`${streamInfo.viewers.toLocaleString()} ${t.viewers}`} en="LIVE THEATER" /></Reveal>
-                                <div className="relative rounded-[30px] p-[1.5px] bg-gradient-to-b from-[#C6A474]/70 via-[#C6A474]/15 to-white/10 shadow-[0_30px_90px_rgba(196,154,112,0.2)]">
-                                    <div className="absolute -inset-3 rounded-[36px] pointer-events-none"
-                                        style={{ background: 'radial-gradient(ellipse 60% 50% at 50% 50%, rgba(196,154,112,0.14) 0%, transparent 70%)' }} />
-                                    <div className="relative rounded-[29px] bg-[#0a0a0c]/95 overflow-hidden">
-                                        {/* theater top strip */}
-                                        <div className="flex items-center gap-2.5 px-4 md:px-5 py-3 border-b border-white/[0.07] bg-gradient-to-b from-white/[0.06] to-transparent">
-                                            <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-full bg-[#C6A474] text-black tracking-[0.18em] shadow-[0_0_18px_rgba(196,154,112,0.42)]">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />LIVE
-                                            </span>
-                                            <span className="inline-flex items-center gap-1.5 text-[11px] font-black px-3 py-1.5 rounded-full bg-white/[0.05] border border-white/10 text-white/75" dir="ltr">
-                                                <svg className="w-3.5 h-3.5 text-[#53FC18]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                                                {streamInfo.viewers.toLocaleString()}
-                                            </span>
-                                            <span className="hidden sm:inline text-[11px] font-bold text-white/40 truncate flex-1">{displayCategory}</span>
-                                            <a href={BRAND_LINKS.kick} target="_blank" rel="noopener noreferrer"
-                                                className="ms-auto inline-flex items-center gap-1.5 text-[11px] font-black px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-white/80 hover:text-white hover:border-[#53FC18]/50 hover:bg-[#53FC18]/10 transition-all shrink-0">
-                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                                Kick
-                                            </a>
-                                        </div>
-                                        <div className="flex flex-col xl:flex-row xl:h-[640px]">
-                                            <div className="flex-1 min-w-0 min-h-0 p-3 md:p-4 flex flex-col">
-                                                <div className="relative rounded-2xl p-[1px] bg-gradient-to-b from-white/20 via-white/5 to-transparent shrink-0">
-                                                    <div className="aspect-video rounded-2xl overflow-hidden bg-black">
-                                                        <StreamPlayer lang={lang} isLive={streamInfo.isLive} viewers={streamInfo.viewers} channelSlug={CHANNEL_SLUG} poster={branding.bannerImage} />
-                                                    </div>
-                                                    {/* floating LIVE chip over video */}
-                                                    <div className="absolute top-4 start-4 flex items-center gap-2 pointer-events-none">
-                                                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur border border-[#C6A474]/50 text-[#E7C99E] tracking-widest">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-[#C6A474] animate-pulse shadow-[0_0_8px_#C6A474]" />{t.status}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="p-4 md:px-2 md:py-4 flex flex-col gap-3 flex-1 min-h-0">
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <div className="min-w-0 flex-1">
-                                                            <h3 className="text-lg md:text-2xl font-black text-white leading-tight" title={displayTitle}>{displayTitle}</h3>
-                                                            <p className="text-sm text-white/50 font-bold mt-1.5 flex items-center gap-1.5"><span className="text-[#C6A474]">{BRAND_NAME}</span> <span className="text-white/25 mx-1">•</span> {displayCategory}</p>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 shrink-0">
-                                                            <a href={BRAND_LINKS.kick} target="_blank" rel="noopener noreferrer"
-                                                                className="btn-arena hidden sm:inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-gradient-to-b from-[#E7C99E] to-[#B58A62] text-black text-[13px] font-black shadow-[0_0_28px_rgba(196,154,112,0.28)]">
-                                                                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                                                                {t.watchLive}
-                                                            </a>
-                                                            <button onClick={handleShare} aria-label="Share"
-                                                                className="btn-arena w-11 h-11 rounded-xl bg-white/[0.06] border border-white/10 text-white/70 hover:text-white hover:border-white/25 flex items-center justify-center shrink-0">
-                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-white/[0.07]">
-                                                        <span className="px-2.5 py-1 rounded-lg bg-[#53FC18]/10 border border-[#53FC18]/30 text-[#53FC18] text-[10px] font-black uppercase tracking-wider animate-tick">{t.dropsEnabled}</span>
-                                                        {streamInfo.tags.length > 0
-                                                            ? streamInfo.tags.map((tag, i) => <span key={i} className="px-2.5 py-1 rounded-lg bg-white/[0.05] border border-white/[0.06] text-white/55 text-[11px] font-bold hover:border-[#C6A474]/40 hover:text-white/80 transition-colors">#{tag}</span>)
-                                                            : <span className="text-white/30 text-xs italic">{t.noTags}</span>}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="w-full xl:w-[370px] shrink-0 p-3 md:p-4 xl:ps-0 flex flex-col min-h-0 xl:h-full">
-                                                <div className="h-[480px] md:h-[540px] xl:h-full xl:flex-1 xl:min-h-0 shrink-0 rounded-2xl overflow-hidden border border-white/10 bg-[#0b0d0f] shadow-[0_20px_60px_rgba(0,0,0,0.5)] flex flex-col min-h-0">
-                                                    <Suspense fallback={<div className="h-full w-full animate-pulse bg-white/[0.02]" />}>
-                                                        <ChatWidget lang={lang} isDemo={false} />
-                                                    </Suspense>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-                        )}
+                        {/* ===== LIVE THEATER — live-theater.html REPLICA ===== */}
+                        <section id="live" className="relative pt-12 md:pt-16 scroll-mt-28">
+                            <LiveTheater
+                                lang={lang}
+                                isLive={streamInfo.isLive}
+                                viewers={streamInfo.viewers}
+                                title={streamInfo.title || t.defaultStreamTitle}
+                                category={streamInfo.category || t.defaultCategory}
+                                startedAt={streamInfo.startedAt}
+                                tags={streamInfo.tags}
+                                channelSlug={CHANNEL_SLUG}
+                                displayName={BRAND_NAME}
+                                giveaways={true}
+                            />
+                        </section>
 
                         {/* ===== COMMUNITY ===== */}
                         <section id="community" className="pt-12 md:pt-16 scroll-mt-28">
-                            <Reveal><SectionHeading no={streamInfo.isLive ? '03' : '02'} title={t.communityTitle} en="COMMUNITY HQ" /></Reveal>
+                            <Reveal><SectionHeading no="03" title={t.communityTitle} en="COMMUNITY HQ" /></Reveal>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5 items-stretch">
                                 <Reveal delay={0} className="h-full"><DeferredMount minHeight={260}><DiscordWidget lang={lang} /></DeferredMount></Reveal>
                                 <Reveal delay={100} className="h-full"><DeferredMount minHeight={260}><XWidget lang={lang} xFollowers={socialStats['X']} xFollowing={socialStats['XFollowing']} /></DeferredMount></Reveal>
