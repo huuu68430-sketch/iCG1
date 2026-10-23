@@ -109,8 +109,17 @@ export const SessionReport: React.FC<SessionReportProps> = ({
     source: string,
     kickUrl: string,
     thumbnail?: string,
-    startTime: number = 0
+    startTimeOrIsClip: number | boolean = 0
   ) => {
+    const isClip = typeof startTimeOrIsClip === 'boolean' ? startTimeOrIsClip : false;
+    const startTime = typeof startTimeOrIsClip === 'number' ? startTimeOrIsClip : 0;
+    
+    // For clips, redirect directly to Kick since clip HLS streams often have CORS/expiry issues
+    if (isClip) {
+      window.open(kickUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    
     setCurrentTime(startTime);
     setDuration(0);
     setBuffered(0);
@@ -1048,7 +1057,7 @@ export const SessionReport: React.FC<SessionReportProps> = ({
                 title={`لقطة #${clip.numericId}: ${clip.title} (عند ${formatHm(clip.atMinutes)})`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  openPlayer(clip.title, clip.source, clip.clipUrl, clip.thumbnailUrl, clip.atMinutes * 60);
+                  openPlayer(clip.title, clip.source, clip.clipUrl, clip.thumbnailUrl, true);
                 }}
               >
                 {clip.numericId}

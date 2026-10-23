@@ -842,7 +842,7 @@ export const ArchiveSection: React.FC<ArchiveSectionProps> = ({ lang }) => {
               key={c.id}
               className="arc-card arc-frame"
               type="button"
-              onClick={() => openPlayer(c.title, c.source, c.clipUrl, c.thumbnail)}
+              onClick={() => openPlayer(c.title, c.source, c.clipUrl, c.thumbnail, true)}
             >
               <div className="arc-th">
                 <img src={c.thumbnail} alt={c.title} loading="lazy" />
