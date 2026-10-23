@@ -170,6 +170,7 @@
     @media (min-width: 768px) { .responsive_bg { background-image: linear-gradient(to bottom, rgba(11,9,7,.1), rgba(11,9,7,.3) 20%, rgba(11,9,7,.6) 50%, rgba(11,9,7,.88) 75%, #0b0907 100%), url('/brand/4543.webp'); } }
     .reveal { opacity: 0; transform: translateY(30px) scale(0.995); }
     .reveal.is-visible { opacity: 1; transform: none; }
+    @media (max-width: 768px) { .reveal { opacity: 1 !important; transform: none !important; } }
     @keyframes bootspin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) {
       .reveal { opacity: 1; transform: none; }

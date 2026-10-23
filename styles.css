@@ -524,15 +524,6 @@ button:focus-visible { outline: 2px solid #E7C99E; outline-offset: 3px; border-r
     background-attachment: scroll !important;
   }
 
-  /* عزل كل قسم = طبقة رسم مستقلة */
-  section,
-  [id="top"],
-  [id="socials"],
-  [id="live"],
-  [id="support"] {
-    contain: layout style;
-  }
-
   /* تقليل الظلال الثقيلة على الجوال */
   .mech-header-wrap {
     filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.6));

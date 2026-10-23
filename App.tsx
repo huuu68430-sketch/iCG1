@@ -109,10 +109,14 @@ const Reveal: React.FC<{ children: React.ReactNode; delay?: number; className?: 
     useEffect(() => {
         const el = ref.current;
         if (!el) return;
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            el.classList.add('is-visible');
+            return;
+        }
         if (typeof IntersectionObserver === 'undefined') { el.classList.add('is-visible'); return; }
         const obs = new IntersectionObserver((entries) => {
             entries.forEach((e) => { if (e.isIntersecting) { el.classList.add('is-visible'); obs.disconnect(); } });
-        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+        }, { threshold: 0.01, rootMargin: '0px 0px 200px 0px' });
         obs.observe(el);
         return () => obs.disconnect();
     }, []);
@@ -267,19 +271,33 @@ const SectionHeading: React.FC<{ no: string; title: string; sub?: string; en?: s
 );
 
 // --- تحميل مؤجل: ما ينزّل كود القسم إلا لما الزائر يقرب منه ---
-const DeferredMount: React.FC<{ children: React.ReactNode; rootMargin?: string; minHeight?: number }> = ({ children, rootMargin = '700px', minHeight = 220 }) => {
+const DeferredMount: React.FC<{ children: React.ReactNode; rootMargin?: string; minHeight?: number }> = ({ children, rootMargin = '1000px', minHeight = 220 }) => {
     const ref = useRef<HTMLDivElement>(null);
     const [show, setShow] = useState(false);
     useEffect(() => {
         const el = ref.current;
-        if (!el) return;
-        if (typeof IntersectionObserver === 'undefined') { setShow(true); return; }
+        // Fallback timer: after 1.5s, always mount so mobile users NEVER see a blank section
+        const timer = setTimeout(() => setShow(true), 1500);
+        if (!el || typeof IntersectionObserver === 'undefined') {
+            setShow(true);
+            clearTimeout(timer);
+            return;
+        }
         const obs = new IntersectionObserver(
-            (entries) => { if (entries.some(e => e.isIntersecting)) { setShow(true); obs.disconnect(); } },
+            (entries) => {
+                if (entries.some(e => e.isIntersecting)) {
+                    setShow(true);
+                    clearTimeout(timer);
+                    obs.disconnect();
+                }
+            },
             { rootMargin, threshold: 0 }
         );
         obs.observe(el);
-        return () => obs.disconnect();
+        return () => {
+            clearTimeout(timer);
+            obs.disconnect();
+        };
     }, [rootMargin]);
     return <div ref={ref} className="h-full" style={show ? undefined : { minHeight }}>{show ? children : null}</div>;
 };
@@ -1298,22 +1316,27 @@ export default function App() {
                         )}
 
                         {/* ===== DYNAMIC: SPONSORS + CLIPS ===== */}
-                        <section className="pt-12 md:pt-16 grid lg:grid-cols-2 gap-8 items-start">
-                            <Reveal><SponsorsSection sponsors={sponsors} /></Reveal>
-                            <Reveal delay={100}><ClipsSection clips={clipsList} /></Reveal>
-                        </section>
+                        {(sponsors.length > 0 || clipsList.length > 0) && (
+                            <section className="pt-12 md:pt-16 grid lg:grid-cols-2 gap-8 items-start">
+                                {sponsors.length > 0 && <Reveal><SponsorsSection sponsors={sponsors} /></Reveal>}
+                                {clipsList.length > 0 && <Reveal delay={100}><ClipsSection clips={clipsList} /></Reveal>}
+                            </section>
+                        )}
 
-                        <div id="schedule" className="pt-4 scroll-mt-28">
-                            {isScheduleActive && <Reveal><ScheduleSection schedule={schedule} /></Reveal>}
-                            {isFaqActive && <Reveal><FAQSection faqs={faqs} /></Reveal>}
-                        </div>
+                        {(isScheduleActive || isFaqActive) && (
+                            <div id="schedule" className="pt-4 scroll-mt-28">
+                                {isScheduleActive && <Reveal><ScheduleSection schedule={schedule} /></Reveal>}
+                                {isFaqActive && <Reveal><FAQSection faqs={faqs} /></Reveal>}
+                            </div>
+                        )}
 
+                        {/* ===== STATS SECTION (كبار الداعمين، أساطير الشات، الأرشيف) ===== */}
                         <section className="pt-12 md:pt-16">
-                            <Reveal><Suspense fallback={<div className="w-full h-40 rounded-[26px] border border-white/10 bg-white/[0.02] animate-pulse" />}>
-                                <DeferredMount minHeight={180}>
+                            <Suspense fallback={<div className="w-full h-40 rounded-[26px] border border-white/10 bg-white/[0.02] animate-pulse" />}>
+                                <DeferredMount minHeight={200}>
                                     <StatsSection lang={lang} />
                                 </DeferredMount>
-                            </Suspense></Reveal>
+                            </Suspense>
                         </section>
 
                         {/* ===== FOOTER ===== */}
