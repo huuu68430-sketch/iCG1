@@ -1283,7 +1283,7 @@ export const SessionReport: React.FC<SessionReportProps> = ({
                   </svg>
                   مشغل داخلي
                 </span>
-                <h3 title={videoPlayer.title}>{videoPlayer.title}</h3>
+                <h3 title={videoPlayer.title || 'البث المباشر'}>{videoPlayer.title || 'البث المباشر'}</h3>
               </div>
 
               <div className="sr-player-top-actions">

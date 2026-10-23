@@ -1263,7 +1263,7 @@ onClick={() => openPlayer(c.title, c.source, c.clipUrl, c.thumbnail, true)}
                   </svg>
                   مشغل داخلي فائق السرعة
                 </span>
-                <h3 title={videoPlayer.title}>{videoPlayer.title}</h3>
+                <h3 title={videoPlayer.title || 'البث المباشر'}>{videoPlayer.title || 'البث المباشر'}</h3>
               </div>
 
               <div className="sr-player-top-actions">
