@@ -1120,21 +1120,34 @@ export default function App() {
                             </div>
                         </section>
 
-                        {/* ===== LIVE THEATER — live-theater.html REPLICA ===== */}
-                        <section id="live" className="relative pt-12 md:pt-16 scroll-mt-28">
-                            <LiveTheater
-                                lang={lang}
-                                isLive={streamInfo.isLive}
-                                viewers={streamInfo.viewers}
-                                title={streamInfo.title || t.defaultStreamTitle}
-                                category={streamInfo.category || t.defaultCategory}
-                                startedAt={streamInfo.startedAt}
-                                tags={streamInfo.tags}
-                                channelSlug={CHANNEL_SLUG}
-                                displayName={BRAND_NAME}
-                                giveaways={true}
-                            />
-                        </section>
+                        {/* ===== LIVE THEATER (يظهر فقط إذا كان يبث الآن) ===== */}
+                        {streamInfo.isLive && (
+                            <section id="live" className="relative pt-12 md:pt-16 scroll-mt-28">
+                                <LiveTheater
+                                    lang={lang}
+                                    isLive={streamInfo.isLive}
+                                    viewers={streamInfo.viewers}
+                                    title={streamInfo.title || t.defaultStreamTitle}
+                                    category={streamInfo.category || t.defaultCategory}
+                                    startedAt={streamInfo.startedAt}
+                                    tags={streamInfo.tags}
+                                    channelSlug={CHANNEL_SLUG}
+                                    displayName={BRAND_NAME}
+                                    giveaways={true}
+                                />
+                            </section>
+                        )}
+
+                        {/* ===== LAST SESSION REPORT (يظهر فقط عندما يقفل البث) ===== */}
+                        {!streamInfo.isLive && (
+                            <section id="last-session" className="relative pt-12 md:pt-16 scroll-mt-28">
+                                <Suspense fallback={<div className="w-full h-48 rounded-[24px] border border-white/10 bg-white/[0.02] animate-pulse" />}>
+                                    <DeferredMount minHeight={200}>
+                                        <LastSessionReport lang={lang} data={lastSession} clips={clips} past={pastSessions} />
+                                    </DeferredMount>
+                                </Suspense>
+                            </section>
+                        )}
 
                         {/* ===== COMMUNITY ===== */}
                         <section id="community" className="pt-12 md:pt-16 scroll-mt-28">
@@ -1185,16 +1198,6 @@ export default function App() {
                             </section>
                         )}
 
-                        {/* ===== LAST SESSION ===== */}
-                        {!streamInfo.isLive && (
-                            <section className="pt-12 md:pt-16">
-                                <Suspense fallback={<div className="w-full h-48 rounded-[24px] border border-white/10 bg-white/[0.02] animate-pulse" />}>
-                                    <DeferredMount minHeight={200}>
-                                        <LastSessionReport lang={lang} data={lastSession} clips={clips} past={pastSessions} />
-                                    </DeferredMount>
-                                </Suspense>
-                            </section>
-                        )}
 
                         {/* ===== DYNAMIC: SPONSORS + CLIPS ===== */}
                         {(sponsors.length > 0 || clipsList.length > 0) && (

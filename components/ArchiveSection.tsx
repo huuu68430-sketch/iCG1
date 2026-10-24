@@ -241,12 +241,6 @@ export const ArchiveSection: React.FC<ArchiveSectionProps> = ({ lang }) => {
   const prevVolumeRef = useRef(1);
 
   const openPlayer = (title: string, source: string, kickUrl: string, thumbnail?: string, isClip = false) => {
-    // For clips, redirect directly to Kick since clip HLS streams often have CORS/expiry issues
-    if (isClip) {
-      window.open(kickUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    
     setActiveReportVod(null);
     setCurrentTime(0);
     setDuration(0);
@@ -256,7 +250,9 @@ export const ArchiveSection: React.FC<ArchiveSectionProps> = ({ lang }) => {
     setShowControls(true);
     setVideoPlayer({
       title,
-      source: source || 'https://stream.kick.com/0f3cb0ebce7/ivs/v1/196233775518/nkgXnCnlc2BN/2026/10/21/16/56/AziccfA6redM/media/hls/master.m3u8',
+      source: source || (isClip 
+        ? 'https://clips.kick.com/clips/f5/clip_01M5G9VRXYHJVT1RV6RQMVWDGT/playlist.m3u8'
+        : 'https://stream.kick.com/0f3cb0ebce7/ivs/v1/196233775518/nkgXnCnlc2BN/2026/10/21/16/56/AziccfA6redM/media/hls/master.m3u8'),
       kickUrl: kickUrl || 'https://kick.com/icg1/videos/01a15f64-e450-70c0-9e0e-6cedcaad149c',
       thumbnail,
     });
@@ -610,9 +606,10 @@ export const ArchiveSection: React.FC<ArchiveSectionProps> = ({ lang }) => {
                 showToast('خطأ في الشبكة - جاري إعادة المحاولة...');
               } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
                 hls?.recoverMediaError();
-                showToast('فشل تحميل البث - الرابط قد يكون منتهي الصلاحية. جرب المشاهدة على Kick مباشرة');
+                showToast('فشل تحميل الفيديو - يمكنك المشاهدة على Kick مباشرة');
               } else {
-                showToast('خطأ في تشغيل الفيديو - جرب المشاهدة على Kick مباشرة');
+                setVideoError('تعذر تشغيل هذا المقطع تلقائياً. يمكنك مشاهدته بضغطة زر على Kick مباشرة.');
+                showToast('تعذر تشغيل الفيديو - يمكنك المشاهدة على Kick');
                 hls?.destroy();
               }
             }
