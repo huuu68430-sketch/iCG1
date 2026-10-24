@@ -118,7 +118,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
 
     if (isBanned) {
         return (
-            <div className="fixed inset-0 z-[10000] bg-[#050505] flex flex-col items-center justify-center p-6 font-sans overflow-hidden" dir="rtl">
+            <div className="icg1-user-dashboard fixed inset-0 z-[10000] bg-[#050505] flex flex-col items-center justify-center p-6 font-sans overflow-hidden" dir="rtl">
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 pointer-events-none"></div>
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-600/10 animate-pulse rounded-full blur-[150px] pointer-events-none"></div>
                 
@@ -249,7 +249,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
                             <div className="bg-gradient-to-r from-red-600 to-red-500 px-2 py-0.5 rounded-md">
                                 <span className="text-[9px] font-black text-white uppercase tracking-widest">VIP</span>
                             </div>
-                            <span className="text-[10px] font-black text-red-500/80 uppercase tracking-wider">iABS</span>
+                            <span className="text-[10px] font-black text-red-500/80 uppercase tracking-wider">iCG1</span>
                         </div>
                         <div className="text-white/70 font-bold text-[11px] leading-relaxed">ارفع مستواك للحصول على خصومات حصرية في المتجر!</div>
                     </div>
@@ -259,7 +259,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
     );
 
     return (
-        <div className="flex flex-col md:flex-row w-full h-full min-h-[500px] bg-gradient-to-br from-black/60 via-zinc-950/50 to-black/60 backdrop-blur-3xl rounded-[1.5rem] border border-white/[0.06] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5),0_0_100px_rgba(220,38,38,0.03)] animate-in zoom-in duration-500">
+        <div className="icg1-user-dashboard flex flex-col md:flex-row w-full h-full min-h-[500px] bg-gradient-to-br from-black/60 via-zinc-950/50 to-black/60 backdrop-blur-3xl rounded-[1.5rem] border border-white/[0.06] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5),0_0_100px_rgba(220,38,38,0.03)] animate-in zoom-in duration-500" dir="rtl">
 
             {/* ===== MOBILE TOP BAR ===== */}
             <div className="flex md:hidden items-center justify-between px-4 py-3 bg-gradient-to-l from-red-950/30 via-zinc-950/80 to-zinc-950/80 border-b border-white/5">

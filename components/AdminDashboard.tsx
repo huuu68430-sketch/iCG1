@@ -466,7 +466,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   ];
 
   return (
-    <div className="w-full h-full bg-[#030303] text-white flex animate-in fade-in duration-700 font-sans overflow-hidden">
+    <div className="icg1-admin w-full h-full bg-[#030303] text-white flex animate-in fade-in duration-700 font-sans overflow-hidden" dir="rtl">
 
       {/* SIDEBAR */}
       <div className="w-[240px] shrink-0 bg-gradient-to-b from-[#0a0a0a] via-zinc-950 to-[#0a0a0a] border-l border-white/5 flex flex-col p-4 relative z-50 shadow-2xl">
@@ -480,8 +480,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </div>
           </div>
           <div className="flex flex-col">
-            <h1 className="text-xl font-black italic tracking-tighter text-white leading-none">iABS <span className="text-red-500">ADM</span></h1>
-            <p className="text-[9px] text-zinc-500 font-bold tracking-[0.2em] uppercase mt-0.5">Control Suite</p>
+            <h1 className="text-xl font-black tracking-tighter text-white leading-none">iCG1 <span className="text-red-500">ADM</span></h1>
+            <p className="text-[9px] text-zinc-500 font-bold tracking-[0.2em] uppercase mt-0.5">إدارة الساحة</p>
           </div>
         </div>
 

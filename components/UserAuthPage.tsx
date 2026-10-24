@@ -310,7 +310,7 @@ export const UserAuthPage: React.FC<UserAuthPageProps> = ({ onSuccess, onBack })
     // ========= RENDER =========
 
     return (
-        <div className="fixed inset-0 z-50 bg-black text-white font-sans overflow-hidden flex flex-col items-center md:justify-center" dir="rtl">
+        <div className="icg1-auth fixed inset-0 z-50 bg-black text-white font-sans overflow-hidden flex flex-col items-center md:justify-center" dir="rtl">
             {/* Global Back Button */}
             {onBack && step !== 'VERIFIED' && step !== 'VERIFYING' && (
                 <button
@@ -525,7 +525,7 @@ export const UserAuthPage: React.FC<UserAuthPageProps> = ({ onSuccess, onBack })
                     {/* Footer */}
                     <div className="mt-5 text-center opacity-30 flex items-center justify-center gap-2 pb-4">
                         <Sparkles size={12} />
-                        <span className="text-[9px] uppercase tracking-[0.4em] font-bold">SECURED BY iABS SYSTEM</span>
+                        <span className="text-[9px] uppercase tracking-[0.4em] font-bold">iCG1 — دخول آمن</span>
                     </div>
                 </div>
             )}

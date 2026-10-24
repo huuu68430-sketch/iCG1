@@ -81,7 +81,7 @@ create table app_config (
 );
 
 -- إدخال البيانات الافتراضية
-insert into app_config (key, value) values ('admin_password', 'admin123');
+-- Set admin_password through a secure admin setup flow. Do not seed a default credential.
 insert into arena_status (key, value) values ('global_mood', '{"theme": "default", "ambient": "standard", "particles": "none"}');
 insert into arena_status (key, value) values ('viewer_override', '{"enabled": false, "count": 0}');
 insert into arena_status (key, value) values ('audio_overlay', '{"enabled": false, "url": "", "volume": 0.5}');

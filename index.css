@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Lalezar&family=Tajawal:wght@400;500;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -236,19 +238,13 @@ body.obs-mode *::-webkit-scrollbar {
   --icg1-muted: #b2a283;
 }
 
-html,
-body {
+.icg1-shell[data-game-active="false"] {
   background: var(--icg1-ink);
   color: var(--icg1-cream);
   font-family: "Tajawal", Tahoma, sans-serif;
 }
 
-.icg1-shell {
-  background: var(--icg1-ink);
-  color: var(--icg1-cream);
-}
-
-.icg1-main {
+.icg1-shell[data-game-active="false"] .icg1-main {
   background: var(--icg1-ink);
 }
 
@@ -751,8 +747,13 @@ body {
   --tw-gradient-to: rgb(232 190 110 / 0) var(--tw-gradient-to-position) !important;
 }
 
+.icg1-shell[data-game-active="false"] [class*="to-red-"],
 .icg1-shell[data-game-active="false"] [class*="to-rose-"] {
   --tw-gradient-to: #a97a30 var(--tw-gradient-to-position) !important;
+}
+
+.icg1-shell[data-game-active="false"] [class*="via-red-"] {
+  --tw-gradient-stops: var(--tw-gradient-from), #c99a50 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
 }
 
 @media (max-width: 800px) {
@@ -844,6 +845,74 @@ body {
   .icg1-emblem-orbit::after {
     animation: none;
   }
+}
+
+/* Brand all utility/auth surfaces while leaving embedded game views untouched. */
+.icg1-shell[data-game-active="false"] .icg1-auth,
+.icg1-shell[data-game-active="false"] .icg1-admin,
+.icg1-shell[data-game-active="false"] .icg1-user-dashboard {
+  color: var(--icg1-cream);
+  font-family: "Tajawal", Tahoma, sans-serif;
+  --tw-ring-color: rgb(232 190 110 / 0.45);
+  accent-color: var(--icg1-gold);
+}
+
+.icg1-shell[data-game-active="false"] .icg1-admin [class*="blue-"],
+.icg1-shell[data-game-active="false"] .icg1-user-dashboard [class*="blue-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="purple-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="emerald-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="teal-"] {
+  --tw-gradient-from: #e8be6e var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(232 190 110 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.icg1-shell[data-game-active="false"] .icg1-admin [class*="bg-blue-"],
+.icg1-shell[data-game-active="false"] .icg1-user-dashboard [class*="bg-blue-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="bg-purple-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="bg-emerald-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="bg-teal-"] {
+  background-color: rgb(169 122 48 / 0.22) !important;
+}
+
+.icg1-shell[data-game-active="false"] .icg1-admin [class*="to-blue-"],
+.icg1-shell[data-game-active="false"] .icg1-user-dashboard [class*="to-blue-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="to-purple-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="to-emerald-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="to-teal-"] {
+  --tw-gradient-to: #a97a30 var(--tw-gradient-to-position);
+}
+
+.icg1-shell[data-game-active="false"] .icg1-admin [class*="text-blue-"],
+.icg1-shell[data-game-active="false"] .icg1-user-dashboard [class*="text-blue-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="text-purple-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="text-emerald-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="text-teal-"] {
+  color: var(--icg1-gold) !important;
+}
+
+.icg1-shell[data-game-active="false"] .icg1-admin [class*="border-blue-"],
+.icg1-shell[data-game-active="false"] .icg1-user-dashboard [class*="border-blue-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="border-purple-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="border-emerald-"],
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="border-teal-"] {
+  border-color: rgb(232 190 110 / 0.3) !important;
+}
+
+.icg1-chat {
+  font-family: "Tajawal", Tahoma, sans-serif;
+}
+
+.icg1-chat [class*="text-red-"] {
+  color: var(--icg1-gold) !important;
+}
+
+.icg1-chat [class*="bg-red-"] {
+  background-color: #a97a30 !important;
+}
+
+.icg1-chat [class*="border-red-"] {
+  border-color: rgb(232 190 110 / 0.42) !important;
 }
 
 /* ============================================================

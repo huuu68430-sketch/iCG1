@@ -784,6 +784,11 @@ useEffect(() => {
 
             {/* Games Section */}
             <div className="w-full flex flex-col items-center mb-4 space-y-3 px-1" style={{perspective:'1200px'}}>
+              {displayedGames.length === 0 && (
+                <div className="icg-section-empty">
+                  {gameSearch ? 'لا توجد ألعاب تطابق بحثك.' : 'لا توجد ألعاب متاحة حالياً.'}
+                </div>
+              )}
               {(() => {
                 const primaryVisible = displayedGames.filter(g => g.is_primary && (g.is_visible !== false || isEditMode));
 

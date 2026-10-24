@@ -344,7 +344,7 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
     }
 
     return (
-        <div className="fixed inset-0 z-[9999] bg-black text-white font-sans overflow-hidden flex flex-col items-center justify-center p-0 m-0">
+        <div className="icg1-auth fixed inset-0 z-[9999] bg-black text-white font-sans overflow-hidden flex flex-col items-center justify-center p-0 m-0" dir="rtl">
             {/* Dynamic Background */}
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-900/10 via-black to-black animate-pulse"></div>
@@ -517,7 +517,7 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
             <div className="absolute bottom-10 opacity-30 flex flex-col items-center gap-1 animate-pulse pointer-events-none">
                 <div className="flex items-center gap-3">
                     <Sparkles size={20} className="text-white" />
-                    <span className="text-sm text-white uppercase tracking-[0.6em] font-bold">SECURED BY iABS CLOUD SYSTEM</span>
+                    <span className="text-sm text-white uppercase tracking-[0.6em] font-bold">iCG1 — دخول آمن</span>
                 </div>
                 <span className="text-[10px] text-zinc-500 font-mono">BUILD_REF: {new Date().toLocaleDateString()} | v2.0.5</span>
             </div>

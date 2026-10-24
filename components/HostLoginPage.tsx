@@ -96,7 +96,7 @@ export const HostLoginPage: React.FC<HostLoginPageProps> = ({ onSuccess, onBack 
   };
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center overflow-hidden" dir="rtl">
+    <div className="icg1-auth relative w-full h-full flex items-center justify-center overflow-hidden" dir="rtl">
       {/* Background Effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-black via-emerald-950/20 to-black" />
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-emerald-500/5 blur-[150px] rounded-full animate-pulse" />
@@ -251,7 +251,7 @@ export const HostLoginPage: React.FC<HostLoginPageProps> = ({ onSuccess, onBack 
                   </div>
                 </div>
                 <h2 className="text-2xl font-black text-white mt-2 tracking-tight">{hostData.kickUsername}</h2>
-                <p className="text-white/30 text-sm font-bold">مستضيف في iABS Arena</p>
+                <p className="text-white/30 text-sm font-bold">مستضيف في ساحة iCG1</p>
               </div>
 
               {/* Stats Grid */}
@@ -319,7 +319,7 @@ export const HostLoginPage: React.FC<HostLoginPageProps> = ({ onSuccess, onBack 
         <div className="text-center mt-6 opacity-20">
           <div className="flex items-center justify-center gap-2">
             <Shield size={12} className="text-emerald-500" />
-            <span className="text-[9px] text-white uppercase tracking-[0.4em] font-bold">Secured by iABS System</span>
+            <span className="text-[9px] text-white uppercase tracking-[0.4em] font-bold">iCG1 — دخول آمن</span>
           </div>
         </div>
       </div>

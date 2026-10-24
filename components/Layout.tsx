@@ -53,7 +53,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
     <div className="icg1-shell app-shell flex bg-black overflow-hidden font-sans" data-game-active={isGameView} dir="rtl">
 
       {/* Sidebar Container */}
-      {isAuthorized && currentView !== 'USER_DASHBOARD' && currentView !== 'ABOUT' && (
+      {(
         <aside
           style={{ width: chatOpen ? `${sidebarWidth}px` : '0px' }}
           className="icg1-sidebar fixed lg:static inset-y-0 right-0 lg:inset-auto z-[200] lg:z-50 h-full transition-all duration-500 ease-in-out border-l border-white/5 flex-shrink-0 flex flex-col bg-[#050505] shadow-[20px_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
@@ -143,7 +143,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
           )}
 
           {/* Bottom Section: Game Controls */}
-          {!isHome && currentView !== 'MAHMAH_GAME' && (
+          {!isHome && !nonGameViews.has(String(currentView)) && currentView !== 'MAHMAH_GAME' && (
             <div className="flex-[1.6] min-h-0 border-t border-white/5 bg-gradient-to-b from-black/70 via-red-950/5 to-black/80 backdrop-blur-3xl flex flex-col relative overflow-hidden">
               {/* Top glow line */}
               <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-red-500/40 to-transparent"></div>
@@ -183,7 +183,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
       )}
 
       {/* Mobile drawer backdrop */}
-      {isAuthorized && chatOpen && currentView !== 'USER_DASHBOARD' && currentView !== 'ABOUT' && (
+      {chatOpen && (
         <div className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm lg:hidden" onClick={() => toggleChat(false)} />
       )}
 
@@ -226,10 +226,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
       </main>
 
       {/* Re-Open Chat Button (Visible only when chat is closed) */}
-      {isAuthorized && !chatOpen && currentView !== 'USER_DASHBOARD' && currentView !== 'ABOUT' && (
+      {!chatOpen && (
         <button
           onClick={() => toggleChat(true)}
           className="fixed bottom-20 right-3 z-[100] p-2.5 bg-red-600 text-white rounded-xl shadow-[0_0_30px_rgba(255,0,0,0.5)] hover:scale-110 active:scale-95 transition-all border border-white/20 animate-in slide-in-from-left-20 duration-500"
+          aria-label="فتح دردشة iCG1"
+          title="دردشة iCG1"
         >
           <MessageSquare size={16} strokeWidth={2.5} className="drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
         </button>
