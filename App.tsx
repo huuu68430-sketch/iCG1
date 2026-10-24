@@ -725,7 +725,7 @@ useEffect(() => {
           <div id="top" className="icg1-home flex-1 flex flex-col items-center w-full mx-auto px-3 md:px-6 pb-8 animate-in fade-in duration-700">
             <header className="icg1-header">
               <a className="icg1-brand" href="#top" aria-label="iCG1 — الرئيسية">
-                <img src="/icg1-banner.png" alt="iCG1" />
+                <img src="/icg1-banner-v2.png" alt="iCG1" />
               </a>
               <nav className="icg1-nav" aria-label="التنقل الرئيسي">
                 <button onClick={() => setCurrentView('HOME')}>الرئيسية</button>
@@ -754,12 +754,12 @@ useEffect(() => {
                 </div>
                 <div className="icg1-stats">
                   <div><strong>{games.length}</strong><span>لعبة في الساحة</span></div>
-                  <div><strong>LIVE</strong><span>تفاعل مباشر مع الشات</span></div>
+                   <div><strong>KICK</strong><span>تفاعل مباشر مع الشات</span></div>
                 </div>
               </div>
               <div className="icg1-emblem-wrap">
                 <div className="icg1-emblem-orbit" />
-                <img className="icg1-emblem" src="/icg1-logo.png" alt="شعار iCG1" />
+                <img className="icg1-emblem" src="/icg1-logo-v2.png" alt="شعار iCG1" />
                 <span className="icg1-corner icg1-corner-a" />
                 <span className="icg1-corner icg1-corner-b" />
                 <span className="icg1-corner icg1-corner-c" />

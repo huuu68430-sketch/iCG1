@@ -35,7 +35,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
   };
 
   const viewBg = (view: ViewState) => {
-    return "url('/icg1-arena-bg.png')";
+    const brandedViews = new Set(['HOME', 'ADMIN_LOGIN', 'ADMIN_PANEL', 'USER_DASHBOARD', 'LEADERBOARD', 'ABOUT', 'HOST_LOGIN', 'HOST_GATE']);
+    return brandedViews.has(String(view)) ? "url('/icg1-arena-bg-v2.png')" : "url('/icg1-arena-bg.png')";
   };
 
   const handleResize = (amount: number) => {

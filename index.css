@@ -248,6 +248,24 @@ body.obs-mode *::-webkit-scrollbar {
   background: var(--icg1-ink);
 }
 
+.icg1-shell[data-game-active="false"] .glass-card {
+  border-color: rgb(232 190 110 / 0.2);
+}
+
+.icg1-shell[data-game-active="false"] .red-neon-text {
+  color: var(--icg1-gold);
+  text-shadow: 0 0 15px rgb(232 190 110 / 0.34);
+}
+
+.icg1-shell[data-game-active="false"] .red-neon-border {
+  border-color: rgb(232 190 110 / 0.5);
+  box-shadow: 0 0 20px rgb(232 190 110 / 0.16);
+}
+
+.icg1-shell[data-game-active="false"] .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--icg1-gold-deep);
+}
+
 .icg1-sidebar {
   background:
     radial-gradient(ellipse at top right, rgba(232, 190, 110, 0.08), transparent 42%),
@@ -385,7 +403,7 @@ body.obs-mode *::-webkit-scrollbar {
   border-radius: 30px;
   background:
     linear-gradient(90deg, rgba(10, 8, 5, 0.16), rgba(10, 8, 5, 0.76) 54%, rgba(10, 8, 5, 0.95)),
-    url("/icg1-arena-bg.png") center / cover no-repeat,
+    url("/icg1-arena-bg-v2.png") center / cover no-repeat,
     linear-gradient(140deg, #21170d, #0a0805 70%);
   box-shadow: 0 28px 70px rgba(0, 0, 0, 0.46), inset 0 0 80px rgba(232, 190, 110, 0.045);
 }
@@ -915,6 +933,132 @@ body.obs-mode *::-webkit-scrollbar {
   border-color: rgb(232 190 110 / 0.42) !important;
 }
 
+/* Extend the brass-and-ink system across every shared screen, not game views. */
+.icg1-shell[data-game-active="false"] [class*="text-blue-"],
+.icg1-shell[data-game-active="false"] [class*="text-purple-"],
+.icg1-shell[data-game-active="false"] [class*="text-emerald-"],
+.icg1-shell[data-game-active="false"] [class*="text-teal-"] {
+  color: var(--icg1-gold) !important;
+}
+
+.icg1-shell[data-game-active="false"] [class*="border-blue-"],
+.icg1-shell[data-game-active="false"] [class*="border-purple-"],
+.icg1-shell[data-game-active="false"] [class*="border-emerald-"],
+.icg1-shell[data-game-active="false"] [class*="border-teal-"] {
+  border-color: rgb(232 190 110 / 0.3) !important;
+}
+
+.icg1-shell[data-game-active="false"] [class*="bg-blue-"],
+.icg1-shell[data-game-active="false"] [class*="bg-purple-"],
+.icg1-shell[data-game-active="false"] [class*="bg-emerald-"],
+.icg1-shell[data-game-active="false"] [class*="bg-teal-"] {
+  background-color: rgb(169 122 48 / 0.22) !important;
+}
+
+.icg1-shell[data-game-active="false"] [class*="from-blue-"],
+.icg1-shell[data-game-active="false"] [class*="from-purple-"],
+.icg1-shell[data-game-active="false"] [class*="from-emerald-"],
+.icg1-shell[data-game-active="false"] [class*="from-teal-"] {
+  --tw-gradient-from: #e8be6e var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(232 190 110 / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.icg1-shell[data-game-active="false"] [class*="to-blue-"],
+.icg1-shell[data-game-active="false"] [class*="to-purple-"],
+.icg1-shell[data-game-active="false"] [class*="to-emerald-"],
+.icg1-shell[data-game-active="false"] [class*="to-teal-"] {
+  --tw-gradient-to: #a97a30 var(--tw-gradient-to-position) !important;
+}
+
+.icg1-shell[data-game-active="false"] :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid rgb(232 190 110 / 0.82);
+  outline-offset: 3px;
+}
+
+.icg1-shell[data-game-active="false"] input::placeholder,
+.icg1-shell[data-game-active="false"] textarea::placeholder {
+  color: rgb(178 162 131 / 0.68);
+}
+
+/* Home stage: emblem-first, centered composition matching the supplied arena reference. */
+.icg1-home .icg1-hero {
+  width: min(100%, 1040px);
+  min-height: 0;
+  margin: 22px auto 34px;
+  padding: clamp(30px, 5vw, 58px) 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  border-color: rgba(232, 190, 110, 0.17);
+  background: linear-gradient(180deg, rgba(27, 20, 11, 0.24), rgba(10, 8, 5, 0.12));
+  box-shadow: inset 0 1px rgba(255, 246, 221, 0.035), 0 22px 70px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(2px);
+}
+
+.icg1-home .icg1-emblem-wrap {
+  order: -1;
+  width: min(230px, 46vw);
+  margin-bottom: 2px;
+}
+
+.icg1-home .icg1-emblem {
+  width: 78%;
+  box-shadow: 0 0 54px rgba(232, 190, 110, 0.18), 0 0 0 8px rgba(10, 8, 5, 0.24);
+}
+
+.icg1-home .icg1-hero-copy {
+  width: min(100%, 690px);
+  max-width: 690px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.icg1-home .icg1-hero h1 {
+  margin-top: 11px;
+  font-size: clamp(76px, 10vw, 116px);
+  line-height: 0.92;
+}
+
+.icg1-home .icg1-king {
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.icg1-home .icg1-hero-copy > p {
+  margin: 18px auto 0;
+}
+
+.icg1-home .icg1-hero-actions,
+.icg1-home .icg1-stats {
+  justify-content: center;
+}
+
+.icg1-home .icg1-hero-actions {
+  margin-top: 21px;
+}
+
+.icg1-home .icg1-stats {
+  margin-top: 20px;
+}
+
+@media (max-width: 800px) {
+  .icg1-home .icg1-hero {
+    gap: 12px;
+    margin-top: 16px;
+    padding: 30px 18px;
+  }
+
+  .icg1-home .icg1-emblem-wrap {
+    width: min(205px, 52vw);
+  }
+}
+
 /* ============================================================
    iABS mark (5-layer) — verbatim from REPLICA_IABS_DESIGN.md
    هالة + عمق بعيد + عمق قريب + حروف متتابعة + لمعة زاحفة
@@ -1150,5 +1294,21 @@ body.obs-mode *::-webkit-scrollbar {
     opacity: 1 !important;
     transform: none !important;
   }
+}
+
+/* Keep the access gate cinematic; utility color remapping must not erase
+   the opacity of its original red-tinted gradients. */
+.icg1-shell[data-game-active="false"] .icg1-auth {
+  background:
+    linear-gradient(rgba(10, 8, 5, 0.72), rgba(10, 8, 5, 0.9)),
+    url("/icg1-arena-bg-v2.png") center / cover no-repeat !important;
+}
+
+.icg1-shell[data-game-active="false"] .icg1-auth > .absolute.inset-0 > div:first-child {
+  background: radial-gradient(circle at center, rgba(169, 122, 48, 0.1), rgba(10, 8, 5, 0.96) 72%) !important;
+}
+
+.icg1-shell[data-game-active="false"] .icg1-auth [class*="blur-[150px]"] {
+  background-color: rgba(169, 122, 48, 0.05) !important;
 }
 
