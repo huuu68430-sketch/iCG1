@@ -239,7 +239,7 @@ class ChatService {
     return rawData;
   }
 
-  async connect(channelSlug: string = 'iabs'): Promise<void> {
+  async connect(channelSlug: string = 'icg1'): Promise<void> {
     const slug = channelSlug.toLowerCase().trim();
     
     // If stuck in connecting state for too long, force reset

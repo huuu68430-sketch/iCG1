@@ -35,12 +35,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
   };
 
   const viewBg = (view: ViewState) => {
-    switch (view) {
-      case 'FAWAZIR_GAME':
-        return "url('/fawazir-bg.png')";
-      default:
-        return "url('/fawazir-bg.png')";
-    }
+    return "url('/icg1-arena-bg.png')";
   };
 
   const handleResize = (amount: number) => {
@@ -51,18 +46,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
   };
 
   const isHome = currentView === 'HOME' || (currentView as string) === 'ADMIN_LOGIN' || currentView === 'ABOUT';
+  const nonGameViews = new Set(['HOME', 'ADMIN_LOGIN', 'ADMIN_PANEL', 'USER_DASHBOARD', 'LEADERBOARD', 'ABOUT', 'HOST_LOGIN', 'HOST_GATE']);
+  const isGameView = !nonGameViews.has(String(currentView));
 
   return (
-    <div className="app-shell flex bg-black overflow-hidden font-sans" dir="rtl">
+    <div className="icg1-shell app-shell flex bg-black overflow-hidden font-sans" data-game-active={isGameView} dir="rtl">
 
       {/* Sidebar Container */}
       {isAuthorized && currentView !== 'USER_DASHBOARD' && currentView !== 'ABOUT' && (
         <aside
           style={{ width: chatOpen ? `${sidebarWidth}px` : '0px' }}
-          className="fixed lg:static inset-y-0 right-0 lg:inset-auto z-[200] lg:z-50 h-full transition-all duration-500 ease-in-out border-l border-white/5 flex-shrink-0 flex flex-col bg-[#050505] shadow-[20px_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
+          className="icg1-sidebar fixed lg:static inset-y-0 right-0 lg:inset-auto z-[200] lg:z-50 h-full transition-all duration-500 ease-in-out border-l border-white/5 flex-shrink-0 flex flex-col bg-[#050505] shadow-[20px_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
         >
           {/* --- MODERN COMMAND BAR (ABOVE CHAT) --- */}
-          <div className="h-9 shrink-0 bg-gradient-to-l from-red-600/10 via-black to-black border-b border-white/5 flex items-center justify-between px-2 z-30">
+          <div className="icg1-controlbar h-9 shrink-0 bg-gradient-to-l from-red-600/10 via-black to-black border-b border-white/5 flex items-center justify-between px-2 z-30">
             <div className="flex items-center gap-1.5">
               <div className="p-1 bg-gradient-to-br from-red-600 to-red-900 rounded-md shadow-[0_0_15px_rgba(255,0,0,0.3)] border border-white/20">
                 <LayoutGrid size={10} className="text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" />
@@ -191,7 +188,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
       )}
 
       {/* Main Game Area */}
-      <main className="flex-1 relative flex flex-col h-full overflow-hidden bg-black">
+      <main className="icg1-main flex-1 relative flex flex-col h-full overflow-hidden bg-black">
         {/* Global Background Layer */}
         <div
           className="absolute inset-0 z-0 pointer-events-none opacity-60 transition-all duration-1000 bg-center bg-contain"

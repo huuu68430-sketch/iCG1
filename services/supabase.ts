@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Layered approach for environment variables (Vite + Process support)
 const getEnv = (key: string) => {
-  return (import.meta.env && import.meta.env[key]) || (process.env && process.env[key]) || '';
+  return (process.env && process.env[key]) || (import.meta.env && import.meta.env[key]) || '';
 };
 
 const URL_VAL = getEnv('EXPO_PUBLIC_SUPABASE_URL');

@@ -114,7 +114,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ lang }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const connect = () => {
-    chatService.connect('iabs');
+    chatService.connect('icg1');
   };
 
   useEffect(() => {
@@ -179,26 +179,26 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ lang }) => {
   }, []);
 
   const t = {
-    title: lang === 'ar' ? 'ساحة الحوار' : 'Live Arena',
+    title: lang === 'ar' ? 'شات قناة iCG1' : 'iCG1 Live Chat',
     connecting: lang === 'ar' ? 'جاري الاتصال...' : 'Connecting...',
-    connected: lang === 'ar' ? 'الميدان نشط' : 'Arena Active',
+    connected: lang === 'ar' ? 'القناة متصلة' : 'Channel connected',
     error: lang === 'ar' ? 'انقطع الاتصال' : 'Connection Lost',
     retry: lang === 'ar' ? 'إعادة المحاولة' : 'Retry',
     deleted: lang === 'ar' ? 'تم حذف هذه الرسالة بواسطة الإدارة' : 'This message was removed by moderator',
-    placeholder: lang === 'ar' ? 'في انتظار أول تعليق...' : 'Waiting for first message...'
+    placeholder: lang === 'ar' ? 'بانتظار رسائل قناة iCG1...' : 'Waiting for iCG1 chat messages...'
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#050505]/90 backdrop-blur-2xl relative border-l border-white/5">
+    <div className="icg1-chat flex flex-col h-full w-full bg-[#050505]/90 backdrop-blur-2xl relative border-l border-white/5">
 
       {/* Header */}
-      <div className="h-14 shrink-0 bg-gradient-to-r from-red-600/10 to-transparent border-b border-white/5 flex items-center justify-between px-3 z-20">
+      <div className="icg1-chat-header h-14 shrink-0 bg-gradient-to-r from-red-600/10 to-transparent border-b border-white/5 flex items-center justify-between px-3 z-20">
         <div className="flex items-center gap-2">
           <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-500 shadow-lg ${status.connected ? 'bg-gradient-to-br from-red-600 to-rose-800 shadow-[0_0_15px_rgba(255,0,0,0.5)]' : 'bg-zinc-800'}`}>
             <MessageSquare size={18} className="text-white" />
           </div>
           <div className="flex flex-col">
-            <h2 className="text-white font-black text-[11px] uppercase tracking-tighter italic">{t.title}</h2>
+            <a href="https://kick.com/icg1" target="_blank" rel="noreferrer" className="icg1-chat-title text-white font-black text-[11px] uppercase tracking-tighter italic">{t.title}</a>
             <div className="flex items-center gap-1.5">
               <span className={`w-1.5 h-1.5 rounded-full ${status.connected ? 'bg-red-500 animate-pulse shadow-[0_0_5px_red]' : 'bg-zinc-600'}`}></span>
               <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{status.connected ? t.connected : t.connecting}</span>

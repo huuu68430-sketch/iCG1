@@ -43,7 +43,7 @@ import {
   RotateCw, Gift, Flag, Users2, Keyboard, Gem, Coffee,
   PaintBucket, Sparkles, ShieldCheck, Zap, Armchair,
   Maximize2, MonitorOff, CheckCircle2, AlertTriangle,
-  Crown, Medal, Loader2, RefreshCw, ChevronRight, Video,
+  Crown, Medal, Loader2, RefreshCw, ChevronRight, Video, Search,
   Sword, Globe, Brain, Vote, Bomb, Type, Footprints, Flame, Smile,
   ArrowUp, ArrowDown, Edit2, Save, Eye, EyeOff, Maximize, Minimize, Layout as LayoutIcon, X, LogIn, LogOut
 } from 'lucide-react';
@@ -53,7 +53,6 @@ import { supabase, leaderboardService, gamesService } from './services/supabase'
 import { OBSLinksModal } from './components/OBSLinksModal';
 import { ProAvatar } from './components/ProAvatar';
 import TecshIcon from './components/TecsIcon';
-import { IabsLogo } from './components/IabsLogo';
 
 const ICON_MAP: Record<string, any> = {
   Sparkles, Armchair, TecshIcon, ImageIcon, Zap, Gift, Flag, Users2, Keyboard, Swords, Coffee, PaintBucket, AlertTriangle, Video, Sword, Globe, Brain, Vote, Bomb, Type, Footprints, Flame, Smile
@@ -137,6 +136,7 @@ const App: React.FC = () => {
 
   // Games Management State
   const [games, setGames] = useState<any[]>([]);
+  const [gameSearch, setGameSearch] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSavingGames, setIsSavingGames] = useState(false);
 
@@ -262,7 +262,7 @@ const App: React.FC = () => {
 
   // Global Chat Connection
   useEffect(() => {
-    const channel = 'iabs'; // Forced to iabs
+    const channel = 'icg1';
     console.log(`[App] Initializing Chat Connection for: ${channel}`);
 
     chatService.connect(channel);
@@ -427,7 +427,7 @@ useEffect(() => {
         <button
           onClick={isComingSoon ? undefined : onClick}
           disabled={isComingSoon || isEditMode}
-          className={`group relative flex items-center justify-center gap-2 md:gap-3 overflow-hidden border transition-all duration-300 active:scale-95 text-white font-black italic
+          className={`icg-game-button group relative flex items-center justify-center gap-2 md:gap-3 overflow-hidden border transition-all duration-300 active:scale-95 text-white font-black italic
             ${isEditMode ? "border-white/40 ring-4 ring-white/10 scale-95 opacity-80" : "border-white/10"}
             ${!isVisible && isEditMode ? "opacity-40 grayscale" : ""}
             ${isComingSoon ? "bg-zinc-900 cursor-not-allowed grayscale pointer-events-none" : "bg-iabs-red shadow-[0_10px_30px_rgba(255,0,0,0.25)]"}
@@ -713,42 +713,79 @@ useEffect(() => {
       );
 
       case 'HOME':
-      default:
+      default: {
+        const normalizedSearch = gameSearch.trim().toLocaleLowerCase('ar');
+        const displayedGames = games.filter((game) =>
+          !normalizedSearch ||
+          `${game.title || ''} ${game.view_id || ''}`.toLocaleLowerCase('ar').includes(normalizedSearch)
+        );
+        const jumpToGames = () => document.getElementById('icg-games')?.scrollIntoView({ behavior: 'smooth' });
+
         return (
-          <div className="flex-1 flex flex-col items-center w-full max-w-5xl mx-auto px-2 pt-6 pb-3 animate-in fade-in duration-700">
-            {/* Hero Section */}
-            <div className="w-full relative flex flex-col items-center mt-4 mb-4">
-              {/* Glow orbs */}
-              <div className="absolute top-12 w-56 h-56 bg-red-600/15 blur-[100px] rounded-full animate-pulse"></div>
-              <div className="absolute top-20 -right-10 w-32 h-32 bg-yellow-500/10 blur-[80px] rounded-full animate-pulse" style={{animationDelay:'1s'}}></div>
-              <div className="absolute top-20 -left-10 w-32 h-32 bg-purple-600/10 blur-[80px] rounded-full animate-pulse" style={{animationDelay:'2s'}}></div>
+          <div id="top" className="icg1-home flex-1 flex flex-col items-center w-full mx-auto px-3 md:px-6 pb-8 animate-in fade-in duration-700">
+            <header className="icg1-header">
+              <a className="icg1-brand" href="#top" aria-label="iCG1 — الرئيسية">
+                <img src="/icg1-banner.png" alt="iCG1" />
+              </a>
+              <nav className="icg1-nav" aria-label="التنقل الرئيسي">
+                <button onClick={() => setCurrentView('HOME')}>الرئيسية</button>
+                <button onClick={jumpToGames}>الألعاب</button>
+                <button onClick={() => setCurrentView('LEADERBOARD')}>لوحة الصدارة</button>
+              </nav>
+              <a className="icg1-live-link" href="https://kick.com/icg1" target="_blank" rel="noreferrer">
+                <span className="icg1-live-dot" />
+                قناة iCG1 على Kick
+              </a>
+            </header>
 
-              {/* iABS — علامة 5 طبقات (نفس تصميم الدليل).
-                  بدون preserve-3d/perspective: في سياق ثلاثي الأبعاد
-                  تُرتَّب الطبقات حسب العمق فتختفي الحروف تحت اللمعة. */}
-              <div className="relative w-full flex justify-center">
-                <div className="absolute inset-x-0 top-1/2 h-40 bg-red-600/15 blur-[100px] rounded-full animate-pulse -translate-y-1/2"></div>
-                <div className="relative">
-                  <IabsLogo size="lg" />
+            <section className="icg1-hero" aria-labelledby="icg1-title">
+              <div className="icg1-hero-copy">
+                <span className="icg1-eyebrow">ساحة الألعاب الرسمية</span>
+                <h1 id="icg1-title">iCG1</h1>
+                <div className="icg1-king"><span>KING OF ACCEPTANCE</span></div>
+                <p>ساحة التحدّي لمجتمع iCG1 — اختر لعبتك وشارك البث مباشرة.</p>
+                <div className="icg1-hero-actions">
+                  <button className="icg1-primary-action" onClick={jumpToGames}>
+                    <Play size={18} fill="currentColor" /> ابدأ اللعب
+                  </button>
+                  <a className="icg1-secondary-action" href="https://kick.com/icg1" target="_blank" rel="noreferrer">
+                    شاهد القناة
+                  </a>
+                </div>
+                <div className="icg1-stats">
+                  <div><strong>{games.length}</strong><span>لعبة في الساحة</span></div>
+                  <div><strong>LIVE</strong><span>تفاعل مباشر مع الشات</span></div>
                 </div>
               </div>
-
-              {/* Subtitle */}
-              <div className="relative text-center mt-3" style={{transform:'rotateX(2deg) translateZ(10px)', perspective:'800px'}}>
-                <div className="flex flex-col items-center gap-2">
-                  <div className="h-px w-64 bg-gradient-to-r from-transparent via-red-500/60 to-transparent"></div>
-                  <h2 className="text-xl md:text-2xl font-black text-white/90 px-4 text-center leading-relaxed tracking-wide"
-                    style={{textShadow:'0 2px 15px rgba(0,0,0,0.8), 0 0 30px rgba(255,0,0,0.15)'}}>
-                    أكبر منصة ألعاب تفاعلية للبثوث المباشرة
-                  </h2>
-                </div>
+              <div className="icg1-emblem-wrap">
+                <div className="icg1-emblem-orbit" />
+                <img className="icg1-emblem" src="/icg1-logo.png" alt="شعار iCG1" />
+                <span className="icg1-corner icg1-corner-a" />
+                <span className="icg1-corner icg1-corner-b" />
+                <span className="icg1-corner icg1-corner-c" />
+                <span className="icg1-corner icg1-corner-d" />
               </div>
+            </section>
+
+            <div id="icg-games" className="icg1-section-heading">
+              <div><span>اختر تحدّيك</span><h2>ألعاب الساحة</h2></div>
+              <span className="icg1-game-count">{displayedGames.length} لعبة</span>
             </div>
+            <label className="icg1-search">
+              <Search size={18} aria-hidden="true" />
+              <input
+                value={gameSearch}
+                onChange={(event) => setGameSearch(event.target.value)}
+                placeholder="ابحث عن لعبة..."
+                aria-label="ابحث عن لعبة"
+              />
+              {gameSearch && <button type="button" onClick={() => setGameSearch('')} aria-label="مسح البحث"><X size={16} /></button>}
+            </label>
 
             {/* Games Section */}
             <div className="w-full flex flex-col items-center mb-4 space-y-3 px-1" style={{perspective:'1200px'}}>
               {(() => {
-                const primaryVisible = games.filter(g => g.is_primary && (g.is_visible !== false || isEditMode));
+                const primaryVisible = displayedGames.filter(g => g.is_primary && (g.is_visible !== false || isEditMode));
 
                 if (primaryVisible.length === 2) {
                   return (
@@ -884,7 +921,7 @@ useEffect(() => {
                 <div className="h-px flex-1 bg-gradient-to-l from-transparent via-red-500/30 to-transparent"></div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse"></div>
-                  <h2 className="text-white/50 font-black text-[9px] uppercase tracking-[1em] italic">المزيد من الألعاب</h2>
+                  <h2 className="text-white/50 font-black text-[9px] uppercase tracking-[1em] italic">كل الألعاب</h2>
                   <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse" style={{animationDelay:'0.5s'}}></div>
                 </div>
                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-500/30 to-transparent"></div>
@@ -892,7 +929,7 @@ useEffect(() => {
 
               <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 px-1"
                 style={{perspective:'1000px'}}>
-                {games.filter(g => !g.is_primary).map((game, idx) => (
+                {displayedGames.filter(g => !g.is_primary).map((game, idx) => (
                   <div key={game.id}
                     className="animate-in slide-in-from-bottom duration-500"
                     style={{
@@ -990,7 +1027,7 @@ useEffect(() => {
                 <Sparkles size={28} className="text-purple-500 group-hover:rotate-12 transition-transform drop-shadow-[0_0_15px_rgba(147,51,234,0.6)]" />
                 <div className="flex flex-col items-start">
                   <span className="text-white font-black text-base tracking-wider">عن المنصة</span>
-                  <span className="text-purple-500/50 font-bold text-[9px] uppercase tracking-[0.3em]">About iABS</span>
+                  <span className="text-purple-500/50 font-bold text-[9px] uppercase tracking-[0.3em]">About iCG1</span>
                 </div>
               </button>
 
@@ -1019,6 +1056,7 @@ useEffect(() => {
             </div>
           </div>
         );
+      }
     }
   };
 

@@ -9,8 +9,8 @@ const __dirname = path.dirname(__filename);
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
 
-  // Helper: get env variable from .env file or system environment
-  const getEnv = (key: string) => env[key] || process.env[key] || '';
+  // Replit Secrets must take precedence over values in an imported .env file.
+  const getEnv = (key: string) => process.env[key] || env[key] || '';
 
   // ⚠️ ملاحظة أمنية: لا تُحقن أي أسرار هنا — كل ما يوضع في define يصير
   // نصاً ظاهراً داخل ملف JavaScript que يصل للمتصفح.
@@ -26,8 +26,9 @@ export default defineConfig(({ mode }) => {
     // Dynamic Base Path: Vercel usually serves from root (/), GitHub Pages from project folder (./)
     base: process.env.VERCEL ? '/' : './',
     server: {
-      port: 3002,
-      host: 'localhost',
+      port: 5000,
+      host: '0.0.0.0',
+      allowedHosts: true,
       proxy: {
         '/kick-api': {
           target: 'https://api.kick.com',
