@@ -17,6 +17,9 @@ nav{display:flex;justify-content:space-between;align-items:center;margin:8px aut
 nav b{font-family:Lalezar;font-size:22px;letter-spacing:3px}
 .btn{font:700 12.5px Cairo;border:1px solid #c9993f77;background:#17110a;color:var(--tx);padding:5px 12px;border-radius:9px;cursor:pointer;transition:.2s}
 .btn:hover{transform:translateY(-2px);border-color:var(--g1)}
+.hbtn{width:37px;height:37px;border-radius:50%;display:grid;place-items:center;border:1px solid #c9993f66;background:radial-gradient(circle at 35% 28%,#2b1d0b,#100b06);color:var(--g1);cursor:pointer;transition:.25s;box-shadow:inset 0 0 10px #c9993f22}
+.hbtn:hover{color:#1a1005;background:linear-gradient(180deg,#f6dc9b,#c9993f);border-color:transparent;transform:translateY(-2px);box-shadow:0 6px 20px #c9993f66}
+.hbtn:active{transform:scale(.92)}
 .gold{background:linear-gradient(180deg,var(--g1),var(--g2));color:#2a1a05;border:0;box-shadow:0 6px 24px #c9993f55}
 .big{font-size:17px;padding:8px 26px;width:100%;font-family:Lalezar}
 main{max-width:1800px;margin:auto;padding:0 10px 14px}
@@ -35,7 +38,7 @@ input{font:700 14px Cairo;background:#080604;border:1px solid #c9993f55;color:va
 .mc svg{width:78px;height:78px;filter:drop-shadow(0 0 8px var(--c));animation:fl 4s ease-in-out infinite}
 @keyframes fl{50%{transform:translateY(-5px) rotate(6deg)}}
 #gm{display:none;grid-template-columns:1fr 280px;gap:12px}
-.stage{perspective:1400px;position:relative}.stage .fr{width:min(100%,calc((100vh - 205px)*1.0286));margin:auto}
+.stage{perspective:1400px;position:relative}.stage .fr{width:min(100%,calc((100vh - 205px)*1.3714));margin:auto}
 .tilt{transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .25s;transform-style:preserve-3d}
 .cv{position:relative;background:radial-gradient(circle at 50% 40%,#1a120a,#070503);border-radius:20px;overflow:hidden}
 canvas{display:block;margin:auto;width:100%;height:auto;cursor:grab;touch-action:none}
@@ -79,7 +82,7 @@ canvas{display:block;margin:auto;width:100%;height:auto;cursor:grab;touch-action
 .avc{border-radius:50%;object-fit:cover;flex:none;background:#1a1005}
 .chip .fa,.pr .fa{width:26px;height:26px}
 </style></head><body>
-<nav><b class="g">ICG1</b><span class="t g" style="font-size:20px">ساحة الألعاب الرسمية</span><div style="display:flex;gap:8px"><button class="btn" id="fs" title="ملء الشاشة">⛶</button><button class="btn" id="hm">الإعدادات</button><button class="btn" id="ho" title="الخروج إلى الساحة">⌂</button></div></nav>
+<nav><b class="g">ICG1</b><span class="t g" style="font-size:20px">ساحة الألعاب الرسمية</span><div style="display:flex;gap:8px;align-items:center"><button class="btn" id="fs" title="ملء الشاشة">⛶</button><button class="btn" id="hm">الإعدادات</button><button class="hbtn" id="ho" title="العودة للساحة"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.7V21h14V9.7"/><path d="M9.5 21v-5.5h5V21"/></svg></button></div></nav>
 <main>
 <section id="setup"></section>
 <section id="lobby" style="display:none;text-align:center"><h1 class="g" style="font-size:clamp(36px,6vw,64px)">في انتظار اللاعبين</h1>
@@ -89,7 +92,7 @@ canvas{display:block;margin:auto;width:100%;height:auto;cursor:grab;touch-action
 <div class="lbar"><button class="btn gold big" id="gs" style="width:auto" disabled>▶ بدء اللعب</button><button class="btn" id="gb">تراجع</button></div></section>
 <section id="gm">
 <div><div class="hud"><div><small>الجولة</small><b id="hr">1</b></div><div><small>المتبقون</small><b id="ha">0</b></div><div><small id="hl">الحالة</small><b id="ht">0</b></div></div>
-<div class="stage"><div class="tilt" id="tl"><div class="fr"><div class="cv"><i class="cn c1"></i><i class="cn c2"></i><i class="cn c3"></i><i class="cn c4"></i><canvas id="cv" width="1440" height="1400"></canvas><div class="zc"><button id="zp">＋</button><button id="zm">－</button><button id="zr">⌖</button></div><div class="hint">عجلة الماوس للتكبير • اسحب للتحريك • نقرتان للإعادة</div><div id="ban"><div><h2 class="g"></h2><p></p></div></div></div></div></div></div></div>
+<div class="stage"><div class="tilt" id="tl"><div class="fr"><div class="cv"><i class="cn c1"></i><i class="cn c2"></i><i class="cn c3"></i><i class="cn c4"></i><canvas id="cv" width="1920" height="1400"></canvas><div class="zc"><button id="zp">＋</button><button id="zm">－</button><button id="zr">⌖</button></div><div class="hint">عجلة الماوس للتكبير • اسحب للتحريك • نقرتان للإعادة</div><div id="ban"><div><h2 class="g"></h2><p></p></div></div></div></div></div></div></div>
 <div class="fr side"><div class="in"><h3>اللاعبون (<span id="pc">0</span>)</h3><div class="pn" id="pl"></div><h3>سجل اللعبة</h3><div class="pn" id="lg" style="height:130px"></div>
 <div class="ctl"><button class="btn" id="pz">⏸ إيقاف مؤقت</button><button class="btn" id="sk">⏭ تخطي</button><button class="btn gold" id="ex">إنهاء</button></div>
 <div class="tag" style="margin-top:auto">الصور والأطارات تظهر تلقائياً لكل عضو join من الشات</div></div></div>
@@ -139,7 +142,7 @@ const NT=[0,3,5,7,10,12,10,7,5,3,7,5];let ni=0;
 const musicOn=()=>{clearInterval(mi);mi=setInterval(()=>{if(paused)return;const f=261*Math.pow(2,NT[ni%12]/12);tone(f,.2,'triangle',.06);if(ni%4==0)tone(f/2,.3,'sine',.09);ni++;beat=1},190)};
 const musicOff=()=>clearInterval(mi);
 // state
-const cv=$('#cv'),ctx=cv.getContext('2d');ctx.scale(2,2);const CX=360,CY=350,R=300;
+const cv=$('#cv'),ctx=cv.getContext('2d');ctx.scale(2,2);const CX=480,CY=350,R=300;
 let P=[],C=[],ph='setup',tm=0,round=0,parts=[],paused=0,beat=0,T=0,last=0,first=0,rot=0,spin=0,dir=1,dirT=5,wave=0,rings=[],PS=1,LN=1,GP=36,outC=0,tieP=null,Z=1,PX=0,PY=0,drag=0,tZ=1,tX=0,tY=0,GID=0;
 const word=()=>(($('#jw')&&$('#jw').value)||'دخول').trim();
 const log=t=>{const d=document.createElement('div');d.className=t[0]=='❌'?'bad':t[0]=='✅'?'ok':'';d.textContent=t;$('#lg').prepend(d);while($('#lg').children.length>30)$('#lg').lastChild.remove()};
@@ -262,10 +265,10 @@ gear(0,0,R*.4,18,T*.3,m.a);gear(-R*.52,R*.3,58,10,-T*.54,'#ffe9a8');gear(R*.5,-R
 ctx.lineCap='round';gl('#fff3c4',14);ctx.strokeStyle='#fff3c4';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(110*sn(T*.05),-110*cs(T*.05));ctx.stroke();ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(165*sn(T*.6),-165*cs(T*.6));ctx.stroke();ctx.restore()}];
 function path(r,dy=0){ctx.beginPath();const m=M[S.map];if(!m.s)ctx.arc(CX,CY+dy,r,0,TAU);else{for(let k=0;k<m.s;k++){const a=m.r-Math.PI/2+TAU*k/m.s,x=CX+r*Math.cos(a),y=CY+dy+r*Math.sin(a);k?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath()}}
 function per(t){const m=M[S.map];if(!m.s){const a=t*TAU;return[CX+R*Math.cos(a),CY+R*Math.sin(a)]}const k=Math.floor(t*m.s),f=t*m.s-k,pt=j=>{const a=m.r-Math.PI/2+TAU*j/m.s;return[CX+R*Math.cos(a),CY+R*Math.sin(a)]},A=pt(k),B=pt(k+1);return[A[0]+(B[0]-A[0])*f,A[1]+(B[1]-A[1])*f]}
-function draw(){const m=M[S.map];Z+=(tZ-Z)*.18;PX+=(tX-PX)*.18;PY+=(tY-PY)*.18;ctx.clearRect(0,0,720,700);ctx.save();ctx.translate(CX+PX,CY+PY);ctx.scale(Z,Z);ctx.translate(-CX,-CY);
+function draw(){const m=M[S.map];Z+=(tZ-Z)*.18;PX+=(tX-PX)*.18;PY+=(tY-PY)*.18;ctx.clearRect(0,0,960,700);ctx.save();ctx.translate(CX+PX,CY+PY);ctx.scale(Z,Z);ctx.translate(-CX,-CY);
 for(let d=24;d>0;d-=3){path(R,d);ctx.fillStyle=`rgb(${30-d},${20-d/1.5},8)`;ctx.fill()}
 path(R);const g=ctx.createRadialGradient(CX,CY-60,20,CX,CY,R);g.addColorStop(0,m.b);g.addColorStop(1,'#0a0705');ctx.fillStyle=g;ctx.fill();
-ctx.save();ctx.clip();ctx.strokeStyle=m.a+'18';ctx.lineWidth=1;for(let i=-9;i<=9;i++){ctx.beginPath();ctx.moveTo(CX+i*40,0);ctx.lineTo(CX+i*40,700);ctx.moveTo(0,CY+i*40);ctx.lineTo(720,CY+i*40);ctx.stroke()}
+ctx.save();ctx.clip();ctx.strokeStyle=m.a+'18';ctx.lineWidth=1;for(let i=-12;i<=12;i++){ctx.beginPath();ctx.moveTo(CX+i*40,0);ctx.lineTo(CX+i*40,700);ctx.moveTo(0,CY+i*40);ctx.lineTo(960,CY+i*40);ctx.stroke()}
 ctx.translate(CX,CY);ctx.rotate(T*.3);ctx.strokeStyle=m.a+'55';ctx.setLineDash([10,14]);ctx.beginPath();ctx.arc(0,0,R*.86,0,TAU);ctx.stroke();ctx.rotate(-T*.7);ctx.setLineDash([4,10]);ctx.beginPath();ctx.arc(0,0,R*.55,0,TAU);ctx.stroke();ctx.setLineDash([]);ctx.restore();
 ART[S.map](m);ctx.save();ctx.globalAlpha=.1;ctx.fillStyle=m.a;ctx.font='400 110px Lalezar';ctx.textAlign='center';ctx.fillText('ICG1',CX,CY+36);ctx.restore();
 if(ph=='music'){beat*=.9;ctx.strokeStyle=m.a;ctx.globalAlpha=.25+beat*.3;ctx.lineWidth=3;ctx.beginPath();ctx.arc(CX,CY,60+(T*140%240),0,TAU);ctx.stroke();ctx.globalAlpha=1}
@@ -306,9 +309,9 @@ rcfg();rtg();rmaps();
 {const hs=document.querySelectorAll('.side h3');hs[0].innerHTML=ico('users',17)+'<span>اللاعبون</span><b id="pc">0</b>';hs[1].innerHTML=ico('scroll',17)+'<span>سجل اللعبة</span>'}
 $('#tl').style.setProperty('--rx','14deg');
 const cvE=$('#cv'),clampP=()=>{const L=Math.max(30,R*tZ*.85);tX=Math.max(-L,Math.min(L,tX));tY=Math.max(-L,Math.min(L,tY))},zoomAt=(lx,ly,z2)=>{z2=Math.max(.6,Math.min(3.2,z2));const dx=(lx-CX-tX)/tZ,dy=(ly-CY-tY)/tZ;tZ=z2;tX=lx-CX-tZ*dx;tY=ly-CY-tZ*dy;clampP()};
-cvE.addEventListener('wheel',e=>{e.preventDefault();const r=cvE.getBoundingClientRect();zoomAt((e.clientX-r.left)*720/r.width,(e.clientY-r.top)*700/r.height,tZ*(e.deltaY<0?1.15:1/1.15))},{passive:false});
+cvE.addEventListener('wheel',e=>{e.preventDefault();const r=cvE.getBoundingClientRect();zoomAt((e.clientX-r.left)*960/r.width,(e.clientY-r.top)*700/r.height,tZ*(e.deltaY<0?1.15:1/1.15))},{passive:false});
 cvE.addEventListener('pointerdown',e=>{drag=1;cvE.setPointerCapture(e.pointerId);cvE.dataset.l=e.clientX+','+e.clientY;cvE.style.cursor='grabbing'});
-cvE.addEventListener('pointermove',e=>{if(!drag)return;const r=cvE.getBoundingClientRect(),[a,b]=cvE.dataset.l.split(',').map(Number),dx=(e.clientX-a)*720/r.width,dy=(e.clientY-b)*700/r.height;PX+=dx;PY+=dy;tX+=dx;tY+=dy;clampP();cvE.dataset.l=e.clientX+','+e.clientY});
+cvE.addEventListener('pointermove',e=>{if(!drag)return;const r=cvE.getBoundingClientRect(),[a,b]=cvE.dataset.l.split(',').map(Number),dx=(e.clientX-a)*960/r.width,dy=(e.clientY-b)*700/r.height;PX+=dx;PY+=dy;tX+=dx;tY+=dy;clampP();cvE.dataset.l=e.clientX+','+e.clientY});
 cvE.addEventListener('pointerup',()=>{drag=0;cvE.style.cursor='grab'});cvE.addEventListener('dblclick',()=>{tZ=1;tX=tY=0});
 $('#zp').onclick=()=>zoomAt(CX,CY,tZ*1.25);$('#zm').onclick=()=>zoomAt(CX,CY,tZ/1.25);$('#zr').onclick=()=>{tZ=1;tX=tY=0};
 </script></body></html>
