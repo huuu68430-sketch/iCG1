@@ -151,17 +151,18 @@ $('#maps').onclick=e=>{const c=e.target.closest('.mc');if(c){S.map=+c.dataset.i;
 let AC,mi;const tone=(f,d=.15,t='triangle',v=.07)=>{if(!S.snd||!AC)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}};
 const NT=[0,3,5,7,10,12,10,7,5,3,7,5];let ni=0;
 const SONGS=[{"id":"song_1","title":"سيستم واحد — خلودي 25","url":"mc-songs/song_1.mp3"},{"id":"song_2","title":"فين لياليك — فضل شاكر","url":"mc-songs/song_2.mp3"},{"id":"song_3","title":"لا يهمك — فهد بن فصلا","url":"mc-songs/song_3.mp3"},{"id":"song_4","title":"يا اللي بك نعز ونهتدي — جفران المري","url":"mc-songs/song_4.mp3"},{"id":"song_5","title":"قحطان الوفاء — شيلة","url":"mc-songs/song_5.mp3"},{"id":"song_6","title":"أذية — رعد وميثاق السامرائي","url":"mc-songs/song_6.mp3"},{"id":"song_7","title":"فاكرني — هيفاء وهبي","url":"mc-songs/song_7.mp3"},{"id":"song_8","title":"سبحان مغير الأحوال — تركي العلي","url":"mc-songs/song_8.mp3"},{"id":"song_9","title":"ألا وا شيب عيني — محمد عبده","url":"mc-songs/song_9.mp3"},{"id":"song_10","title":"توصيني على الكتمان — محمد عبده","url":"mc-songs/song_10.mp3"},{"id":"song_11","title":"يا قلبو — نانسي عجرم","url":"mc-songs/song_11.mp3"},{"id":"song_12","title":"Vidrado em Você — DJ Guuga & MC Livinho","url":"mc-songs/song_12.mp3"}];
-SONGS.forEach(s=>{fetch(s.url,{method:'HEAD'}).then(r=>{if(!r.ok)s.bad=1}).catch(()=>s.bad=1)});
+SONGS.forEach(s=>{fetch(s.url,{method:'HEAD'}).then(r=>{if(!r.ok||/text\/html/.test(r.headers.get('content-type')||''))s.bad=1}).catch(()=>s.bad=1)});
 let AU=null,PL=[],PI=0,lastSong='',songPlays=0;
-const au=()=>{if(!AU){AU=new Audio();AU.preload='auto';AU.addEventListener('error',()=>{songPlays=0})}return AU};
+const au=()=>{if(!AU){AU=new Audio();AU.preload='auto';AU.addEventListener('error',()=>{songPlays=0;if(AU._cur){AU._cur.bad=1;if(ph=='music'&&!paused&&S.snd&&selSongs().length)playNext()}})}return AU};
 const selSongs=()=>SONGS.filter(s=>!s.bad&&!S.soff.includes(s.id));
 function pickSong(){const pool=selSongs();if(!pool.length)return null;
 if(PI>=PL.length){PL=[...pool].sort(()=>Math.random()-.5);PI=0}
 return PL[PI++]}
-const musicOn=()=>{clearInterval(mi);songPlays=0;const a=au(),s=S.snd?pickSong():null;
-if(!s)lastSong='';
-if(s){a.src=s.url;a.volume=Math.max(0,Math.min(1,S.vol/100));try{const pr=a.play();songPlays=1;if(pr&&pr.catch)pr.catch(()=>{songPlays=0})}catch(e){songPlays=0}
-if(songPlays){lastSong=s.id;log('🎵 '+s.title);rsongs()}else lastSong=''}
+const playNext=()=>{const a=au(),s=S.snd?pickSong():null;a._cur=s||null;
+if(!s){songPlays=0;lastSong='';return}
+a.src=s.url;a.volume=Math.max(0,Math.min(1,S.vol/100));songPlays=1;lastSong=s.id;log('🎵 '+s.title);rsongs();
+try{const pr=a.play();if(pr&&pr.catch)pr.catch(()=>{songPlays=0})}catch(e){songPlays=0}};
+const musicOn=()=>{clearInterval(mi);playNext();
 mi=setInterval(()=>{if(paused)return;if(!songPlays){const f=261*Math.pow(2,NT[ni%12]/12);tone(f,.2,'triangle',.06);if(ni%4==0)tone(f/2,.3,'sine',.09)}ni++;beat=1},190)};
 const musicOff=()=>{clearInterval(mi);if(AU)try{AU.pause()}catch(e){}};
 // state
