@@ -31,7 +31,7 @@ const GAMES_DATA = [
   },
   {
     name: 'أعلى أم أقل', nameEn: 'HIGHER OR LOWER', icon: ArrowUp,
-    color: 'from-pink-500 to-rose-600', borderColor: 'border-pink-500/30',
+    color: 'from-pink-500 to-amber-800', borderColor: 'border-pink-500/30',
     glowColor: 'rgba(236,72,153,0.4)',
     category: 'تخمين',
     description: 'هل تظن أن الرقم أعلى أو أقل؟ لعبة تخمين ممتعة حيث يصوت الشات على إجابتهم والنتيجة تظهر مباشرة!',
@@ -55,7 +55,7 @@ const GAMES_DATA = [
   },
   {
     name: 'حرب المساكيل', nameEn: 'MASAQIL WAR', icon: Swords,
-    color: 'from-red-500 to-red-700', borderColor: 'border-red-500/30',
+    color: 'from-amber-700 to-amber-900', borderColor: 'border-amber-700/30',
     glowColor: 'rgba(239,68,68,0.4)',
     category: 'منافسة',
     description: 'حرب أسئلة ملحمية بين فريقين! كل فريق يحاول الإجابة بشكل أسرع للفوز بالنقاط.',
@@ -70,12 +70,12 @@ const GAMES_DATA = [
     howToPlay: 'اكتب تخمينك في الشات. الصورة تتضح مع الوقت وأول شخص يخمن صح يفوز!',
   },
   {
-    name: 'عجلة الحظ', nameEn: 'SPIN WHEEL', icon: Gift,
+    name: 'الروليت', nameEn: 'ROULETTE', icon: Gift,
     color: 'from-yellow-500 to-amber-600', borderColor: 'border-yellow-500/30',
     glowColor: 'rgba(234,179,8,0.4)',
     category: 'حظ',
-    description: 'عجلة الحظ الشهيرة! لف العجلة وشوف وين بتوقف. جوائز ومفاجآت بانتظارك!',
-    howToPlay: 'الستريمر يلف العجلة والحظ يختار الفائز أو الجائزة!',
+    description: 'الروليت تختار شخص، وهذا الشخص يقرر: يقصي خصم من الساحة أو يرجّع ميت للحياة!',
+    howToPlay: 'انضم بكلمة الدخول، الروليت تختار واحد، وبعدها يختار بين الإقصاء أو الإحياء من الشات!',
   },
   {
     name: 'مسابقة الأعلام', nameEn: 'FLAG QUIZ', icon: Flag,
@@ -95,7 +95,7 @@ const GAMES_DATA = [
   },
   {
     name: 'صيد الكنز', nameEn: 'GRID HUNT', icon: Target,
-    color: 'from-orange-500 to-red-600', borderColor: 'border-orange-500/30',
+    color: 'from-orange-500 to-amber-800', borderColor: 'border-orange-500/30',
     glowColor: 'rgba(249,115,22,0.4)',
     category: 'حظ',
     description: 'شبكة مليئة بالمفاجآت! اختر المربع الصحيح واكسب النقاط أو واجه الفخاخ.',
@@ -159,7 +159,7 @@ const GAMES_DATA = [
   },
   {
     name: 'قنبلة الوقت', nameEn: 'TIME BOMB', icon: Bomb,
-    color: 'from-red-600 to-orange-600', borderColor: 'border-red-600/30',
+    color: 'from-amber-800 to-orange-600', borderColor: 'border-amber-800/30',
     glowColor: 'rgba(220,38,38,0.4)',
     category: 'سرعة',
     description: 'القنبلة تدور بين اللاعبين! أجب قبل ما تنفجر عليك.',
@@ -183,7 +183,7 @@ const GAMES_DATA = [
   },
   {
     name: 'الأرض حمم', nameEn: 'FLOOR IS LAVA', icon: FlameIcon,
-    color: 'from-orange-500 to-red-600', borderColor: 'border-orange-500/30',
+    color: 'from-orange-500 to-amber-800', borderColor: 'border-orange-500/30',
     glowColor: 'rgba(249,115,22,0.4)',
     category: 'سرعة',
     description: 'الأرض تتحول لحمم بركانية! اقفز على المنصات الآمنة قبل فوات الأوان.',
@@ -199,23 +199,23 @@ const GAMES_DATA = [
   },
   {
     name: 'الكلمات الممنوعة', nameEn: 'FORBIDDEN WORDS', icon: Shield,
-    color: 'from-red-500 to-rose-600', borderColor: 'border-red-500/30',
+    color: 'from-amber-700 to-amber-800', borderColor: 'border-amber-700/30',
     glowColor: 'rgba(239,68,68,0.4)',
     category: 'إبداع',
     description: 'لعبة حماسية! حاول تشرح الكلمة لفريقك بدون ما تقول الكلمات الممنوعة.',
     howToPlay: 'اشرح الكلمة المطلوبة بدون استخدام الكلمات الموجودة في القائمة الممنوعة.',
   },
   {
-    name: 'لعبة الحروف', nameEn: 'LETTER HEXAGON', icon: Type,
-    color: 'from-blue-500 to-indigo-600', borderColor: 'border-blue-500/30',
-    glowColor: 'rgba(59,130,246,0.4)',
+    name: 'حروف مع منصور', nameEn: 'LETTER GAME', icon: Type,
+    color: 'from-yellow-500 to-amber-800', borderColor: 'border-yellow-500/30',
+    glowColor: 'rgba(232,190,110,0.4)',
     category: 'إبداع',
-    description: 'تحدي الحروف السريع! كوّن كلمات من الحروف المعروضة أمامك بأسرع وقت.',
-    howToPlay: 'استخدم الحروف المتاحة في الخلايا لتكوين كلمات صحيحة.',
+    description: 'معركة حروف على ساحة الخلايا! كل جواب صحيح بحرف الخلية يفتح لفريقك خلايا ويبني ربطه نحو النصر.',
+    howToPlay: 'اكتب «جرس» في الشات لرنّ الخلية المفتوحة، ثم جاوب بكلمة تبدأ بحرفها. المساطيل يربطون من الأعلى للأسفل، والمحاربين من اليمين للشمال.',
   },
   {
     name: 'تحدي الفرق', nameEn: 'TEAM BATTLE', icon: Swords,
-    color: 'from-orange-500 to-red-500', borderColor: 'border-orange-500/30',
+    color: 'from-orange-500 to-amber-700', borderColor: 'border-orange-500/30',
     glowColor: 'rgba(249,115,22,0.4)',
     category: 'منافسة',
     description: 'معركة حامية بين الفرق! اجمع النقاط لفريقك واهزم الفريق الخصم.',
@@ -234,7 +234,7 @@ const GAMES_DATA = [
 const CATEGORIES = ['الكل', 'أسئلة', 'تخمين', 'سرعة', 'منافسة', 'حظ', 'إبداع', 'تفاعل'];
 
 const STATS = [
-  { label: 'لعبة تفاعلية', value: '25+', icon: Gamepad2, color: 'from-red-500 to-rose-600' },
+  { label: 'لعبة تفاعلية', value: '25+', icon: Gamepad2, color: 'from-amber-700 to-amber-800' },
   { label: 'بث مباشر', value: '24/7', icon: MonitorPlay, color: 'from-green-500 to-emerald-600' },
   { label: 'تفاعل مباشر', value: '100%', icon: MessageCircle, color: 'from-blue-500 to-indigo-600' },
   { label: 'لاعب نشط', value: '∞', icon: Users2, color: 'from-amber-500 to-orange-600' },
@@ -349,7 +349,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
     if (authStep !== 'KICK_VERIFY') return;
     setChatConnected(false);
 
-    const kickChannel = 'iabs';
+    const kickChannel = 'icg1';
     chatService.connect(kickChannel);
 
     const statusUnsub = chatService.onStatusChange((connected) => {
@@ -358,7 +358,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
 
     const msgUnsub = chatService.onMessage((msg) => {
       const content = msg.content.trim().toUpperCase().replace(/\s+/g, '').replace(/[\u200B-\u200D\uFEFF]/g, '');
-      const expectedCode = `ABS-${verificationCodeRef.current}`;
+      const expectedCode = `iCG1-${verificationCodeRef.current}`;
 
       if (content === expectedCode || content.includes(expectedCode)) {
         if (msg.user.username.toLowerCase() === kickUsernameRef.current.toLowerCase()) {
@@ -568,7 +568,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
 
   const handleCopyCode = async () => {
     try {
-      await navigator.clipboard.writeText(`ABS-${verificationCode}`);
+      await navigator.clipboard.writeText(`iCG1-${verificationCode}`);
       setCodeCopied(true);
       setTimeout(() => setCodeCopied(false), 2500);
     } catch { /* ignore */ }
@@ -659,17 +659,17 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
       {/* ============ HERO SECTION ============ */}
       <section className="relative min-h-screen flex flex-col items-center justify-center px-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-black via-red-950/20 to-black" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-600/8 blur-[200px] rounded-full" />
-        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-red-500/40 rounded-full animate-pulse" />
-        <div className="absolute top-1/3 right-1/4 w-1.5 h-1.5 bg-red-500/30 rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute bottom-1/4 left-1/3 w-1 h-1 bg-red-500/25 rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-1/2 right-1/3 w-1.5 h-1.5 bg-red-500/20 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }} />
-        <div className="absolute bottom-1/3 right-1/4 w-2 h-2 bg-red-500/15 rounded-full animate-pulse" style={{ animationDelay: '3s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-800/8 blur-[200px] rounded-full" />
+        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-amber-700/40 rounded-full animate-pulse" />
+        <div className="absolute top-1/3 right-1/4 w-1.5 h-1.5 bg-amber-700/30 rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute bottom-1/4 left-1/3 w-1 h-1 bg-amber-700/25 rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/2 right-1/3 w-1.5 h-1.5 bg-amber-700/20 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }} />
+        <div className="absolute bottom-1/3 right-1/4 w-2 h-2 bg-amber-700/15 rounded-full animate-pulse" style={{ animationDelay: '3s' }} />
         <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'linear-gradient(rgba(255,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,0,0,0.1) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
 
         <div className="relative z-10 text-center max-w-4xl mx-auto">
           <div className="relative inline-block mb-10">
-            <div className="absolute -inset-8 bg-red-600/15 blur-[80px] rounded-full" />
+            <div className="absolute -inset-8 bg-amber-800/15 blur-[80px] rounded-full" />
             <div className="animate-float">
               <img src="/logo2.png" className="h-32 md:h-44 relative drop-shadow-[0_0_50px_rgba(255,0,0,0.6)]" alt="ABS ARENA" style={{ filter: 'brightness(1.15)' }} />
             </div>
@@ -684,7 +684,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                   }}>
               ARENA
               {/* Fire flicker overlay */}
-              <span className="absolute inset-0 text-transparent bg-gradient-to-t from-red-600 via-red-500 to-red-400 bg-clip-text animate-pulse" 
+              <span className="absolute inset-0 text-transparent bg-gradient-to-t from-amber-800 via-amber-700 to-amber-600 bg-clip-text animate-pulse" 
                     style={{animationDuration: '0.5s', opacity: 0.3}}>
                 ARENA
               </span>
@@ -692,9 +692,9 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
             
             {/* Red Dot Divider */}
             <div className="flex flex-col items-center gap-0.5">
-              <div className="w-[2px] h-5 md:h-8 bg-gradient-to-b from-transparent via-red-500 to-transparent" />
-              <div className="w-3 h-3 bg-red-500 rounded-full shadow-[0_0_30px_rgba(239,68,68,1),0_0_60px_rgba(239,68,68,0.6),0_0_100px_rgba(239,68,68,0.3)] animate-pulse" />
-              <div className="w-[2px] h-5 md:h-8 bg-gradient-to-t from-transparent via-red-500 to-transparent" />
+              <div className="w-[2px] h-5 md:h-8 bg-gradient-to-b from-transparent via-amber-700 to-transparent" />
+              <div className="w-3 h-3 bg-amber-700 rounded-full shadow-[0_0_30px_rgba(239,68,68,1),0_0_60px_rgba(239,68,68,0.6),0_0_100px_rgba(139,69,19,0.4)] animate-pulse" />
+              <div className="w-[2px] h-5 md:h-8 bg-gradient-to-t from-transparent via-amber-700 to-transparent" />
             </div>
             
             {/* ABS - Pure White */}
@@ -705,7 +705,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
           </div>
           
           {/* Animated underline */}
-          <div className="h-[3px] w-32 mx-auto bg-gradient-to-r from-transparent via-red-500 to-transparent mb-6 relative overflow-hidden">
+          <div className="h-[3px] w-32 mx-auto bg-gradient-to-r from-transparent via-amber-700 to-transparent mb-6 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent animate-shimmer" />
           </div>
 
@@ -714,12 +714,12 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
           </p>
           <p className="text-base md:text-xl text-white/30 font-bold max-w-xl mx-auto leading-relaxed mb-10">
             العب مع الشات مباشرة في بثوث{' '}
-            <span className="text-red-500 font-black">iABS</span> على منصة{' '}
+            <span className="text-amber-700 font-black">iABS</span> على منصة{' '}
             <span className="text-green-500 font-black">Kick.com</span>
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4 md:gap-5 mb-16">
-            <button onClick={onBack} className="group relative w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-red-600 via-red-700 to-rose-700 rounded-2xl font-black text-base sm:text-lg text-white hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(239,68,68,0.4)] overflow-hidden flex items-center justify-center gap-3 border border-red-400/30">
+            <button onClick={onBack} className="group relative w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-gradient-to-r from-amber-800 via-amber-900 to-amber-900 rounded-2xl font-black text-base sm:text-lg text-white hover:scale-105 active:scale-95 transition-all shadow-[0_0_50px_rgba(239,68,68,0.4)] overflow-hidden flex items-center justify-center gap-3 border border-amber-600/30">
               <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/15 to-white/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 skew-x-[-20deg]" />
               <Gamepad2 size={24} className="relative z-10" />
               <span className="relative z-10">دخول الساحة الرئيسية</span>
@@ -734,7 +734,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
           {/* Stats Bar */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
             {STATS.map((stat, i) => (
-              <div key={i} className="bg-black/40 backdrop-blur-2xl border border-white/[0.06] rounded-3xl p-5 text-center hover:bg-black/60 hover:border-red-500/20 transition-all group">
+              <div key={i} className="bg-black/40 backdrop-blur-2xl border border-white/[0.06] rounded-3xl p-5 text-center hover:bg-black/60 hover:border-amber-700/20 transition-all group">
                 <div className={`w-12 h-12 mx-auto mb-3 rounded-2xl bg-gradient-to-br ${stat.color} flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg`}>
                   <stat.icon size={22} className="text-white" />
                 </div>
@@ -753,19 +753,19 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
 
       {/* ============ ABOUT SECTION ============ */}
       <section id="about-iabs" data-animate-section className={`relative py-14 md:py-28 px-4 transition-all duration-1000 ${visibleSections.has('about-iabs') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-red-600/6 blur-[150px] rounded-full" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-amber-800/6 blur-[150px] rounded-full" />
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8 md:mb-16">
-            <span className="text-red-500 font-black uppercase tracking-[0.3em] text-xs">من نحن</span>
+            <span className="text-amber-700 font-black uppercase tracking-[0.3em] text-xs">من نحن</span>
             <h2 className="text-4xl md:text-5xl font-black italic tracking-tighter mt-4 mb-4">
-            <span className="text-red-500">ABS </span><span className="text-white">ARENA</span>
+            <span className="text-amber-700">ABS </span><span className="text-white">ARENA</span>
             </h2>
-            <div className="h-1 w-16 mx-auto bg-gradient-to-r from-transparent via-red-500 to-transparent mt-4" />
+            <div className="h-1 w-16 mx-auto bg-gradient-to-r from-transparent via-amber-700 to-transparent mt-4" />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="space-y-6">
               <p className="text-white/70 font-bold text-lg leading-relaxed">
-                <span className="text-red-500 font-black">ABS </span><span className="text-white">ARENA</span> هي أكبر منصة ألعاب تفاعلية حصرية مصممة خصيصاً لبثوث{' '}
+                <span className="text-amber-700 font-black">ABS </span><span className="text-white">ARENA</span> هي أكبر منصة ألعاب تفاعلية حصرية مصممة خصيصاً لبثوث{' '}
                 <span className="text-white font-black">iABS</span> على منصة{' '}
                 <span className="text-green-500 font-black">Kick.com</span>.
               </p>
@@ -773,7 +773,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                 المنصة تحتوي على أكثر من <span className="text-white font-black">25 لعبة تفاعلية</span> مختلفة، كل لعبة مصممة ليتفاعل معها المشاهدون مباشرة من خلال الشات أثناء البث المباشر.
               </p>
               <p className="text-white/50 font-bold text-base leading-relaxed">
-                تأسيس المنصة جاء من شغف الألعاب والبثوث المباشرة، ونسعى لنكون الخيار الأول للبثوث التفاعلية في العالم العربي. كل الفعاليات والألعاب تصير حصرياً في بثوث <span className="text-red-500 font-black">iABS</span> على كيك.
+                تأسيس المنصة جاء من شغف الألعاب والبثوث المباشرة، ونسعى لنكون الخيار الأول للبثوث التفاعلية في العالم العربي. كل الفعاليات والألعاب تصير حصرياً في بثوث <span className="text-amber-700 font-black">iABS</span> على كيك.
               </p>
             </div>
 
@@ -782,7 +782,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                 { icon: MonitorPlay, title: 'بث مباشر', desc: 'كل الألعاب تصير لايف أثناء البث', color: 'text-green-500', bg: 'bg-green-500/10', border: 'border-green-500/20' },
                 { icon: MessageCircle, title: 'تفاعل بالشات', desc: 'العب بكتابة إجابتك في شات كيك', color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
                 { icon: Trophy, title: 'لوحة الصدارة', desc: 'تنافس على المركز الأول بالنقاط', color: 'text-yellow-500', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
-                { icon: Crown, title: 'حصري لـ iABS', desc: 'ألعاب مصممة خصيصاً لقناة iABS', color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20' },
+                { icon: Crown, title: 'حصري لـ iABS', desc: 'ألعاب مصممة خصيصاً لقناة iABS', color: 'text-amber-700', bg: 'bg-amber-700/10', border: 'border-amber-700/20' },
               ].map((f, i) => (
                 <div key={i} className={`${f.bg} ${f.border} border rounded-2xl p-5 hover:scale-[1.02] transition-all duration-500 group backdrop-blur-sm`}>
                   <f.icon size={28} className={`${f.color} mb-3 group-hover:scale-110 transition-transform`} />
@@ -800,13 +800,13 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-red-950/10 to-transparent" />
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="text-center mb-8 md:mb-16">
-            <span className="text-red-500 font-black uppercase tracking-[0.3em] text-xs">انضم الآن</span>
+            <span className="text-amber-700 font-black uppercase tracking-[0.3em] text-xs">انضم الآن</span>
             <h2 className="text-4xl md:text-5xl font-black italic tracking-tighter mt-4 mb-4">
               <span className="text-white">سجّل في </span>
-              <span className="text-red-500">الساحة</span>
+              <span className="text-amber-700">الساحة</span>
             </h2>
             <p className="text-white/40 font-bold max-w-2xl mx-auto">أنشئ حسابك مجاناً وابدأ رحلتك في عالم الألعاب التفاعلية</p>
-            <div className="h-1 w-20 mx-auto bg-gradient-to-r from-transparent via-red-500 to-transparent mt-4" />
+            <div className="h-1 w-20 mx-auto bg-gradient-to-r from-transparent via-amber-700 to-transparent mt-4" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -833,8 +833,8 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
             </div>
 
             {/* Right - Registration Form (Full Auth Flow) */}
-            <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 md:p-10 relative overflow-hidden group hover:border-red-500/30 transition-all duration-500">
-              <div className="absolute -top-20 -right-20 w-40 h-40 bg-red-600/10 blur-[60px] rounded-full group-hover:bg-red-500/20 transition-all duration-700" />
+            <div className="bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 md:p-10 relative overflow-hidden group hover:border-amber-700/30 transition-all duration-500">
+              <div className="absolute -top-20 -right-20 w-40 h-40 bg-amber-800/10 blur-[60px] rounded-full group-hover:bg-amber-700/20 transition-all duration-700" />
               <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-600/10 blur-[60px] rounded-full group-hover:bg-purple-500/20 transition-all duration-700" />
               
               <div className="relative z-10">
@@ -842,7 +842,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                 {authStep === 'REGISTER' && (
                   <>
                     <div className="flex items-center gap-3 mb-8">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-700 to-amber-800 flex items-center justify-center">
                         {isLoginMode ? <Lock size={20} className="text-white" /> : <User size={20} className="text-white" />}
                       </div>
                       <div>
@@ -857,13 +857,13 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                         <div className="relative">
                           {isLoadingAvatar ? (
                             <div className="w-16 h-16 rounded-2xl border-2 border-white/10 flex items-center justify-center bg-black/60">
-                              <Loader2 size={20} className="animate-spin text-red-500" />
+                              <Loader2 size={20} className="animate-spin text-amber-700" />
                             </div>
                           ) : authAvatar ? (
                             <ProAvatar url={authAvatar} username={authKickUsername} size="w-18 h-18 md:w-24 md:h-24" className="overflow-visible" />
                           ) : null}
                           {authAvatar && (
-                            <div className="absolute -bottom-1 -right-1 w-5 h-5 md:w-6 md:h-6 bg-red-500 rounded-full flex items-center justify-center border-2 border-black z-20">
+                            <div className="absolute -bottom-1 -right-1 w-5 h-5 md:w-6 md:h-6 bg-amber-700 rounded-full flex items-center justify-center border-2 border-black z-20">
                               <CheckCircle size={10} className="text-black" />
                             </div>
                           )}
@@ -883,7 +883,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                             value={authName}
                             onChange={e => setAuthName(e.target.value)}
                             placeholder="اسمك المعروض"
-                            className="w-full bg-black/60 border border-white/10 focus:border-red-500/50 rounded-xl px-4 py-3.5 text-white font-bold text-sm outline-none transition-all placeholder:text-white/20"
+                            className="w-full bg-black/60 border border-white/10 focus:border-amber-700/50 rounded-xl px-4 py-3.5 text-white font-bold text-sm outline-none transition-all placeholder:text-white/20"
                           />
                         </div>
                       )}
@@ -891,7 +891,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                       {/* Kick Username */}
                       <div>
                         <label className="text-white/50 font-bold text-xs uppercase tracking-widest mb-2 block flex items-center gap-2">
-                          <span className="text-red-400">K</span> حساب Kick <span className="text-red-400">*مطلوب</span>
+                          <span className="text-amber-600">K</span> حساب Kick <span className="text-amber-600">*مطلوب</span>
                         </label>
                         <div className="relative">
                           <input
@@ -899,11 +899,11 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                             value={authKickUsername}
                             onChange={e => setAuthKickUsername(e.target.value)}
                             placeholder="اسم المستخدم في Kick"
-                            className="w-full bg-black/60 border border-white/10 focus:border-red-500/50 rounded-xl px-4 py-3.5 text-white font-bold text-sm outline-none transition-all placeholder:text-white/20 pl-12"
+                            className="w-full bg-black/60 border border-white/10 focus:border-amber-700/50 rounded-xl px-4 py-3.5 text-white font-bold text-sm outline-none transition-all placeholder:text-white/20 pl-12"
                             dir="ltr"
                           />
                           <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                            <span className="text-red-500 font-black text-xs bg-red-500/10 px-2 py-1 rounded-lg border border-red-500/20">K</span>
+                            <span className="text-amber-700 font-black text-xs bg-amber-700/10 px-2 py-1 rounded-lg border border-amber-700/20">K</span>
                           </div>
                         </div>
                         {avatarError && authKickUsername.length >= 2 && (
@@ -948,7 +948,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                                 onChange={e => handlePassInput(i, e.target.value, false)}
                                 onKeyDown={e => handlePassKeyDown(i, e, false)}
                                 onFocus={e => e.target.select()}
-                                className={`w-10 h-12 md:w-11 md:h-14 bg-black/60 border-2 rounded-xl text-center text-lg md:text-xl font-black text-white focus:outline-none focus:border-red-500 focus:shadow-[0_0_15px_rgba(220,38,38,0.3)] transition-all duration-200 ${digit ? 'border-red-500/40' : 'border-white/10'}`}
+                                className={`w-10 h-12 md:w-11 md:h-14 bg-black/60 border-2 rounded-xl text-center text-lg md:text-xl font-black text-white focus:outline-none focus:border-amber-700 focus:shadow-[0_0_15px_rgba(139,69,19,0.4)] transition-all duration-200 ${digit ? 'border-amber-700/40' : 'border-white/10'}`}
                               />
                             ))}
                           </div>
@@ -977,7 +977,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                                   onChange={e => handlePassInput(i, e.target.value, true)}
                                   onKeyDown={e => handlePassKeyDown(i, e, true)}
                                   onFocus={e => e.target.select()}
-                                  className={`w-10 h-12 md:w-11 md:h-14 bg-black/60 border-2 rounded-xl text-center text-lg md:text-xl font-black text-white focus:outline-none focus:border-red-500 focus:shadow-[0_0_15px_rgba(34,197,94,0.3)] transition-all duration-200 ${digit ? 'border-red-500/40' : 'border-white/10'}`}
+                                  className={`w-10 h-12 md:w-11 md:h-14 bg-black/60 border-2 rounded-xl text-center text-lg md:text-xl font-black text-white focus:outline-none focus:border-amber-700 focus:shadow-[0_0_15px_rgba(34,197,94,0.3)] transition-all duration-200 ${digit ? 'border-amber-700/40' : 'border-white/10'}`}
                                 />
                               ))}
                             </div>
@@ -990,16 +990,16 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
 
                       {/* Error Message */}
                       {formError && (
-                        <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-2.5 flex items-center gap-3">
-                          <AlertTriangle size={16} className="text-red-500 shrink-0" />
-                          <span className="text-red-400 font-bold text-sm">{formError}</span>
+                        <div className="bg-amber-700/10 border border-amber-700/30 rounded-xl px-4 py-2.5 flex items-center gap-3">
+                          <AlertTriangle size={16} className="text-amber-700 shrink-0" />
+                          <span className="text-amber-600 font-bold text-sm">{formError}</span>
                         </div>
                       )}
 
                       {/* Continue / Login Button */}
                       <button
                         onClick={handleContinue}
-                        className="w-full py-4 bg-gradient-to-r from-red-600 to-rose-700 rounded-xl font-black text-lg text-white hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_30px_rgba(239,68,68,0.3)] relative overflow-hidden group/btn"
+                        className="w-full py-4 bg-gradient-to-r from-amber-800 to-amber-900 rounded-xl font-black text-lg text-white hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_30px_rgba(139,69,19,0.4)] relative overflow-hidden group/btn"
                       >
                         <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-200%] group-hover/btn:translate-x-[200%] transition-transform duration-1000 skew-x-[-20deg]" />
                         <span className="relative z-10 flex items-center justify-center gap-2">
@@ -1011,7 +1011,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                           بالتسجيل أنت توافق على{' '}
                           <span 
                             onClick={() => setShowTerms(true)}
-                            className="text-red-500/60 hover:text-red-500 cursor-pointer"
+                            className="text-amber-700/60 hover:text-amber-700 cursor-pointer"
                           >شروط الاستخدام</span>
                         </p>
                       )}
@@ -1022,7 +1022,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                         {isLoginMode ? 'ما عندك حساب؟' : 'لديك حساب بالفعل؟'}{' '}
                         <span 
                           onClick={() => setIsLoginMode(!isLoginMode)}
-                          className="text-red-500 font-black cursor-pointer hover:text-red-400 transition-colors"
+                          className="text-amber-700 font-black cursor-pointer hover:text-amber-600 transition-colors"
                         >{isLoginMode ? 'إنشاء حساب' : 'تسجيل دخول'}</span>
                       </p>
                     </div>
@@ -1032,11 +1032,11 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                 {/* ===== KICK VERIFY STEP ===== */}
                 {authStep === 'KICK_VERIFY' && (
                   <div className="text-center">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-red-600/20 to-red-900/20 border border-red-500/20 mb-5">
-                      <MessageSquare size={32} className="text-red-500" />
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-amber-800/20 to-red-900/20 border border-amber-700/20 mb-5">
+                      <MessageSquare size={32} className="text-amber-700" />
                     </div>
                     <h3 className="text-white font-black text-xl mb-2">مصادقة Kick</h3>
-                    <p className="text-red-500 font-bold tracking-[0.3em] text-[10px] uppercase mb-6">KICK CHAT VERIFICATION</p>
+                    <p className="text-amber-700 font-bold tracking-[0.3em] text-[10px] uppercase mb-6">KICK CHAT VERIFICATION</p>
 
                     {/* User Info */}
                     <div className="flex items-center gap-4 bg-black/40 rounded-2xl p-4 border border-white/5 mb-6">
@@ -1048,35 +1048,35 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                     </div>
 
                     {/* Instructions */}
-                    <div className="bg-gradient-to-br from-red-900/20 to-red-950/20 border border-red-500/20 rounded-2xl p-5 mb-6 text-right">
-                      <h4 className="text-red-400 font-black text-xs flex items-center gap-2 uppercase tracking-widest mb-4">
+                    <div className="bg-gradient-to-br from-red-900/20 to-red-950/20 border border-amber-700/20 rounded-2xl p-5 mb-6 text-right">
+                      <h4 className="text-amber-600 font-black text-xs flex items-center gap-2 uppercase tracking-widest mb-4">
                         <Shield size={14} /> خطوات التحقق
                       </h4>
                       <div className="space-y-3 text-sm">
                         <div className="flex items-start gap-3">
-                          <span className="w-6 h-6 bg-red-500 text-black rounded-lg flex items-center justify-center font-black text-xs shrink-0">1</span>
+                          <span className="w-6 h-6 bg-amber-700 text-black rounded-lg flex items-center justify-center font-black text-xs shrink-0">1</span>
                           <span className="text-white/60 font-bold">افتح شات القناة في Kick</span>
                         </div>
                         <div className="flex items-start gap-3">
-                          <span className="w-6 h-6 bg-red-500 text-black rounded-lg flex items-center justify-center font-black text-xs shrink-0">2</span>
+                          <span className="w-6 h-6 bg-amber-700 text-black rounded-lg flex items-center justify-center font-black text-xs shrink-0">2</span>
                           <span className="text-white/60 font-bold">أرسل الكود التالي بالضبط:</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Verification Code */}
-                    <div className="bg-black/60 border-2 border-red-500/30 rounded-2xl p-6 text-center relative overflow-hidden mb-6">
-                      <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent"></div>
-                      <p className="text-red-500/60 text-[10px] font-bold uppercase tracking-[0.5em] mb-3 relative z-10">كـود الـتـحـقـق</p>
+                    <div className="bg-black/60 border-2 border-amber-700/30 rounded-2xl p-6 text-center relative overflow-hidden mb-6">
+                      <div className="absolute inset-0 bg-gradient-to-br from-amber-700/5 to-transparent"></div>
+                      <p className="text-amber-700/60 text-[10px] font-bold uppercase tracking-[0.5em] mb-3 relative z-10">كـود الـتـحـقـق</p>
                       <div className="relative z-10 flex items-center justify-center gap-1" dir="ltr">
-                        <span className="text-red-500 font-black text-2xl tracking-widest">ABS-</span>
+                        <span className="text-amber-700 font-black text-2xl tracking-widest">iCG1-</span>
                         <span className="text-white font-black text-2xl tracking-[0.3em] font-mono">{verificationCode}</span>
                       </div>
-                      <button onClick={handleCopyCode} className={`mt-4 relative z-10 inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all ${codeCopied ? 'bg-red-500/20 border border-red-500/40 text-red-400' : 'bg-white/5 border border-white/10 text-white/40 hover:bg-white/10 hover:text-white'}`}>
+                      <button onClick={handleCopyCode} className={`mt-4 relative z-10 inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all ${codeCopied ? 'bg-amber-700/20 border border-amber-700/40 text-amber-600' : 'bg-white/5 border border-white/10 text-white/40 hover:bg-white/10 hover:text-white'}`}>
                         {codeCopied ? <><ClipboardCheck size={14} /> تم النسخ!</> : <><Copy size={14} /> نسخ الكود</>}
                       </button>
                       <div className="mt-3 flex items-center justify-center gap-2 relative z-10">
-                        <div className={`w-2 h-2 rounded-full ${codeExpiry > 30 ? 'bg-red-500' : codeExpiry > 0 ? 'bg-yellow-500 animate-ping' : 'bg-red-500'}`}></div>
+                        <div className={`w-2 h-2 rounded-full ${codeExpiry > 30 ? 'bg-amber-700' : codeExpiry > 0 ? 'bg-yellow-500 animate-ping' : 'bg-amber-700'}`}></div>
                         <span className={`font-mono font-bold text-sm ${codeExpiry <= 30 ? 'text-yellow-400' : 'text-white/30'}`}>
                           {Math.floor(codeExpiry / 60)}:{(codeExpiry % 60).toString().padStart(2, '0')}
                         </span>
@@ -1087,7 +1087,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                     <div className="flex items-center justify-center gap-3 py-2">
                       {chatConnected ? (
                         <>
-                          <Loader2 size={18} className="animate-spin text-red-500" />
+                          <Loader2 size={18} className="animate-spin text-amber-700" />
                           <span className="text-white/40 font-bold text-sm">متصل - بانتظار الرسالة في الشات...</span>
                         </>
                       ) : (
@@ -1110,13 +1110,13 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                 {authStep === 'VERIFYING' && (
                   <div className="text-center py-8">
                     <div className="relative mb-6">
-                      <div className="absolute inset-0 bg-red-500/20 blur-[60px] rounded-full animate-pulse"></div>
-                      <div className="relative w-24 h-24 rounded-full border-4 border-red-500/50 flex items-center justify-center bg-black/60 backdrop-blur-xl mx-auto">
-                        <Fingerprint size={48} className="text-red-500 animate-pulse" />
+                      <div className="absolute inset-0 bg-amber-700/20 blur-[60px] rounded-full animate-pulse"></div>
+                      <div className="relative w-24 h-24 rounded-full border-4 border-amber-700/50 flex items-center justify-center bg-black/60 backdrop-blur-xl mx-auto">
+                        <Fingerprint size={48} className="text-amber-700 animate-pulse" />
                       </div>
                     </div>
                     <h3 className="text-2xl font-black text-white mb-2">جاري التحقق...</h3>
-                    <p className="text-red-500 font-bold tracking-[0.4em] text-xs uppercase">VERIFYING IDENTITY</p>
+                    <p className="text-amber-700 font-bold tracking-[0.4em] text-xs uppercase">VERIFYING IDENTITY</p>
                   </div>
                 )}
 
@@ -1124,14 +1124,14 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                 {authStep === 'VERIFIED' && (
                   <div className="text-center py-8">
                     <div className="relative mb-6">
-                      <div className="absolute inset-0 bg-red-500/30 blur-[80px] rounded-full"></div>
-                      <div className="relative w-28 h-28 rounded-full border-4 border-red-500 flex items-center justify-center bg-red-500/10 backdrop-blur-xl mx-auto shadow-[0_0_60px_rgba(34,197,94,0.4)]">
-                        <CheckCircle size={56} className="text-red-500 drop-shadow-[0_0_20px_rgba(34,197,94,0.8)]" />
+                      <div className="absolute inset-0 bg-amber-700/30 blur-[80px] rounded-full"></div>
+                      <div className="relative w-28 h-28 rounded-full border-4 border-amber-700 flex items-center justify-center bg-amber-700/10 backdrop-blur-xl mx-auto shadow-[0_0_60px_rgba(34,197,94,0.4)]">
+                        <CheckCircle size={56} className="text-amber-700 drop-shadow-[0_0_20px_rgba(34,197,94,0.8)]" />
                       </div>
                     </div>
                     <h3 className="text-3xl font-black text-white mb-2">تم التحقق!</h3>
-                    <p className="text-red-500 font-bold tracking-[0.5em] text-lg uppercase drop-shadow-[0_0_15px_rgba(34,197,94,0.5)]">VERIFIED ✓</p>
-                    <div className="mt-4 flex items-center justify-center gap-3 bg-red-500/10 border border-red-500/20 px-6 py-4 rounded-2xl">
+                    <p className="text-amber-700 font-bold tracking-[0.5em] text-lg uppercase drop-shadow-[0_0_15px_rgba(34,197,94,0.5)]">VERIFIED ✓</p>
+                    <div className="mt-4 flex items-center justify-center gap-3 bg-amber-700/10 border border-amber-700/20 px-6 py-4 rounded-2xl">
                       <ProAvatar url={authAvatar} username={authKickUsername} size="w-14 h-14" className="overflow-visible" />
                       <span className="text-white font-black">{authKickUsername}</span>
                     </div>
@@ -1148,12 +1148,12 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-red-950/5 to-transparent" />
         <div className="max-w-5xl mx-auto relative z-10">
           <div className="text-center mb-8 md:mb-16">
-            <span className="text-red-500 font-black uppercase tracking-[0.3em] text-xs">كيف تلعب؟</span>
+            <span className="text-amber-700 font-black uppercase tracking-[0.3em] text-xs">كيف تلعب؟</span>
             <h2 className="text-4xl md:text-5xl font-black italic tracking-tighter mt-4 mb-4">
               <span className="text-white">ثلاث خطوات </span>
-              <span className="text-red-500">فقط</span>
+              <span className="text-amber-700">فقط</span>
             </h2>
-            <div className="h-1 w-20 mx-auto bg-gradient-to-r from-transparent via-red-500 to-transparent" />
+            <div className="h-1 w-20 mx-auto bg-gradient-to-r from-transparent via-amber-700 to-transparent" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
@@ -1212,7 +1212,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
           <div className="mt-16 bg-black/40 backdrop-blur-xl border border-white/5 rounded-[2rem] p-8 md:p-10">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
-                { label: 'نسبة التفاعل', value: 87, color: 'from-red-500 to-rose-600', icon: Heart },
+                { label: 'نسبة التفاعل', value: 87, color: 'from-amber-700 to-amber-800', icon: Heart },
                 { label: 'رضا المستخدمين', value: 94, color: 'from-green-500 to-emerald-600', icon: Star },
                 { label: 'نمو المجتمع', value: 156, color: 'from-blue-500 to-indigo-600', icon: TrendingUp },
               ].map((item, i) => (
@@ -1386,13 +1386,13 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
       <section id="all-games" data-animate-section className={`relative py-14 md:py-32 px-4 transition-all duration-1000 ${visibleSections.has('all-games') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-6 md:mb-12">
-            <span className="text-red-500 font-black uppercase tracking-[0.3em] text-xs">الألعاب</span>
+            <span className="text-amber-700 font-black uppercase tracking-[0.3em] text-xs">الألعاب</span>
             <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter mt-4 mb-4">
               <span className="text-white">كل الألعاب في </span>
-              <span className="text-red-500">الساحة</span>
+              <span className="text-amber-700">الساحة</span>
             </h2>
             <p className="text-white/40 font-bold max-w-2xl mx-auto">اختر من أكثر من 25 لعبة تفاعلية — اضغط على أي لعبة لمعرفة المزيد</p>
-            <div className="h-1 w-20 mx-auto bg-gradient-to-r from-transparent via-red-500 to-transparent mt-4" />
+            <div className="h-1 w-20 mx-auto bg-gradient-to-r from-transparent via-amber-700 to-transparent mt-4" />
           </div>
 
           {/* Search + Filter */}
@@ -1404,7 +1404,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                 placeholder="ابحث عن لعبة..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl pr-12 pl-4 py-4 text-white font-bold placeholder:text-white/30 focus:outline-none focus:border-red-500/50 focus:shadow-[0_0_20px_rgba(239,68,68,0.1)] transition-all"
+                className="w-full bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl pr-12 pl-4 py-4 text-white font-bold placeholder:text-white/30 focus:outline-none focus:border-amber-700/50 focus:shadow-[0_0_20px_rgba(239,68,68,0.1)] transition-all"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
@@ -1419,7 +1419,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-5 py-2 rounded-full font-black text-sm transition-all ${
                     selectedCategory === cat
-                      ? 'bg-red-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)]'
+                      ? 'bg-amber-800 text-white shadow-[0_0_20px_rgba(139,69,19,0.4)]'
                       : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 hover:text-white/70'
                   }`}
                 >
@@ -1435,13 +1435,13 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                 key={i}
                 onClick={() => setActiveGame(activeGame === i ? null : i)}
                 className={`relative text-right rounded-3xl p-6 transition-all duration-500 group overflow-hidden ${
-                  activeGame === i ? 'shadow-[0_0_50px_rgba(239,68,68,0.3)] border-red-500/80 bg-red-950/80 scale-[1.02]' : 'bg-[#0a0000]/90 hover:bg-[#120000]/90 border-red-900/40 hover:border-red-500/80 hover:shadow-[0_0_40px_rgba(239,68,68,0.2)] hover:-translate-y-2'
+                  activeGame === i ? 'shadow-[0_0_50px_rgba(139,69,19,0.4)] border-amber-700/80 bg-red-950/80 scale-[1.02]' : 'bg-[#0a0000]/90 hover:bg-[#120000]/90 border-red-900/40 hover:border-amber-700/80 hover:shadow-[0_0_40px_rgba(239,68,68,0.2)] hover:-translate-y-2'
                 } border backdrop-blur-2xl`}
                 style={{ boxShadow: activeGame === i ? `0 20px 50px -10px ${game.glowColor}` : '0 10px 40px -10px rgba(0,0,0,0.8)' }}
               >
                 <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-white/[0.05] via-white/[0.01] to-transparent pointer-events-none rounded-t-3xl" />
                 <div className="relative z-10">
-                  <div className="flex items-center gap-4 bg-black/60 border border-red-500/20 rounded-full p-2 pr-2 group-hover:bg-black/80 group-hover:border-red-500/60 transition-all duration-500 shadow-inner">
+                  <div className="flex items-center gap-4 bg-black/60 border border-amber-700/20 rounded-full p-2 pr-2 group-hover:bg-black/80 group-hover:border-amber-700/60 transition-all duration-500 shadow-inner">
                     <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${game.color} flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(0,0,0,0.5)] group-hover:scale-110 group-hover:-rotate-12 transition-transform duration-500 border border-white/20`}>
                       <game.icon size={22} className="text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.5)]" />
                     </div>
@@ -1455,11 +1455,11 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                     <p className="text-red-100/60 font-bold text-sm leading-loose line-clamp-3">{game.description}</p>
                   </div>
                   <div className={`overflow-hidden transition-all duration-500 ${activeGame === i ? 'max-h-[300px] opacity-100 mt-5' : 'max-h-0 opacity-0'}`}>
-                    <div className="border-t border-red-500/20 pt-5 px-1">
-                      <div className="bg-[#050000]/90 rounded-2xl p-4 border border-red-500/20 relative overflow-hidden shadow-inner">
-                        <div className="absolute inset-0 bg-red-500/10 blur-2xl pointer-events-none" />
+                    <div className="border-t border-amber-700/20 pt-5 px-1">
+                      <div className="bg-[#050000]/90 rounded-2xl p-4 border border-amber-700/20 relative overflow-hidden shadow-inner">
+                        <div className="absolute inset-0 bg-amber-700/10 blur-2xl pointer-events-none" />
                         <div className="relative z-10">
-                          <span className="text-red-500 font-black text-xs uppercase tracking-[0.2em] drop-shadow-md">طريقة اللعب</span>
+                          <span className="text-amber-700 font-black text-xs uppercase tracking-[0.2em] drop-shadow-md">طريقة اللعب</span>
                           <p className="text-white/80 font-bold text-xs leading-relaxed mt-3">{game.howToPlay}</p>
                         </div>
                       </div>
@@ -1531,7 +1531,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
               </p>
               <div className="flex flex-wrap items-center justify-center gap-4">
                 <div className="flex items-center gap-3 bg-black/60 border border-white/5 rounded-xl px-5 py-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-700 to-amber-800 flex items-center justify-center">
                     <span className="text-white font-black text-lg">i</span>
                   </div>
                   <div className="text-right">
@@ -1640,13 +1640,13 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={() => setShowTerms(false)}>
           <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
           <div 
-            className="relative z-10 max-w-2xl w-full bg-gradient-to-b from-[#1a0000] to-black border border-red-500/30 rounded-[2rem] p-8 md:p-10 max-h-[85vh] overflow-y-auto shadow-[0_0_80px_rgba(239,68,68,0.2)]"
+            className="relative z-10 max-w-2xl w-full bg-gradient-to-b from-[#1a0000] to-black border border-amber-700/30 rounded-[2rem] p-8 md:p-10 max-h-[85vh] overflow-y-auto shadow-[0_0_80px_rgba(239,68,68,0.2)]"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-700 to-amber-800 flex items-center justify-center">
                   <Shield size={20} className="text-white" />
                 </div>
                 <div>
@@ -1656,7 +1656,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
               </div>
               <button 
                 onClick={() => setShowTerms(false)}
-                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-red-500/20 hover:border-red-500/30 transition-all"
+                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-amber-700/20 hover:border-amber-700/30 transition-all"
               >
                 <X size={18} className="text-white/60" />
               </button>
@@ -1693,8 +1693,8 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
                   content: 'نحتفظ بالحق في تعديل هذه الشروط في أي وقت. سنقوم بإشعار المستخدمين بأي تغييرات جوهرية. استمرار استخدام المنصة بعد التعديلات يعني موافقتك على الشروط المعدلة.'
                 },
               ].map((section, i) => (
-                <div key={i} className="bg-black/40 border border-white/5 hover:border-red-500/20 rounded-xl p-5 transition-all duration-300">
-                  <h4 className="text-red-500 font-black text-base mb-2">{section.title}</h4>
+                <div key={i} className="bg-black/40 border border-white/5 hover:border-amber-700/20 rounded-xl p-5 transition-all duration-300">
+                  <h4 className="text-amber-700 font-black text-base mb-2">{section.title}</h4>
                   <p className="text-white/50 font-bold text-sm leading-relaxed">{section.content}</p>
                 </div>
               ))}
@@ -1706,7 +1706,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
               </p>
               <button
                 onClick={() => setShowTerms(false)}
-                className="px-8 py-3 bg-gradient-to-r from-red-600 to-rose-700 rounded-xl font-black text-white hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(239,68,68,0.3)]"
+                className="px-8 py-3 bg-gradient-to-r from-amber-800 to-amber-900 rounded-xl font-black text-white hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(139,69,19,0.4)]"
               >
                 أوافق على الشروط
               </button>
@@ -1721,7 +1721,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBack }) => {
           <div className="mb-6">
             <img src="/logo2.png" className="h-20 mx-auto opacity-30" alt="ABS ARENA" />
           </div>
-          <p className="text-white/20 font-black text-base mb-2"><span className="text-red-500">ABS </span>ARENA — أكبر منصة ألعاب تفاعلية للبثوث المباشرة</p>
+          <p className="text-white/20 font-black text-base mb-2"><span className="text-amber-700">ABS </span>ARENA — أكبر منصة ألعاب تفاعلية للبثوث المباشرة</p>
           <p className="text-white/10 font-bold text-xs">
             جميع الحقوق محفوظة © {new Date().getFullYear()} iABS ARENA
           </p>

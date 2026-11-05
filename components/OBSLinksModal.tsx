@@ -23,7 +23,7 @@ const GAMES: GameLink[] = [
     { id: 'MUSICAL_CHAIRS', label: 'الكراسي الموسيقية', icon: Armchair },
     { id: 'MASAQIL_WAR', label: 'حرب المصاقيل', icon: Swords },
     { id: 'BLUR_GUESS', label: 'تخمين الصورة', icon: ImageIcon },
-    { id: 'SPIN_WHEEL', label: 'عجلة الحظ', icon: Zap },
+    { id: 'SPIN_WHEEL', label: 'الروليت', icon: Zap },
     { id: 'RAFFLE', label: 'سحب الجوائز', icon: Gift },
     { id: 'FLAG_QUIZ', label: 'تحدي الأعلام', icon: Flag },
     { id: 'TEAM_BATTLE', label: 'حرب الفرق', icon: Users2 },
@@ -34,7 +34,7 @@ const GAMES: GameLink[] = [
     { id: 'TRUTH_OR_LIE', label: 'صادق أم كذاب', icon: AlertTriangle },
     { id: 'FORBIDDEN_WORDS', label: 'الممنوع مرغوب', icon: ShieldOff },
     { id: 'VOTING_GAME', label: 'لعبة التصويت', icon: Vote },
-    { id: 'LETTER_GAME', label: 'حروف مع حمودي', icon: LayoutIcon },
+    { id: 'LETTER_GAME', label: 'حروف مع منصور', icon: LayoutIcon },
 ];
 
 export const OBSLinksModal: React.FC<OBSLinksModalProps> = ({ isOpen, onClose }) => {
