@@ -35,10 +35,10 @@ input{font:700 14px Cairo;background:#080604;border:1px solid #c9993f55;color:va
 .mc svg{width:78px;height:78px;filter:drop-shadow(0 0 8px var(--c));animation:fl 4s ease-in-out infinite}
 @keyframes fl{50%{transform:translateY(-5px) rotate(6deg)}}
 #gm{display:none;grid-template-columns:1fr 280px;gap:12px}
-.stage{perspective:1400px;position:relative}
+.stage{perspective:1400px;position:relative}.stage .fr{width:min(100%,calc((100vh - 205px)*1.0286));margin:auto}
 .tilt{transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .25s;transform-style:preserve-3d}
 .cv{position:relative;background:radial-gradient(circle at 50% 40%,#1a120a,#070503);border-radius:20px;overflow:hidden}
-canvas{display:block;margin:auto;width:min(100%,calc((100vh - 170px)*1.0286));height:auto;cursor:grab;touch-action:none}
+canvas{display:block;margin:auto;width:100%;height:auto;cursor:grab;touch-action:none}
 .cn{position:absolute;width:26px;height:26px;border:2px solid var(--g2);z-index:3;opacity:.8}
 .c1{top:10px;right:10px;border-left:0;border-bottom:0}.c2{top:10px;left:10px;border-right:0;border-bottom:0}.c3{bottom:10px;right:10px;border-left:0;border-top:0}.c4{bottom:10px;left:10px;border-right:0;border-top:0}
 .hud{display:flex;gap:8px;margin-bottom:8px}.hud div{flex:1;text-align:center;border:1px solid #c9993f44;border-radius:12px;padding:2px 6px;background:#0d0a06}
@@ -50,7 +50,7 @@ canvas{display:block;margin:auto;width:min(100%,calc((100vh - 170px)*1.0286));he
 .pn{height:200px;overflow:auto;font-size:13px}.pn div{display:flex;justify-content:space-between;padding:5px 8px;border-radius:8px;margin:3px 0;background:#0f0b07;border-inline-start:3px solid var(--g2)}
 .pn .x{opacity:.4;text-decoration:line-through;border-color:#555}
 .side h3{font:400 18px Lalezar;color:var(--g1);margin:10px 0 4px}
-.ctl{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;justify-content:center}.ctl .btn{padding:4px 12px;font-size:12px}
+.ctl{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0 0}.ctl #ex{grid-column:1/-1}.ctl .btn{padding:7px 10px;font-size:12.5px}
 #win{position:fixed;inset:0;display:none;place-items:center;z-index:20;overflow:hidden;text-align:center;background:radial-gradient(circle at 50% 45%,#2a1c0ae6,#000f);backdrop-filter:blur(8px);--rc:#f6dc9b}
 #win.tie{--rc:#9fd4ff}#win.on{display:grid;animation:wi .8s cubic-bezier(.2,.9,.3,1) both}@keyframes wi{from{opacity:0;transform:scale(1.25);filter:brightness(3)}to{opacity:1;transform:none;filter:none}}
 .rays{position:absolute;inset:-60%;background:repeating-conic-gradient(from var(--a),color-mix(in srgb,var(--rc) 24%,transparent) 0 5deg,transparent 5deg 15deg);-webkit-mask:radial-gradient(circle,#000 5%,transparent 55%);mask:radial-gradient(circle,#000 5%,transparent 55%);animation:sp 16s linear infinite}
@@ -89,9 +89,9 @@ canvas{display:block;margin:auto;width:min(100%,calc((100vh - 170px)*1.0286));he
 <div class="lbar"><button class="btn gold big" id="gs" style="width:auto" disabled>▶ بدء اللعب</button><button class="btn" id="gb">تراجع</button></div></section>
 <section id="gm">
 <div><div class="hud"><div><small>الجولة</small><b id="hr">1</b></div><div><small>المتبقون</small><b id="ha">0</b></div><div><small id="hl">الحالة</small><b id="ht">0</b></div></div>
-<div class="stage"><div class="tilt" id="tl"><div class="fr"><div class="cv"><i class="cn c1"></i><i class="cn c2"></i><i class="cn c3"></i><i class="cn c4"></i><canvas id="cv" width="1440" height="1400"></canvas><div class="zc"><button id="zp">＋</button><button id="zm">－</button><button id="zr">⌖</button></div><div class="hint">عجلة الماوس للتكبير • اسحب للتحريك • نقرتان للإعادة</div><div id="ban"><div><h2 class="g"></h2><p></p></div></div></div></div></div></div>
-<div class="ctl"><button class="btn" id="pz">⏸ إيقاف مؤقت</button><button class="btn" id="sk">⏭ تخطي</button><button class="btn gold" id="ex">إنهاء</button></div></div>
+<div class="stage"><div class="tilt" id="tl"><div class="fr"><div class="cv"><i class="cn c1"></i><i class="cn c2"></i><i class="cn c3"></i><i class="cn c4"></i><canvas id="cv" width="1440" height="1400"></canvas><div class="zc"><button id="zp">＋</button><button id="zm">－</button><button id="zr">⌖</button></div><div class="hint">عجلة الماوس للتكبير • اسحب للتحريك • نقرتان للإعادة</div><div id="ban"><div><h2 class="g"></h2><p></p></div></div></div></div></div></div></div>
 <div class="fr side"><div class="in"><h3>اللاعبون (<span id="pc">0</span>)</h3><div class="pn" id="pl"></div><h3>سجل اللعبة</h3><div class="pn" id="lg" style="height:130px"></div>
+<div class="ctl"><button class="btn" id="pz">⏸ إيقاف مؤقت</button><button class="btn" id="sk">⏭ تخطي</button><button class="btn gold" id="ex">إنهاء</button></div>
 <div class="tag" style="margin-top:auto">الصور والأطارات تظهر تلقائياً لكل عضو join من الشات</div></div></div>
 </section></main>
 <div id="win"></div>
