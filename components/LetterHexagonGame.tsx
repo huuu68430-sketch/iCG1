@@ -855,13 +855,13 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
             {/* OBS BADGES - Live + Stage */}
             {isOBS && (
                 <div className="absolute top-6 left-6 z-[300] flex flex-col gap-2 animate-in slide-in-from-left-10 duration-500">
-                    <div className="flex items-center gap-2 bg-black/50 px-4 py-2 rounded-full border border-[#e8be6e]/40 backdrop-blur-md">
-                        <div className="w-2 h-2 bg-[#e8be6e] rounded-full animate-pulse shadow-[0_0_10px_#e8be6e]"></div>
-                        <span className="text-[#e8be6e] font-black text-[9px] uppercase tracking-[0.2em] italic">Live Online</span>
+                    <div className="flex items-center gap-2 bg-black/40 px-4 py-2 rounded-full border border-emerald-500/30 backdrop-blur-md">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_#10b981]"></div>
+                        <span className="text-emerald-400 font-black text-[9px] uppercase tracking-[0.2em] italic">Live Online</span>
                     </div>
-                    <div className="flex items-center gap-2 bg-[#e8be6e]/15 px-4 py-2 rounded-full border border-[#e8be6e]/40 backdrop-blur-md shadow-xl">
-                        <Trophy className="text-[#e8be6e]" size={12} />
-                        <span className="text-[#fbeccb] font-black text-[10px] italic">المرحلة {getArabicStageWord(currentLevel)} / 100</span>
+                    <div className="flex items-center gap-2 bg-indigo-600/60 px-4 py-2 rounded-full border border-white/20 backdrop-blur-md shadow-xl">
+                        <Trophy className="text-yellow-400" size={12} />
+                        <span className="text-white font-black text-[10px] italic">المرحلة {getArabicStageWord(currentLevel)} / 100</span>
                     </div>
                 </div>
             )}
@@ -895,9 +895,9 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                         <div className="relative group">
                             <div className="absolute -inset-6 bg-white/5 blur-3xl rounded-full scale-150 animate-pulse"></div>
                             <div className="flex items-center gap-6 mb-3 relative z-10">
-                                <span className="text-[7rem] font-black italic tracking-tighter text-[#f0c25a] drop-shadow-[0_10px_25px_rgba(240,194,90,0.6)] animate-bounce">حروف</span>
-                                <span className="text-4xl font-black italic tracking-tighter text-[#cf7c43] mt-8">مع</span>
-                                <span className="text-[7rem] font-black italic tracking-tighter text-[#e8be6e] drop-shadow-[0_10px_25px_rgba(232,190,110,0.6)]">منصور</span>
+                                <span className="text-[7rem] font-black italic tracking-tighter text-yellow-400 drop-shadow-[0_10px_25px_rgba(234,179,8,0.6)] animate-bounce">حروف</span>
+                                <span className="text-4xl font-black italic tracking-tighter text-blue-400 mt-8">مع</span>
+                                <span className="text-[7rem] font-black italic tracking-tighter text-red-500 drop-shadow-[0_10px_25px_rgba(239,68,68,0.6)]">منصور</span>
                             </div>
                             <div className="h-1.5 w-full bg-gradient-to-r from-transparent via-white/40 to-transparent rounded-full"></div>
                         </div>
@@ -924,16 +924,16 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
 
                                     {/* TEAMS PREVIEW */}
                                     <div className="grid grid-cols-2 gap-12 mt-6 w-full">
-                                        {/* Team الذهبي */}
+                                        {/* Team 1 — red */}
                                         <div className="flex flex-col items-center gap-4 group">
                                             <div className="relative">
-                                                <div className="absolute -inset-4 bg-[#f0c25a]/30 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                                <div className="w-28 h-28 bg-[#f0c25a] border-4 border-white rounded-[2rem] flex items-center justify-center text-5xl shadow-2xl relative z-10 transform -rotate-3 group-hover:rotate-0 transition-transform">🟡</div>
+                                                <div className="absolute -inset-4 bg-[#FF0000]/30 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                                <div className="w-28 h-28 bg-[#FF0000] border-4 border-white rounded-[2rem] flex items-center justify-center text-5xl shadow-2xl relative z-10 transform -rotate-3 group-hover:rotate-0 transition-transform">🔴</div>
                                             </div>
                                             <div className="text-center">
-                                                <h3 className="text-2xl font-black text-[#f0c25a] italic drop-shadow-lg">{team1Name}</h3>
-                                                <div className="text-white/40 font-bold text-xs uppercase tracking-widest mt-1">THE GOLD SQUAD</div>
-                                                <div className="mt-3 inline-block px-5 py-2 rounded-full bg-black/70 border-2 border-[#f0c25a] text-white font-black text-base italic shadow-lg">اكتب: {entryKeyword} {cleanTeamName(team1Name)}</div>
+                                                <h3 className="text-2xl font-black text-[#FF0000] italic drop-shadow-lg">{team1Name}</h3>
+                                                <div className="text-white/40 font-bold text-xs uppercase tracking-widest mt-1">THE QUEEN WARRIORS</div>
+                                                <div className="mt-3 inline-block px-5 py-2 rounded-full bg-black/70 border-2 border-[#FF0000] text-white font-black text-base italic shadow-lg">اكتب: {entryKeyword} {cleanTeamName(team1Name)}</div>
                                                 <div className="mt-4 flex flex-wrap justify-center gap-2 max-w-sm">
                                                     {women.slice(0, 3).map(p => (
                                                         <div key={p.username} className="animate-in zoom-in">
@@ -959,16 +959,16 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                             </div>
                                         </div>
 
-                                        {/* Team النحاسي */}
+                                        {/* Team 2 — blue */}
                                         <div className="flex flex-col items-center gap-4 group">
                                             <div className="relative">
-                                                <div className="absolute -inset-4 bg-[#cf7c43]/30 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                                <div className="w-28 h-28 bg-[#cf7c43] border-4 border-white rounded-[2rem] flex items-center justify-center text-5xl shadow-2xl relative z-10 transform rotate-3 group-hover:rotate-0 transition-transform">🟠</div>
+                                                <div className="absolute -inset-4 bg-[#0066FF]/30 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                                <div className="w-28 h-28 bg-[#0066FF] border-4 border-white rounded-[2rem] flex items-center justify-center text-5xl shadow-2xl relative z-10 transform rotate-3 group-hover:rotate-0 transition-transform">🔵</div>
                                             </div>
                                             <div className="text-center">
-                                                <h3 className="text-2xl font-black text-[#cf7c43] italic drop-shadow-lg">{team2Name}</h3>
-                                                <div className="text-white/40 font-bold text-xs uppercase tracking-widest mt-1">THE COPPER SQUAD</div>
-                                                <div className="mt-3 inline-block px-5 py-2 rounded-full bg-black/70 border-2 border-[#cf7c43] text-white font-black text-base italic shadow-lg">اكتب: {entryKeyword} {cleanTeamName(team2Name)}</div>
+                                                <h3 className="text-2xl font-black text-[#0066FF] italic drop-shadow-lg">{team2Name}</h3>
+                                                <div className="text-white/40 font-bold text-xs uppercase tracking-widest mt-1">THE TITAN KINGS</div>
+                                                <div className="mt-3 inline-block px-5 py-2 rounded-full bg-black/70 border-2 border-[#0066FF] text-white font-black text-base italic shadow-lg">اكتب: {entryKeyword} {cleanTeamName(team2Name)}</div>
                                                 <div className="mt-4 flex flex-wrap justify-center gap-2 max-w-sm">
                                                     {men.slice(0, 3).map(p => (
                                                         <div key={p.username} className="animate-in zoom-in">
@@ -1024,7 +1024,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                         </div>
 
                         {/* BOARD */}
-                        <div className="relative z-10 animate-in zoom-in slide-in-from-bottom-20 duration-1000 animate-[boardFloat_10s_ease-in-out_infinite]" style={{ width: `${boardWidth}px`, height: `${boardHeight}px` }}>
+                        <div className="relative z-10 animate-in zoom-in slide-in-from-bottom-20 duration-1000 animate-[obsBoardFloat_10s_ease-in-out_infinite]" style={{ width: `${boardWidth}px`, height: `${boardHeight}px` }}>
                             {/* SVG Filters and Gradients Definitions - Reusable for all cells */}
                             <svg className="absolute w-0 h-0 overflow-hidden">
                                 <defs>
@@ -1033,12 +1033,12 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                         <stop offset="100%" style={{ stopColor: '#e2e8f0' }} />
                                     </linearGradient>
                                     <linearGradient id="grad-team1" x1="0%" y1="0%" x2="0%" y2="100%">
-                                        <stop offset="0%" style={{ stopColor: '#ffd97a' }} />
-                                        <stop offset="100%" style={{ stopColor: '#f0c25a' }} />
+                                        <stop offset="0%" style={{ stopColor: '#ff4d4d' }} />
+                                        <stop offset="100%" style={{ stopColor: '#FF0000' }} />
                                     </linearGradient>
                                     <linearGradient id="grad-team2" x1="0%" y1="0%" x2="0%" y2="100%">
-                                        <stop offset="0%" style={{ stopColor: '#e9b582' }} />
-                                        <stop offset="100%" style={{ stopColor: '#cf7c43' }} />
+                                        <stop offset="0%" style={{ stopColor: '#4d94ff' }} />
+                                        <stop offset="100%" style={{ stopColor: '#0066FF' }} />
                                     </linearGradient>
                                     <linearGradient id="grad-winning" x1="0%" y1="0%" x2="100%" y2="100%">
                                         <stop offset="0%" style={{ stopColor: '#FDE047' }} />
@@ -1153,9 +1153,9 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                     <div className="space-y-6 animate-in zoom-in duration-500 py-6">
                                         <div className="flex flex-col items-center gap-4">
                                             <div className="relative">
-                                                <div className={`absolute -inset-8 blur-3xl rounded-full opacity-30 animate-pulse ${transitioningToTeam === 'open' ? 'bg-yellow-500' : transitioningToTeam === 'team1' ? 'bg-[#f0c25a]' : 'bg-[#cf7c43]'}`}></div>
-                                                <div className={`w-28 h-28 rounded-[2rem] ${transitioningToTeam === 'open' ? 'bg-yellow-500' : transitioningToTeam === 'team1' ? 'bg-[#f0c25a]' : 'bg-[#cf7c43]'} border-4 border-white flex items-center justify-center text-6xl shadow-2xl relative z-10 animate-bounce`}>
-                                                    {transitioningToTeam === 'open' ? '⚡' : transitioningToTeam === 'team1' ? '🟡' : '🟠'}
+                                                <div className={`absolute -inset-8 blur-3xl rounded-full opacity-30 animate-pulse ${transitioningToTeam === 'open' ? 'bg-yellow-500' : transitioningToTeam === 'team1' ? 'bg-[#FF0000]' : 'bg-[#0066FF]'}`}></div>
+                                                <div className={`w-28 h-28 rounded-[2rem] ${transitioningToTeam === 'open' ? 'bg-yellow-500' : transitioningToTeam === 'team1' ? 'bg-[#FF0000]' : 'bg-[#0066FF]'} border-4 border-white flex items-center justify-center text-6xl shadow-2xl relative z-10 animate-bounce`}>
+                                                    {transitioningToTeam === 'open' ? '⚡' : transitioningToTeam === 'team1' ? '🔴' : '🔵'}
                                                 </div>
                                             </div>
                                             <div className="text-center px-4">
@@ -1172,7 +1172,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                             <div className="relative w-20 h-20">
                                                 <svg className="w-full h-full transform -rotate-90">
                                                     <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-white/10" />
-                                                    <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" className={`${transitioningToTeam === 'open' ? 'text-yellow-500' : transitioningToTeam === 'team1' ? 'text-[#f0c25a]' : 'text-[#cf7c43]'}`} strokeDasharray={213} strokeDashoffset={213 - (transitionTimer / (transitioningToTeam === 'open' ? 5 : 4)) * 213} style={{ transition: 'stroke-dashoffset 1s linear' }} />
+                                                    <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" className={`${transitioningToTeam === 'open' ? 'text-yellow-500' : transitioningToTeam === 'team1' ? 'text-[#FF0000]' : 'text-[#0066FF]'}`} strokeDasharray={213} strokeDashoffset={213 - (transitionTimer / (transitioningToTeam === 'open' ? 5 : 4)) * 213} style={{ transition: 'stroke-dashoffset 1s linear' }} />
                                                 </svg>
                                                 <div className="absolute inset-0 flex items-center justify-center text-3xl font-black text-white italic tabular-nums">
                                                     {transitionTimer}
@@ -1188,8 +1188,8 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                         <div className="p-4 rounded-[1.5rem] border-3 flex items-center justify-between gap-4 border-yellow-500 bg-yellow-500/20 shadow-[0_0_30px_rgba(234,179,8,0.35)]">
                                             <div className="flex items-center justify-between gap-4 flex-1 min-w-0">
                                                 <div className="flex -space-x-3 shrink-0">
-                                                    <div className="w-14 h-14 rounded-xl bg-[#f0c25a] border-3 border-white flex items-center justify-center text-2xl shadow-lg">🟡</div>
-                                                    <div className="w-14 h-14 rounded-xl bg-[#cf7c43] border-3 border-white flex items-center justify-center text-2xl shadow-lg">🟠</div>
+                                                    <div className="w-14 h-14 rounded-xl bg-[#FF0000] border-3 border-white flex items-center justify-center text-2xl shadow-lg">🔴</div>
+                                                    <div className="w-14 h-14 rounded-xl bg-[#0066FF] border-3 border-white flex items-center justify-center text-2xl shadow-lg">🔵</div>
                                                 </div>
                                                 <div className="text-right min-w-0 flex-1">
                                                     <div className="text-2xl font-black text-white italic drop-shadow-md">السؤال مفتوح للجميع !!</div>
@@ -1220,11 +1220,11 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                     </div>
                                 ) : buzzedTeam ? (
                                     <div className="space-y-6 animate-in zoom-in">
-                                        <div className={`p-4 rounded-[1.5rem] border-3 flex items-center justify-between gap-4 transition-all duration-500 ${buzzedTeam === 'team1' ? 'border-[#f0c25a] bg-[#f0c25a]/20 shadow-[0_0_30px_rgba(240,194,90,0.35)]' : 'border-[#cf7c43] bg-[#cf7c43]/20 shadow-[0_0_30px_rgba(207,124,67,0.35)]'}`}>
+                                        <div className={`p-4 rounded-[1.5rem] border-3 flex items-center justify-between gap-4 transition-all duration-500 ${buzzedTeam === 'team1' ? 'border-[#FF0000] bg-[#FF0000]/20 shadow-[0_0_30px_rgba(255,0,0,0.3)]' : 'border-[#0066FF] bg-[#0066FF]/20 shadow-[0_0_30px_rgba(0,102,255,0.3)]'}`}>
                                             <div className="flex items-center gap-4">
                                                 {buzzedPlayer && (
                                                     <div className="relative">
-                                                        <div className={`absolute -inset-2 blur-lg rounded-full animate-pulse ${buzzedTeam === 'team1' ? 'bg-[#f0c25a]/40' : 'bg-[#cf7c43]/40'}`}></div>
+                                                        <div className={`absolute -inset-2 blur-lg rounded-full animate-pulse ${buzzedTeam === 'team1' ? 'bg-[#FF0000]/40' : 'bg-[#0066FF]/40'}`}></div>
                                                         <ProAvatar username={buzzedPlayer.username} url={buzzedPlayer.avatar} size="w-24 h-24" className="overflow-visible relative z-10" />
                                                     </div>
                                                 )}
@@ -1232,12 +1232,12 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                                     {buzzedPlayer ? (
                                                         <>
                                                             <div className="text-2xl font-black text-white italic drop-shadow-md">{buzzedPlayer.username}</div>
-                                                            <div className={`text-lg font-black mt-1 uppercase tracking-widest ${buzzedTeam === 'team1' ? 'text-[#f0c25a]' : 'text-[#cf7c43]'}`}>{buzzedTeam === 'team1' ? team1Name : team2Name}</div>
+                                                            <div className={`text-lg font-black mt-1 uppercase tracking-widest ${buzzedTeam === 'team1' ? 'text-[#FF0000]' : 'text-[#0066FF]'}`}>{buzzedTeam === 'team1' ? team1Name : team2Name}</div>
                                                         </>
                                                     ) : (
                                                         <>
                                                             <div className="text-2xl font-black text-white italic drop-shadow-md">الدور للفريق بدون جرس!</div>
-                                                            <div className={`text-lg font-black mt-1 uppercase tracking-widest ${buzzedTeam === 'team1' ? 'text-[#f0c25a]' : 'text-[#cf7c43]'}`}>{buzzedTeam === 'team1' ? team1Name : team2Name} — جاوبوا على طول</div>
+                                                            <div className={`text-lg font-black mt-1 uppercase tracking-widest ${buzzedTeam === 'team1' ? 'text-[#FF0000]' : 'text-[#0066FF]'}`}>{buzzedTeam === 'team1' ? team1Name : team2Name} — جاوبوا على طول</div>
                                                         </>
                                                     )}
                                                 </div>
@@ -1280,8 +1280,8 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
 
                                         <div className="flex gap-8 items-center">
                                             <div className={`flex flex-col items-center gap-2 transition-opacity ${triedTeams.includes('team1') ? 'opacity-20 grayscale' : 'opacity-100'}`}>
-                                                <div className="w-12 h-12 rounded-xl bg-[#f0c25a] border-3 border-[#5A22A3] flex items-center justify-center text-white shadow-lg">🟡</div>
-                                                <span className="text-[9px] font-black text-[#f0c25a] uppercase mt-1 truncate max-w-[70px]">{team1Name}</span>
+                                                <div className="w-12 h-12 rounded-xl bg-[#FF0000] border-3 border-[#5A22A3] flex items-center justify-center text-white shadow-lg">🔴</div>
+                                                <span className="text-[9px] font-black text-[#FF0000] uppercase mt-1 truncate max-w-[70px]">{team1Name}</span>
                                             </div>
 
                                             <div className="flex flex-col items-center gap-3">
@@ -1292,8 +1292,8 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                             </div>
 
                                             <div className={`flex flex-col items-center gap-2 transition-opacity ${triedTeams.includes('team2') ? 'opacity-20 grayscale' : 'opacity-100'}`}>
-                                                <div className="w-12 h-12 rounded-xl bg-[#cf7c43] border-3 border-[#5A22A3] flex items-center justify-center text-white shadow-lg">🟠</div>
-                                                <span className="text-[9px] font-black text-[#cf7c43] uppercase mt-1 truncate max-w-[70px]">{team2Name}</span>
+                                                <div className="w-12 h-12 rounded-xl bg-[#0066FF] border-3 border-[#5A22A3] flex items-center justify-center text-white shadow-lg">🔵</div>
+                                                <span className="text-[9px] font-black text-[#0066FF] uppercase mt-1 truncate max-w-[70px]">{team2Name}</span>
                                             </div>
                                         </div>
 
@@ -1315,11 +1315,11 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                 <div className="absolute inset-0 z-[200] flex items-center justify-center overflow-hidden bg-transparent">
                     {/* GLOBAL BACKGROUND - Celebration mode */}
                     <div className="absolute inset-0 z-0">
-                        <div className={`absolute inset-0 transition-colors duration-1000 ${winner === 'team1' ? 'bg-[#f0c25a]/20' : 'bg-[#cf7c43]/20'}`} />
+                        <div className={`absolute inset-0 transition-colors duration-1000 ${winner === 'team1' ? 'bg-[#FF0000]/20' : 'bg-[#0066FF]/20'}`} />
                         {/* CSS PARTICLES */}
                         {Array.from({ length: 50 }).map((_, i) => (
                             <div key={i}
-                                className={`absolute rounded-full animate-[float_10s_ease-in-out_infinite] ${winner === 'team1' ? 'bg-[#f0c25a]' : 'bg-[#cf7c43]'}`}
+                                className={`absolute rounded-full animate-[obsFloat_10s_ease-in-out_infinite] ${winner === 'team1' ? 'bg-[#FF0000]' : 'bg-[#0066FF]'}`}
                                 style={{
                                     width: `${Math.random() * 8 + 4}px`,
                                     height: `${Math.random() * 8 + 4}px`,
@@ -1337,26 +1337,26 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                     <div className="relative z-10 flex flex-col items-center gap-4 max-w-lg w-full px-4 text-center animate-in zoom-in duration-700">
                         {/* WINNER TITLE */}
                         <div className="flex flex-col items-center gap-3 animate-in slide-in-from-top-20 duration-[1000ms]">
-                            <div className={`flex items-center gap-2 px-4 py-1.5 bg-white/5 border-2 rounded-full backdrop-blur-md ${winner === 'team1' ? 'border-[#f0c25a]/30' : 'border-[#cf7c43]/30'}`}>
+                            <div className={`flex items-center gap-2 px-4 py-1.5 bg-white/5 border-2 rounded-full backdrop-blur-md ${winner === 'team1' ? 'border-[#FF0000]/30' : 'border-[#0066FF]/30'}`}>
                                 <Trophy size={14} className="text-yellow-400" />
                                 <span className="text-white font-black text-xs uppercase tracking-widest italic">نصر رائع!</span>
                                 <Trophy size={14} className="text-yellow-400" />
                             </div>
 
                             <div className="relative mt-3">
-                                <h1 className={`text-[3rem] font-black italic tracking-tighter leading-none select-none animate-pulse ${winner === 'team1' ? 'text-[#f0c25a]' : 'text-[#cf7c43]'}`}>
+                                <h1 className={`text-[3rem] font-black italic tracking-tighter leading-none select-none animate-pulse ${winner === 'team1' ? 'text-[#FF0000]' : 'text-[#0066FF]'}`}>
                                     فـــــــــــــــــاز
                                 </h1>
-                                <div className={`absolute -inset-8 blur-3xl opacity-20 animate-pulse ${winner === 'team1' ? 'bg-[#f0c25a]' : 'bg-[#cf7c43]'}`}></div>
+                                <div className={`absolute -inset-8 blur-3xl opacity-20 animate-pulse ${winner === 'team1' ? 'bg-[#FF0000]' : 'bg-[#0066FF]'}`}></div>
                             </div>
                         </div>
 
                         {/* BIG TEAM CARD */}
-                        <div className={`relative w-full max-w-sm py-6 px-4 rounded-[2rem] border-3 shadow-2xl flex flex-col items-center gap-4 animate-in zoom-in duration-700 delay-300 ${winner === 'team1' ? 'bg-black/60 border-[#f0c25a]/50' : 'bg-black/60 border-[#cf7c43]/50'}`}>
-                            <div className={`absolute inset-0 rounded-[2rem] animate-pulse ${winner === 'team1' ? 'shadow-[0_0_30px_rgba(240,194,90,0.35)]' : 'shadow-[0_0_30px_rgba(207,124,67,0.35)]'}`}></div>
+                        <div className={`relative w-full max-w-sm py-6 px-4 rounded-[2rem] border-3 shadow-2xl flex flex-col items-center gap-4 animate-in zoom-in duration-700 delay-300 ${winner === 'team1' ? 'bg-black/60 border-[#FF0000]/50' : 'bg-black/60 border-[#0066FF]/50'}`}>
+                            <div className={`absolute inset-0 rounded-[2rem] animate-pulse ${winner === 'team1' ? 'shadow-[0_0_30px_rgba(255,0,0,0.3)]' : 'shadow-[0_0_30px_rgba(0,102,255,0.3)]'}`}></div>
                             <div className="relative group">
-                                <div className={`w-28 h-28 rounded-[1.5rem] flex items-center justify-center text-5xl border-4 shadow-2xl transition-transform duration-500 group-hover:scale-105 ${winner === 'team1' ? 'bg-[#f0c25a] border-white/20' : 'bg-[#cf7c43] border-white/20'}`}>
-                                    {winner === 'team1' ? '🟡' : '🟠'}
+                                <div className={`w-28 h-28 rounded-[1.5rem] flex items-center justify-center text-5xl border-4 shadow-2xl transition-transform duration-500 group-hover:scale-105 ${winner === 'team1' ? 'bg-[#FF0000] border-white/20' : 'bg-[#0066FF] border-white/20'}`}>
+                                    {winner === 'team1' ? '🔴' : '🔵'}
                                 </div>
                                 <div className="absolute -top-4 -right-4 w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center border-3 border-[#0a0a1a] shadow-xl rotate-12 animate-bounce">
                                     <Crown size={24} className="text-black" />
@@ -1367,7 +1367,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                 <h2 className="text-4xl font-black italic tracking-tighter drop-shadow-lg text-white animate-pulse">
                                     {winner === 'team1' ? team1Name : team2Name}
                                 </h2>
-                                <div className={`mx-auto h-1 w-24 rounded-full ${winner === 'team1' ? 'bg-[#f0c25a]' : 'bg-[#cf7c43]'}`}></div>
+                                <div className={`mx-auto h-1 w-24 rounded-full ${winner === 'team1' ? 'bg-[#FF6B52]' : 'bg-[#14b8a6]'}`}></div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 w-full mt-3">
@@ -1642,7 +1642,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                             </div>
                             <div className="space-y-3 mb-6">
                                 {[
-                                    { icon: <Users size={18} />, t: '٠ — الانضمام لفريقك', d: 'في صفحة الانتظار اكتب في الشات «دخول الذهبي» أو «دخول النحاسي» حسب الفريق اللي تبيه. اسم الفريق مكتوب عند كل فريق.' },
+                                    { icon: <Users size={18} />, t: '٠ — الانضمام لفريقك', d: `في صفحة الانتظار اكتب في الشات «${entryKeyword} ${cleanTeamName(team1Name)}» أو «${entryKeyword} ${cleanTeamName(team2Name)}» حسب الفريق اللي تبيه. اسم الفريق مكتوب عند كل فريق.` },
                                     { icon: <BellRing size={18} />, t: '١ — اكتب «جرس»', d: 'أي لاعب من الفريقين يستطيع رنّ الجرس على الخلية المفتوحة. الفريق الذي جرّب يخسر حقه بالتناوب. الجرس مرة واحدة فقط — بعد الخطأ الدور يروح للفريق الثاني وهو جاهز للجواب بدون جرس.' },
                                     { icon: <BrainCircuit size={18} />, t: '٢ — جاوب بالإجابة نفسها', d: 'الإجابة المطلوبة كلمة واحدة — اكتبها كما هي، و«ال» والتشكيل ما يفرقون. جواب خاطئ مرتين أو انتهاء الوقت = الخسارة. بعد فشل الفريقين السؤال يصير مفتوحاً للأسرع — بدون جرس، وأول إجابة صحيحة تأخذ الخلية.' },
                                     { icon: <Vote size={18} />, t: '٣ — صوت على الحرف', d: 'خلال التصويت المفتوح اكتب الحرف اللي تبيه في الشات، وأكثر حرف تصويتاً هو اللي ينفتح للمنافسة.' },
@@ -2368,8 +2368,10 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                 @keyframes ember { 0% { transform: translateY(0) translateX(0); opacity: 0; } 8% { opacity: .8; } 85% { opacity: .35; } 100% { transform: translateY(-105vh) translateX(30px); opacity: 0; } }
                 @keyframes goldpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(232,190,110,.45); filter: brightness(1); } 50% { box-shadow: 0 0 28px 8px rgba(232,190,110,.25); filter: brightness(1.15); } }
                 @keyframes boardFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
-                @keyframes neonPulse { 0%,100% { filter: drop-shadow(0 0 4px rgba(232,190,110,.5)); } 50% { filter: drop-shadow(0 0 16px rgba(232,190,110,.95)); } }
-                @keyframes letterGlow { 0%,100% { text-shadow: 0 6px 25px rgba(0,0,0,.9), 0 0 8px rgba(232,190,110,.4); } 50% { text-shadow: 0 6px 25px rgba(0,0,0,.9), 0 0 22px rgba(232,190,110,.95); } }
+                @keyframes obsBoardFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+                @keyframes obsFloat { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-50px) rotate(180deg); } }
+                @keyframes neonPulse { 0%, 100% { opacity: 0.4; filter: brightness(1); } 50% { opacity: 0.8; filter: brightness(2); } }
+                @keyframes letterGlow { 0%, 100% { text-shadow: 0 0 10px rgba(255,255,255,0.5); } 50% { text-shadow: 0 0 30px rgba(255,255,255,1), 0 0 50px rgba(90,34,163,0.5); } }
                 @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
                 @keyframes float { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-60px) rotate(180deg); } }
             `}</style>
