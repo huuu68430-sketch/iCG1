@@ -141,6 +141,8 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
     const [buzzedPlayer, setBuzzedPlayer] = useState<Player | null>(null);
     const [answerTimer, setAnswerTimer] = useState<number>(0);
     const [triedTeams, setTriedTeams] = useState<('team1' | 'team2')[]>([]);
+    // After both teams fail the cell opens to everyone — no bell needed, first correct answer takes it
+    const [openTurn, setOpenTurn] = useState(false);
     const [lastAnswer, setLastAnswer] = useState<{ text: string, correct: boolean | null }>({ text: '', correct: null });
     const [linkCopied, setLinkCopied] = useState(false);
     const [currentBuzzedAttempts, setCurrentBuzzedAttempts] = useState(0);
@@ -210,6 +212,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                     if (data.answerTimer !== undefined) setAnswerTimer(data.answerTimer);
                     if (data.lastAnswer !== undefined) setLastAnswer(data.lastAnswer);
                     if (data.triedTeams !== undefined) setTriedTeams(data.triedTeams);
+                    if (data.openTurn !== undefined) setOpenTurn(data.openTurn);
                     if (data.winner !== undefined) setWinner(data.winner);
                     if (data.winningPath !== undefined) setWinningPath(data.winningPath);
                     if (data.lobbyPlayers !== undefined) setLobbyPlayers(data.lobbyPlayers);
@@ -264,7 +267,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                 payload: {
                     cells, stage, activeCell, currentQuestion,
                     buzzedTeam, buzzedPlayer, answerTimer,
-                    lastAnswer, triedTeams, winner, winningPath,
+                    lastAnswer, triedTeams, openTurn, winner, winningPath,
                     lobbyPlayers, team1Name, team2Name, entryKeyword, allowJoin,
                     answerDuration, difficulty, currentLevel,
                     currentBuzzedAttempts, transitioningToTeam, transitionTimer,
@@ -284,7 +287,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         if (stage === 'playing' || stage === 'ended') {
             broadcastFullState();
         }
-    }, [cells, stage, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, answerTimer, lastAnswer, triedTeams, winner, winningPath, lobbyPlayers, team1Name, team2Name, entryKeyword, allowJoin, isOBS, currentLevel, currentBuzzedAttempts, transitioningToTeam, transitionTimer, answerDuration, votingActive, letterVotes, votingEligibleTeam, showVotingPanel, votedUsers, votingTimer, votingDuration]);
+    }, [cells, stage, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, answerTimer, lastAnswer, triedTeams, openTurn, winner, winningPath, lobbyPlayers, team1Name, team2Name, entryKeyword, allowJoin, isOBS, currentLevel, currentBuzzedAttempts, transitioningToTeam, transitionTimer, answerDuration, votingActive, letterVotes, votingEligibleTeam, showVotingPanel, votedUsers, votingTimer, votingDuration]);
 
     // Chat listener (Main Bell Game logic)
     const normalizeArabicText = (s: string) => s.replace(/[^\u0621-\u064A\s]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -398,23 +401,33 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
 
                     // Bell and Answer logic (only if cell is active)
                     if (activeCell) {
-                        // Phase 1: Wait for "جرس"
-                        if (!buzzedTeam && !transitioningToTeam) {
-                            const isBell = content === 'جرس' || content.toLowerCase() === 'jaras';
-                            if (isBell) {
-                                if (triedTeams.includes(player.team)) return;
-                                setBuzzedTeam(player.team);
-                                setBuzzedPlayer(player);
-                                setAnswerTimer(answerDuration);
-                                setLastAnswer({ text: '', correct: null });
-                                setCurrentBuzzedAttempts(0);
-                                playSfx('buzz');
-                                return;
-                            }
+                        // «جرس» only claims the cell for the first team;
+                        // a handed-over turn and the open phase answer directly.
+                        const needsBell = !buzzedTeam && !openTurn && !transitioningToTeam;
+                        if (needsBell && (content === 'جرس' || content.toLowerCase() === 'jaras')) {
+                            if (triedTeams.includes(player.team)) return;
+                            setBuzzedTeam(player.team);
+                            setBuzzedPlayer(player);
+                            setAnswerTimer(answerDuration);
+                            setLastAnswer({ text: '', correct: null });
+                            setCurrentBuzzedAttempts(0);
+                            playSfx('buzz');
+                            return;
                         }
 
-                        // Phase 2: Wait for answer from EXACTLY the buzzed player
-                        if (buzzedTeam && player.username === buzzedPlayer?.username && !transitioningToTeam) {
+                        let turnTeam: 'team1' | 'team2' | null = null;
+                        let mayAnswer = false;
+                        if (openTurn && !transitioningToTeam) {
+                            turnTeam = player.team;
+                            mayAnswer = true;
+                        } else if (buzzedTeam && !transitioningToTeam) {
+                            turnTeam = buzzedTeam;
+                            // no buzzer = the whole team is on the clock
+                            mayAnswer = player.team === buzzedTeam && (!buzzedPlayer || player.username === buzzedPlayer.username);
+                        }
+
+                        if (mayAnswer && turnTeam && content !== 'جرس') {
+                            const claimedBy = turnTeam;
                             const normAns = normalize(content);
                             const targetLetter = normalize(activeCell.letter)[0];
 
@@ -423,13 +436,13 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                 playSfx('correct');
                                 // The answering player claimed the cell this round — credit one 'round'.
                                 awardPoints('LETTER_GAME', player.username, player.avatar || '', 'round');
-                                setTimeout(() => finalizeRound(true, buzzedTeam), 1500);
-                            } else if (content !== 'جرس') {
+                                setTimeout(() => finalizeRound(true, claimedBy), 1500);
+                            } else {
                                 const nextAttempts = currentBuzzedAttempts + 1;
                                 setLastAnswer({ text: content, correct: false });
                                 playSfx('wrong');
                                 if (nextAttempts >= 2) {
-                                    setTimeout(() => handleWrongAnswer(true), 1500);
+                                    setTimeout(() => handleWrongAnswer(true, claimedBy), 1500);
                                 } else {
                                     setCurrentBuzzedAttempts(nextAttempts);
                                 }
@@ -442,7 +455,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
             }
         });
         return cleanup;
-    }, [stage, allowJoin, entryKeyword, team1Name, team2Name, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, lobbyPlayers, triedTeams, answerDuration, transitioningToTeam, currentBuzzedAttempts, votingActive, letterVotes, votingEligibleTeam, votedUsers, cells]);
+    }, [stage, allowJoin, entryKeyword, team1Name, team2Name, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, openTurn, lobbyPlayers, triedTeams, answerDuration, transitioningToTeam, currentBuzzedAttempts, votingActive, letterVotes, votingEligibleTeam, votedUsers, cells]);
 
     // Voting Countdown Logic (Manager Only)
     useEffect(() => {
@@ -613,15 +626,16 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         return null;
     };
 
-    const handleWrongAnswer = (forceSkip = false) => {
-        if (!buzzedTeam) return;
+    const handleWrongAnswer = (forceSkip = false, team?: 'team1' | 'team2') => {
+        const currentTeam = team || buzzedTeam;
+        if (!currentTeam) return;
 
-        const currentTeam = buzzedTeam;
         const otherTeam = currentTeam === 'team1' ? 'team2' : 'team1';
 
         setBuzzedTeam(null);
         setBuzzedPlayer(null);
         setAnswerTimer(0);
+        setOpenTurn(false);
         setLastAnswer({ text: '', correct: null });
         setCurrentBuzzedAttempts(0);
 
@@ -642,15 +656,22 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         }
     };
 
-    // Transition Timer Effect
+    // Transition Timer Effect — the turn starts on its own, no bell required
     useEffect(() => {
         if (transitionTimer > 0 && transitioningToTeam) {
             const t = setInterval(() => {
                 setTransitionTimer(prev => {
                     if (prev <= 1) {
                         clearInterval(t);
+                        setCurrentBuzzedAttempts(0);
+                        setLastAnswer({ text: '', correct: null });
+                        setAnswerTimer(answerDuration);
                         if (transitioningToTeam === 'open') {
                             setTriedTeams([]);
+                            setOpenTurn(true);
+                        } else {
+                            setBuzzedTeam(transitioningToTeam);
+                            setBuzzedPlayer(null);
                         }
                         setTransitioningToTeam(null);
                         return 0;
@@ -660,7 +681,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
             }, 1000);
             return () => clearInterval(t);
         }
-    }, [transitionTimer, transitioningToTeam]);
+    }, [transitionTimer, transitioningToTeam, answerDuration]);
 
     const finalizeRound = (isCorrect: boolean, team: 'team1' | 'team2') => {
         if (!activeCell) return;
@@ -673,6 +694,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         setBuzzedPlayer(null);
         setAnswerTimer(0);
         setTriedTeams([]);
+        setOpenTurn(false);
         setLastAnswer({ text: '', correct: null });
         setCurrentBuzzedAttempts(0);
         setTransitioningToTeam(null);
@@ -688,6 +710,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         setBuzzedPlayer(null);
         setAnswerTimer(0);
         setTriedTeams([]);
+        setOpenTurn(false);
         setLastAnswer({ text: '', correct: null });
         setAnswerRevealed(false);
         pushLog(`تم فتح حرف «${cell.letter}» للمنافسة`, 'sys');
@@ -703,7 +726,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
 
     // Timer Effect
     useEffect(() => {
-        if (answerTimer > 0 && buzzedTeam) {
+        if (answerTimer > 0 && (buzzedTeam || openTurn)) {
             const t = setInterval(() => {
                 setAnswerTimer(prev => {
                     if (prev <= 1) {
@@ -711,7 +734,18 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                         // Show "Time Out" for a brief moment
                         setLastAnswer({ text: 'انتهى الوقت!', correct: false });
                         playSfx('wrong');
-                        setTimeout(() => handleWrongAnswer(true), 2000);
+                        if (openTurn) {
+                            // Nobody took the open question — close the cell, leave it free
+                            setTimeout(() => {
+                                setOpenTurn(false);
+                                setActiveCell(null);
+                                setCurrentQuestion(null);
+                                setLastAnswer({ text: '', correct: null });
+                                pushLog('انتهى الوقت — لم يأخذ أحد الخلية', 'sys');
+                            }, 2000);
+                        } else {
+                            setTimeout(() => handleWrongAnswer(true), 2000);
+                        }
                         return 0;
                     }
                     return prev - 1;
@@ -719,7 +753,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
             }, 1000);
             return () => clearInterval(t);
         }
-    }, [answerTimer, buzzedTeam]);
+    }, [answerTimer, buzzedTeam, openTurn]);
 
     const women = lobbyPlayers.filter(p => p.team === 'team1');
     const men = lobbyPlayers.filter(p => p.team === 'team2');
@@ -1131,6 +1165,41 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                             </span>
                                         </div>
                                     </div>
+                                ) : openTurn ? (
+                                    <div className="space-y-6 animate-in zoom-in">
+                                        <div className="p-4 rounded-[1.5rem] border-3 flex items-center justify-between gap-4 border-yellow-500 bg-yellow-500/20 shadow-[0_0_30px_rgba(234,179,8,0.35)]">
+                                            <div className="flex items-center justify-between gap-4 flex-1 min-w-0">
+                                                <div className="flex -space-x-3 shrink-0">
+                                                    <div className="w-14 h-14 rounded-xl bg-[#f0c25a] border-3 border-white flex items-center justify-center text-2xl shadow-lg">🟡</div>
+                                                    <div className="w-14 h-14 rounded-xl bg-[#cf7c43] border-3 border-white flex items-center justify-center text-2xl shadow-lg">🟠</div>
+                                                </div>
+                                                <div className="text-right min-w-0 flex-1">
+                                                    <div className="text-2xl font-black text-white italic drop-shadow-md">السؤال مفتوح للجميع !!</div>
+                                                    <div className="text-lg font-black mt-1 uppercase tracking-widest text-yellow-400">أول إجابة صحيحة تأخذ الخلية</div>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col items-center bg-black/40 px-4 py-2 rounded-2xl border border-white/10">
+                                                <div className={`text-4xl font-black italic tabular-nums drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] ${answerTimer <= 3 ? 'text-red-400' : 'text-white'}`}>
+                                                    {answerTimer}s
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {lastAnswer.text ? (
+                                            <div className={`p-4 rounded-2xl border-3 text-center animate-in slide-in-from-bottom flex flex-col items-center gap-2 ${lastAnswer.correct === true ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-red-500/20 border-red-500 text-red-400'}`}>
+                                                <div className="text-xs font-black uppercase tracking-widest opacity-60">الإجابة المكتوبة:</div>
+                                                <div className="text-2xl font-black">{lastAnswer.text}</div>
+                                                <div className="p-2 bg-white/10 rounded-full">
+                                                    {lastAnswer.correct === true ? <Check size={24} /> : <X size={24} />}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-4 animate-pulse p-6 bg-white/5 rounded-2xl border-2 border-dashed border-white/10">
+                                                <BrainCircuit size={48} className="text-purple-500" />
+                                                <h4 className="text-2xl font-black text-white italic">اكتبوا الإجابة في الشات الآن — بدون جرس !!</h4>
+                                            </div>
+                                        )}
+                                    </div>
                                 ) : buzzedTeam ? (
                                     <div className="space-y-6 animate-in zoom-in">
                                         <div className={`p-4 rounded-[1.5rem] border-3 flex items-center justify-between gap-4 transition-all duration-500 ${buzzedTeam === 'team1' ? 'border-[#f0c25a] bg-[#f0c25a]/20 shadow-[0_0_30px_rgba(240,194,90,0.35)]' : 'border-[#cf7c43] bg-[#cf7c43]/20 shadow-[0_0_30px_rgba(207,124,67,0.35)]'}`}>
@@ -1142,8 +1211,17 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                                     </div>
                                                 )}
                                                 <div className="text-right">
-                                                    <div className="text-2xl font-black text-white italic drop-shadow-md">{buzzedPlayer?.username}</div>
-                                                    <div className={`text-lg font-black mt-1 uppercase tracking-widest ${buzzedTeam === 'team1' ? 'text-[#f0c25a]' : 'text-[#cf7c43]'}`}>{buzzedTeam === 'team1' ? team1Name : team2Name}</div>
+                                                    {buzzedPlayer ? (
+                                                        <>
+                                                            <div className="text-2xl font-black text-white italic drop-shadow-md">{buzzedPlayer.username}</div>
+                                                            <div className={`text-lg font-black mt-1 uppercase tracking-widest ${buzzedTeam === 'team1' ? 'text-[#f0c25a]' : 'text-[#cf7c43]'}`}>{buzzedTeam === 'team1' ? team1Name : team2Name}</div>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="text-2xl font-black text-white italic drop-shadow-md">الدور للفريق بدون جرس!</div>
+                                                            <div className={`text-lg font-black mt-1 uppercase tracking-widest ${buzzedTeam === 'team1' ? 'text-[#f0c25a]' : 'text-[#cf7c43]'}`}>{buzzedTeam === 'team1' ? team1Name : team2Name} — جاوبوا على طول</div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="flex flex-col items-center gap-2">
@@ -1547,8 +1625,8 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                             <div className="space-y-3 mb-6">
                                 {[
                                     { icon: <Users size={18} />, t: '٠ — الانضمام لفريقك', d: 'في صفحة الانتظار اكتب في الشات «دخول الذهبي» أو «دخول النحاسي» حسب الفريق اللي تبيه. اسم الفريق مكتوب عند كل فريق.' },
-                                    { icon: <BellRing size={18} />, t: '١ — اكتب «جرس»', d: 'أي لاعب من الفريقين يستطيع رنّ الجرس على الخلية المفتوحة. الفريق الذي جرّب يخسر حقه بالتناوب.' },
-                                    { icon: <BrainCircuit size={18} />, t: '٢ — جاوب بكلمة تبدأ بحرف الخلية', d: 'عندك مدة محددة للإجابة. جواب خاطئ مرتين أو انتهاء الوقت = الخسارة. بعد فشل الفريقين السؤال يصير مفتوحاً للأسرع.' },
+                                    { icon: <BellRing size={18} />, t: '١ — اكتب «جرس»', d: 'أي لاعب من الفريقين يستطيع رنّ الجرس على الخلية المفتوحة. الفريق الذي جرّب يخسر حقه بالتناوب. الجرس مرة واحدة فقط — بعد الخطأ الدور يروح للفريق الثاني وهو جاهز للجواب بدون جرس.' },
+                                    { icon: <BrainCircuit size={18} />, t: '٢ — جاوب بكلمة تبدأ بحرف الخلية', d: 'عندك مدة محددة للإجابة. جواب خاطئ مرتين أو انتهاء الوقت = الخسارة. بعد فشل الفريقين السؤال يصير مفتوحاً للأسرع — بدون جرس، وأول جواب صحيح يأخذ الخلية.' },
                                     { icon: <Vote size={18} />, t: '٣ — صوت على الحرف', d: 'خلال التصويت المفتوح اكتب الحرف اللي تبيه في الشات، وأكثر حرف تصويتاً هو اللي ينفتح للمنافسة.' },
                                     { icon: <Trophy size={18} />, t: '٤ — انتصر وكسّب فريقك', d: 'كل خلية تُفتح لفريقك نقطتين للجولة، والفوز بالمرحلة يرفعك لعالم أبعد في الخريطة.' },
                                 ].map((r, i) => (
@@ -2031,6 +2109,43 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                                 </div>
                                             </div>
                                         </div>
+                                    ) : openTurn ? (
+                                        <div className="space-y-5 animate-in zoom-in pt-4">
+                                            <div className="p-4 rounded-[1.5rem] border-2 flex items-center justify-between gap-4" style={{ borderColor: 'rgba(232,190,110,.6)', background: 'rgba(232,190,110,.08)', boxShadow: '0 0 30px rgba(232,190,110,.2)' }}>
+                                                <div className="flex items-center gap-4 min-w-0">
+                                                    <div className="flex -space-x-3 shrink-0">
+                                                        <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg border-2 border-white/50" style={{ background: 'linear-gradient(160deg,#f0c25a,#8f5f12)' }}><Crown size={20} className="text-[#2b1a05]" /></div>
+                                                        <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg border-2 border-white/50" style={{ background: 'linear-gradient(160deg,#cf7c43,#6b3213)' }}><Swords size={20} className="text-[#fff3e2]" /></div>
+                                                    </div>
+                                                    <div className="text-right min-w-0">
+                                                        <div className={`${isOBS ? 'text-2xl' : 'text-xl'} font-extrabold italic text-[#fbeccb]`}>السؤال مفتوح للجميع !!</div>
+                                                        <div className={`${isOBS ? 'text-lg' : 'text-xs'} font-black mt-1 uppercase tracking-widest text-[#e8be6e]`}>أول جواب يبدأ بحرف {activeCell.letter} يأخذ الخلية</div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col items-center gap-2 shrink-0">
+                                                    <div className="flex flex-col items-center bg-black/50 px-4 py-1.5 rounded-2xl border border-[#e8be6e]/25">
+                                                        <div className={`${isOBS ? 'text-4xl' : 'text-2xl'} font-extrabold italic tabular-nums drop-shadow-[0_0_10px_rgba(232,190,110,.5)]`} style={{ color: answerTimer <= 3 ? '#ff7a7a' : '#fbeccb' }}>{answerTimer}s</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* ANSWER TIMER BAR */}
+                                            <div className="w-full h-3 rounded-full bg-black/60 border border-[#e8be6e]/20 overflow-hidden">
+                                                <div className="h-full transition-all duration-1000 ease-linear" style={{ width: `${answerDuration > 0 ? (answerTimer / answerDuration) * 100 : 0}%`, background: answerTimer / answerDuration > 0.35 ? 'linear-gradient(90deg,#a97a30,#f9e0a4)' : 'linear-gradient(90deg,#8a2f2f,#ff7a7a)' }}></div>
+                                            </div>
+
+                                            {lastAnswer.text ? (
+                                                <div className="p-4 rounded-2xl border-2 text-center animate-in slide-in-from-bottom flex flex-col items-center gap-2" style={{ background: lastAnswer.correct === true ? 'rgba(111,220,158,.1)' : 'rgba(255,122,122,.1)', borderColor: lastAnswer.correct === true ? 'rgba(111,220,158,.5)' : 'rgba(255,122,122,.5)' }}>
+                                                    <div className="text-xs font-black uppercase tracking-widest text-[#b2a283]/60">الإجابة المكتوبة:</div>
+                                                    <div className="text-2xl font-extrabold" style={{ color: lastAnswer.correct === true ? '#6fdc9e' : '#ff7a7a' }}>{lastAnswer.text}</div>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-3 animate-pulse p-5 rounded-2xl border-2 border-dashed border-[#e8be6e]/20 bg-white/[.03]">
+                                                    <BrainCircuit size={40} className="text-[#e8be6e]/60" />
+                                                    <h4 className="text-xl font-extrabold italic text-[#fbeccb]">اكتبوا الإجابة في الشات الآن — بدون جرس !!</h4>
+                                                </div>
+                                            )}
+                                        </div>
                                     ) : buzzedTeam ? (
                                         <div className="space-y-5 animate-in zoom-in pt-4">
                                             <div className="p-4 rounded-[1.5rem] border-2 flex items-center justify-between gap-4 transition-all duration-500" style={{ borderColor: buzzedTeam === 'team1' ? 'rgba(240,194,90,.6)' : 'rgba(207,124,67,.6)', background: buzzedTeam === 'team1' ? 'rgba(240,194,90,.08)' : 'rgba(207,124,67,.08)', boxShadow: `0 0 30px ${buzzedTeam === 'team1' ? 'rgba(240,194,90,.2)' : 'rgba(207,124,67,.2)'}` }}>
@@ -2042,8 +2157,17 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                                         </div>
                                                     )}
                                                     <div className="text-right min-w-0">
-                                                        <div className={`${isOBS ? 'text-2xl' : 'text-xl'} font-extrabold italic text-[#fbeccb] truncate`}>{buzzedPlayer?.username}</div>
-                                                        <div className={`${isOBS ? 'text-lg' : 'text-xs'} font-black mt-1 uppercase tracking-widest`} style={{ color: buzzedTeam === 'team1' ? '#f0c25a' : '#cf7c43' }}>{buzzedTeam === 'team1' ? team1Name : team2Name}</div>
+                                                        {buzzedPlayer ? (
+                                                            <>
+                                                                <div className={`${isOBS ? 'text-2xl' : 'text-xl'} font-extrabold italic text-[#fbeccb] truncate`}>{buzzedPlayer.username}</div>
+                                                                <div className={`${isOBS ? 'text-lg' : 'text-xs'} font-black mt-1 uppercase tracking-widest`} style={{ color: buzzedTeam === 'team1' ? '#f0c25a' : '#cf7c43' }}>{buzzedTeam === 'team1' ? team1Name : team2Name}</div>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <div className={`${isOBS ? 'text-2xl' : 'text-xl'} font-extrabold italic text-[#fbeccb]`}>الدور للفريق بدون جرس!</div>
+                                                                <div className={`${isOBS ? 'text-lg' : 'text-xs'} font-black mt-1 uppercase tracking-widest`} style={{ color: buzzedTeam === 'team1' ? '#f0c25a' : '#cf7c43' }}>{buzzedTeam === 'team1' ? team1Name : team2Name} — جاوبوا على طول</div>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-col items-center gap-2 shrink-0">
