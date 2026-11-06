@@ -1531,9 +1531,9 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                     {/* Major World Entryway - BALANCED PROPORTIONS */}
                                     <div className="flex flex-col items-center mb-32 group">
                                         {/* Island - Sized for clarity not dominance */}
-                                        <div className="relative w-[260px] h-[190px] transition-all duration-1000 group-hover:scale-110">
-                                            <div className={`absolute inset-0 blur-[60px] rounded-full opacity-20 filter`} style={{ backgroundColor: world.color }}></div>
-                                            <img src={world.image} className="w-full h-full object-contain drop-shadow-[0_30px_50px_rgba(0,0,0,0.8)] animate-[float_10s_ease-in-out_infinite]" style={goldIsland} />
+                                        <div className="relative w-[260px] h-[190px] transition-all duration-700 group-hover:scale-[1.06]">
+                                            <div className={`absolute inset-0 blur-[60px] rounded-full opacity-[0.14]`} style={{ backgroundColor: world.color }}></div>
+                                            <img src={world.image} className="w-full h-full object-contain drop-shadow-[0_18px_28px_rgba(0,0,0,0.55)]" style={goldIsland} />
                                         </div>
 
                                         {/* Name Below Island - Sized for readability */}
@@ -1566,23 +1566,23 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
 
                                                             <button
                                                                 onClick={() => { if (!isLocked) { setCurrentLevel(lvl); setStage('lobby'); } }}
-                                                                className={`relative w-36 h-60 transition-all duration-700 hover:scale-110 active:scale-95 flex flex-col items-center justify-center group ${isLocked ? 'cursor-not-allowed grayscale brightness-90 opacity-60' : 'cursor-pointer'}`}
+                                                                className={`relative w-36 h-60 transition-all duration-300 hover:scale-105 active:scale-95 flex flex-col items-center justify-start pt-2 group ${isLocked ? 'cursor-not-allowed grayscale brightness-90 opacity-60' : 'cursor-pointer'}`}
                                                             >
-                                                                 <div className={`relative z-20 w-18 h-18 rounded-[1.5rem] flex items-center justify-center font-black text-xs border-3 shadow-2xl transition-all duration-700 transform ${isLocked ? 'bg-[#120d06] border-[#e8be6e]/15 text-[#e8be6e]/30 scale-90' : isCurrent ? 'bg-[#f9e0a4] border-white text-black scale-125 shadow-[0_0_40px_rgba(249,224,164,0.7)] rotate-3' : isCompleted ? (levelWinners[lvl] === 'team1' ? 'bg-[#f0c25a] border-[#ffd97a] text-[#2b1a05] shadow-[#f0c25a]/40 shadow-xl' : 'bg-[#cf7c43] border-[#e9b582] text-white shadow-[#cf7c43]/40 shadow-xl') : 'bg-[#1a1208] border-[#e8be6e]/15 text-[#b2a283]/50 group-hover:text-white'}`}>
+                                                                 <div className={`relative z-20 w-20 h-20 rounded-[1.5rem] flex items-center justify-center font-black text-xs border-3 shadow-2xl transition-all duration-300 ${isLocked ? 'bg-[#120d06] border-[#e8be6e]/15 text-[#e8be6e]/30 scale-90' : isCurrent ? 'bg-[#f9e0a4] border-white text-black scale-110 shadow-[0_0_40px_rgba(249,224,164,0.7)] rotate-3' : isCompleted ? (levelWinners[lvl] === 'team1' ? 'bg-[#f0c25a] border-[#ffd97a] text-[#2b1a05] shadow-[#f0c25a]/40 shadow-xl' : 'bg-[#cf7c43] border-[#e9b582] text-white shadow-[#cf7c43]/40 shadow-xl') : 'bg-[#1a1208] border-[#e8be6e]/15 text-[#b2a283]/50 group-hover:text-white'}`}>
                                                                      {isLocked ? <Shield size={24} /> : isCompleted ? <Check size={28} strokeWidth={4} /> : <span className="leading-none">{getArabicStageWord(lvl)}</span>}
                                                                     {!isLocked && (
-                                                                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-14 bg-gradient-to-b from-[#e8be6e]/40 to-transparent blur-[1px]"></div>
+                                                                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-10 bg-gradient-to-b from-[#e8be6e]/40 to-transparent"></div>
                                                                     )}
                                                                 </div>
 
-                                                                <div className="mt-8 group-hover:scale-115 transition-transform duration-1000">
+                                                                <div className="mt-12 transition-transform duration-300 group-hover:-translate-y-1">
                                                                     <div className="relative w-28 h-28">
-                                                                        <img src={world.image} className={`w-full h-full object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,1)] ${isLocked ? 'opacity-45 blur-[1px]' : 'filter brightness-110'} animate-[float_8s_ease-in-out_infinite]`} style={{ ...goldIsland, animationDelay: `${lvl * 0.3}s` }} />
+                                                                        <img src={world.image} className={`w-full h-full object-contain drop-shadow-[0_14px_22px_rgba(0,0,0,0.6)] ${isLocked ? 'opacity-40' : ''}`} style={goldIsland} />
                                                                     </div>
                                                                 </div>
 
                                                                 {isCurrent && (
-                                                                    <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-[#f9e0a4] text-black px-4 py-1 rounded-full font-black text-[9px] uppercase tracking-widest border-2 border-white animate-bounce shadow-xl">
+                                                                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-[#f9e0a4] text-black px-4 py-1 rounded-full font-black text-[9px] uppercase tracking-widest border-2 border-white shadow-[0_0_24px_rgba(249,224,164,0.55)] whitespace-nowrap">
                                                                         المرحلة الحالية ⚔️
                                                                     </div>
                                                                 )}
