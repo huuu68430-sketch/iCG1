@@ -14,6 +14,9 @@ interface LetterHexagonGameProps {
     obsPreviewActive?: boolean;
 }
 
+type AnswerBy = { username: string; avatar: string; color: string };
+type LastAnswer = { text: string; correct: boolean | null; by?: AnswerBy; seconds?: number };
+
 // 28 Arabic letters exactly matching our 28-cell grid (6,5,6,5,6)
 const ARABIC_LETTERS = ['أ', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'هـ', 'و', 'ي'];
 const GRID_LAYOUT = [6, 5, 6, 5, 6];
@@ -57,6 +60,48 @@ function isCorrectAnswer(typed: string, question: LetterQuestion | null, cellLet
 
     return answerVariants(question.answer).some(form => typedForms.includes(form));
 }
+
+// The reveal card: who typed it, how fast, their avatar with whatever frame they wear.
+const AnswerReveal: React.FC<{ answer: LastAnswer; obs: boolean; showLastTry?: boolean }> = ({ answer, obs, showLastTry }) => {
+    const good = answer.correct === true;
+    const accent = obs
+        ? (good ? { line: '#10b981', soft: 'rgba(16,185,129,.2)', text: '#34d399' } : { line: '#ef4444', soft: 'rgba(239,68,68,.2)', text: '#f87171' })
+        : (good ? { line: 'rgba(111,220,158,.5)', soft: 'rgba(111,220,158,.1)', text: '#6fdc9e' } : { line: 'rgba(255,122,122,.5)', soft: 'rgba(255,122,122,.1)', text: '#ff7a7a' });
+    const by = answer.by;
+
+    return (
+        <div className="p-4 rounded-2xl text-center animate-in slide-in-from-bottom flex flex-col items-center gap-3" style={{ border: `${obs ? 3 : 2}px solid ${accent.line}`, background: accent.soft }}>
+            <div className="text-xs font-black uppercase tracking-widest" style={{ color: 'rgba(255,255,255,.55)' }}>الإجابة المكتوبة:</div>
+            <div className={`${obs ? 'text-2xl font-black' : 'text-xl font-extrabold'}`} style={{ color: accent.text }}>{answer.text}</div>
+
+            {by && (
+                <div className="w-full flex items-center gap-3 p-3 rounded-2xl" style={{ background: 'rgba(0,0,0,.45)', border: `2px solid ${accent.line}` }}>
+                    <div className="relative shrink-0">
+                        <div className="absolute -inset-1.5 blur-md rounded-full" style={{ background: accent.soft }}></div>
+                        <ProAvatar username={by.username} url={by.avatar} size={obs ? 'w-16 h-16' : 'w-14 h-14'} className="overflow-visible relative z-10" />
+                    </div>
+                    <div className="flex-1 min-w-0 text-right">
+                        <div className={`${obs ? 'text-xl' : 'text-lg'} font-black italic text-white truncate drop-shadow-md`}>{by.username}</div>
+                        <div className="text-[10px] font-black uppercase tracking-widest mt-1" style={{ color: accent.text }}>
+                            {good ? 'صاحب الإجابة الصحيحة' : 'كتب هذه الإجابة'}
+                        </div>
+                    </div>
+                    {answer.seconds !== undefined && (
+                        <div className="shrink-0 flex flex-col items-center px-3 py-1.5 rounded-xl" style={{ background: 'rgba(0,0,0,.5)', border: `1px solid ${accent.line}` }}>
+                            <span className={`${obs ? 'text-3xl' : 'text-2xl'} font-black italic tabular-nums leading-none`} style={{ color: accent.text }}>{answer.seconds}</span>
+                            <span className="text-[9px] font-black uppercase tracking-widest mt-1" style={{ color: 'rgba(255,255,255,.45)' }}>ثانية</span>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            <div className="p-2 rounded-full" style={{ background: 'rgba(255,255,255,.08)', border: `1px solid ${accent.line}`, color: accent.text }}>
+                {good ? <Check size={24} strokeWidth={4} /> : <X size={24} strokeWidth={4} />}
+            </div>
+            {!good && showLastTry && <div className="text-lg font-black italic animate-pulse" style={{ color: accent.text }}>محاولة أخيرة !!</div>}
+        </div>
+    );
+};
 
 function getTeamByColor(hexColor: string): 'team1' | 'team2' {
     if (!hexColor) return 'team2';
@@ -182,14 +227,13 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
     const clockOpenRef = useRef(false);
     const turnDecidedRef = useRef(false);
     const lateAnswerLoggedRef = useRef(false);
+    const turnStartedAtRef = useRef(0);
     const [triedTeams, setTriedTeams] = useState<('team1' | 'team2')[]>([]);
     // After both teams fail the cell opens to everyone — no bell needed, first correct answer takes it
     const [openTurn, setOpenTurn] = useState(false);
-    const [lastAnswer, setLastAnswer] = useState<{ text: string, correct: boolean | null }>({ text: '', correct: null });
+    const [lastAnswer, setLastAnswer] = useState<LastAnswer>({ text: '', correct: null });
     const [linkCopied, setLinkCopied] = useState(false);
     const [currentBuzzedAttempts, setCurrentBuzzedAttempts] = useState(0);
-    const [transitioningToTeam, setTransitioningToTeam] = useState<'team1' | 'team2' | 'open' | null>(null);
-    const [transitionTimer, setTransitionTimer] = useState(0);
     const [showInstructions, setShowInstructions] = useState(false);
 
     // Track winners per level
@@ -265,8 +309,6 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                     if (data.difficulty !== undefined) setDifficulty(data.difficulty);
                     if (data.currentLevel !== undefined) setCurrentLevel(data.currentLevel);
                     if (data.currentBuzzedAttempts !== undefined) setCurrentBuzzedAttempts(data.currentBuzzedAttempts);
-                    if (data.transitioningToTeam !== undefined) setTransitioningToTeam(data.transitioningToTeam);
-                    if (data.transitionTimer !== undefined) setTransitionTimer(data.transitionTimer);
                     if (data.votingActive !== undefined) setVotingActive(data.votingActive);
                     if (data.letterVotes !== undefined) setLetterVotes(data.letterVotes);
                     if (data.votingEligibleTeam !== undefined) setVotingEligibleTeam(data.votingEligibleTeam);
@@ -311,7 +353,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                     lastAnswer, triedTeams, openTurn, winner, winningPath,
                     lobbyPlayers, team1Name, team2Name, entryKeyword,
                     answerDuration, difficulty, currentLevel,
-                    currentBuzzedAttempts, transitioningToTeam, transitionTimer,
+                    currentBuzzedAttempts,
                     votingActive, letterVotes, votingEligibleTeam, showVotingPanel, votedUsers,
                     votingTimer, votingDuration
                 }
@@ -328,10 +370,19 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         if (stage === 'playing' || stage === 'ended') {
             broadcastFullState();
         }
-    }, [cells, stage, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, answerTimer, lastAnswer, triedTeams, openTurn, winner, winningPath, lobbyPlayers, team1Name, team2Name, entryKeyword, isOBS, currentLevel, currentBuzzedAttempts, transitioningToTeam, transitionTimer, answerDuration, votingActive, letterVotes, votingEligibleTeam, showVotingPanel, votedUsers, votingTimer, votingDuration]);
+    }, [cells, stage, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, answerTimer, lastAnswer, triedTeams, openTurn, winner, winningPath, lobbyPlayers, team1Name, team2Name, entryKeyword, isOBS, currentLevel, currentBuzzedAttempts, answerDuration, votingActive, letterVotes, votingEligibleTeam, showVotingPanel, votedUsers, votingTimer, votingDuration]);
 
     // Chat listener (Main Bell Game logic)
     const normalizeArabicText = (s: string) => s.replace(/[^\u0621-\u064A\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const secondsTaken = () => Math.max(1, Math.round((Date.now() - turnStartedAtRef.current) / 1000));
+
+    // Every new turn starts with a clean answer window, even when the clock never hit zero.
+    const openAnswerWindow = () => {
+        turnDecidedRef.current = false;
+        lateAnswerLoggedRef.current = false;
+        turnStartedAtRef.current = Date.now();
+    };
 
     // Team name without emoji/symbols for typing in chat
     const cleanTeamName = (n: string) => normalizeArabicText(n).split(' ').filter(w => w && w !== 'فريق' && w !== 'الفريق').join(' ');
@@ -444,12 +495,13 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                     if (activeCell) {
                         // «جرس» only claims the cell for the first team;
                         // a handed-over turn and the open phase answer directly.
-                        const needsBell = !buzzedTeam && !openTurn && !transitioningToTeam;
+                        const needsBell = !buzzedTeam && !openTurn;
                         if (needsBell && (content === 'جرس' || content.toLowerCase() === 'jaras')) {
                             if (triedTeams.includes(player.team)) return;
                             setBuzzedTeam(player.team);
                             setBuzzedPlayer(player);
                             setAnswerTimer(answerDuration);
+                            openAnswerWindow();
                             setLastAnswer({ text: '', correct: null });
                             setCurrentBuzzedAttempts(0);
                             playSfx('buzz');
@@ -458,10 +510,10 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
 
                         let turnTeam: 'team1' | 'team2' | null = null;
                         let mayAnswer = false;
-                        if (openTurn && !transitioningToTeam) {
+                        if (openTurn) {
                             turnTeam = player.team;
                             mayAnswer = true;
-                        } else if (buzzedTeam && !transitioningToTeam) {
+                        } else if (buzzedTeam) {
                             turnTeam = buzzedTeam;
                             // no buzzer = the whole team is on the clock
                             mayAnswer = player.team === buzzedTeam && (!buzzedPlayer || player.username === buzzedPlayer.username);
@@ -478,21 +530,22 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                             if (turnDecidedRef.current) return;
 
                             const claimedBy = turnTeam;
+                            const by: AnswerBy = { username: player.username, avatar: player.avatar || '', color: player.color || '' };
 
                             if (isCorrectAnswer(content, currentQuestion, activeCell.letter)) {
                                 turnDecidedRef.current = true;
-                                setLastAnswer({ text: content, correct: true });
+                                setLastAnswer({ text: content, correct: true, by, seconds: secondsTaken() });
                                 playSfx('correct');
                                 // The answering player claimed the cell this round — credit one 'round'.
                                 awardPoints('LETTER_GAME', player.username, player.avatar || '', 'round');
-                                setTimeout(() => finalizeRound(true, claimedBy), 1500);
+                                setTimeout(() => finalizeRound(true, claimedBy), 2000);
                             } else {
                                 const nextAttempts = currentBuzzedAttempts + 1;
-                                setLastAnswer({ text: content, correct: false });
+                                setLastAnswer({ text: content, correct: false, by, seconds: secondsTaken() });
                                 playSfx('wrong');
                                 if (nextAttempts >= 2) {
                                     turnDecidedRef.current = true;
-                                    setTimeout(() => handleWrongAnswer(true, claimedBy), 1500);
+                                    setTimeout(() => handleWrongAnswer(true, claimedBy), 1200);
                                 } else {
                                     setCurrentBuzzedAttempts(nextAttempts);
                                 }
@@ -505,7 +558,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
             }
         });
         return cleanup;
-    }, [stage, entryKeyword, team1Name, team2Name, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, openTurn, lobbyPlayers, triedTeams, answerDuration, transitioningToTeam, currentBuzzedAttempts, votingActive, letterVotes, votingEligibleTeam, votedUsers, cells]);
+    }, [stage, entryKeyword, team1Name, team2Name, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, openTurn, lobbyPlayers, triedTeams, answerDuration, currentBuzzedAttempts, votingActive, letterVotes, votingEligibleTeam, votedUsers, cells]);
 
     // Voting Countdown Logic (Manager Only)
     useEffect(() => {
@@ -662,62 +715,36 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         return null;
     };
 
+    // A failed turn moves on straight away — no countdown between stages.
     const handleWrongAnswer = (forceSkip = false, team?: 'team1' | 'team2') => {
         const currentTeam = team || buzzedTeam;
         if (!currentTeam) return;
 
         const otherTeam = currentTeam === 'team1' ? 'team2' : 'team1';
+        const newTried = [...triedTeams, currentTeam];
 
-        setBuzzedTeam(null);
         setBuzzedPlayer(null);
-        setAnswerTimer(0);
         setOpenTurn(false);
         setLastAnswer({ text: '', correct: null });
         setCurrentBuzzedAttempts(0);
-
-        const newTried = [...triedTeams, currentTeam];
-        setTriedTeams(newTried);
+        playSfx('timer');
 
         if (newTried.length === 1) {
-            // Start transition to other team
-            setTransitioningToTeam(otherTeam);
-            setTransitionTimer(4);
-            playSfx('timer');
+            setTriedTeams(newTried);
+            setBuzzedTeam(otherTeam);
+            setAnswerTimer(answerDuration);
+            openAnswerWindow();
+            pushLog(`الدور انتقل لـ ${otherTeam === 'team1' ? team1Name : team2Name}`, otherTeam);
         } else {
-            // Both teams failed, start transition to "Open for All"
-            setTransitioningToTeam('open');
-            setTransitionTimer(5);
-            playSfx('timer');
+            // Both teams failed — the cell opens to the fastest chat, no bell needed
+            setTriedTeams([]);
+            setBuzzedTeam(null);
+            setOpenTurn(true);
+            setAnswerTimer(answerDuration);
+            openAnswerWindow();
             pushLog('استُنزفت محاولات الفريقين — السؤال مفتوح للأسرع', 'sys');
         }
     };
-
-    // Transition Timer Effect — the turn starts on its own, no bell required
-    useEffect(() => {
-        if (transitionTimer > 0 && transitioningToTeam) {
-            const t = setInterval(() => {
-                setTransitionTimer(prev => {
-                    if (prev <= 1) {
-                        clearInterval(t);
-                        setCurrentBuzzedAttempts(0);
-                        setLastAnswer({ text: '', correct: null });
-                        setAnswerTimer(answerDuration);
-                        if (transitioningToTeam === 'open') {
-                            setTriedTeams([]);
-                            setOpenTurn(true);
-                        } else {
-                            setBuzzedTeam(transitioningToTeam);
-                            setBuzzedPlayer(null);
-                        }
-                        setTransitioningToTeam(null);
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-            return () => clearInterval(t);
-        }
-    }, [transitionTimer, transitioningToTeam, answerDuration]);
 
     const finalizeRound = (isCorrect: boolean, team: 'team1' | 'team2') => {
         if (!activeCell) return;
@@ -733,8 +760,6 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         setOpenTurn(false);
         setLastAnswer({ text: '', correct: null });
         setCurrentBuzzedAttempts(0);
-        setTransitioningToTeam(null);
-        setTransitionTimer(0);
         pushLog(`حرف «${activeCell.letter}» → ${owner === 'team1' ? team1Name : team2Name}`, owner);
         checkWin(nextCells);
     };
@@ -749,6 +774,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         setOpenTurn(false);
         setLastAnswer({ text: '', correct: null });
         setAnswerRevealed(false);
+        openAnswerWindow();
         pushLog(`تم فتح حرف «${cell.letter}» للمنافسة`, 'sys');
         // Load a question specific to current level and cell
         const levelQs = getQuestionsForLevel(cell.letter, currentLevel);
@@ -778,9 +804,9 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                 setCurrentQuestion(null);
                                 setLastAnswer({ text: '', correct: null });
                                 pushLog('انتهى الوقت — لم يأخذ أحد الخلية', 'sys');
-                            }, 2000);
+                            }, 1000);
                         } else {
-                            setTimeout(() => handleWrongAnswer(true), 2000);
+                            setTimeout(() => handleWrongAnswer(true), 1000);
                         }
                         return 0;
                     }
@@ -791,14 +817,9 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         }
     }, [answerTimer, buzzedTeam, openTurn]);
 
-    // Mirror the clock for the chat listener; a new turn re-opens answer acceptance.
+    // Mirrors the clock for the chat listener, which cannot read live state.
     useEffect(() => {
-        const running = answerTimer > 0 && (!!buzzedTeam || openTurn);
-        if (running && !clockOpenRef.current) {
-            turnDecidedRef.current = false;
-            lateAnswerLoggedRef.current = false;
-        }
-        clockOpenRef.current = running;
+        clockOpenRef.current = answerTimer > 0 && (!!buzzedTeam || openTurn);
     }, [answerTimer, buzzedTeam, openTurn]);
 
     const women = lobbyPlayers.filter(p => p.team === 'team1');
@@ -1175,41 +1196,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                     {/* Buzzer Area remains here */}
                                 </div>
 
-                                {transitioningToTeam ? (
-                                    <div className="space-y-6 animate-in zoom-in duration-500 py-6">
-                                        <div className="flex flex-col items-center gap-4">
-                                            <div className="relative">
-                                                <div className={`absolute -inset-8 blur-3xl rounded-full opacity-30 animate-pulse ${transitioningToTeam === 'open' ? 'bg-yellow-500' : transitioningToTeam === 'team1' ? 'bg-[#FF0000]' : 'bg-[#0066FF]'}`}></div>
-                                                <div className={`w-28 h-28 rounded-[2rem] ${transitioningToTeam === 'open' ? 'bg-yellow-500' : transitioningToTeam === 'team1' ? 'bg-[#FF0000]' : 'bg-[#0066FF]'} border-4 border-white flex items-center justify-center text-6xl shadow-2xl relative z-10 animate-bounce`}>
-                                                    {transitioningToTeam === 'open' ? '⚡' : transitioningToTeam === 'team1' ? '🔴' : '🔵'}
-                                                </div>
-                                            </div>
-                                            <div className="text-center px-4">
-                                                <p className="text-white/60 font-black text-lg mb-3 italic uppercase tracking-[0.2em]">
-                                                    {transitioningToTeam === 'open' ? 'انتهت محاولات الفريقين !!' : 'تم استنفاذ المحاولات !!'}
-                                                </p>
-                                                <h3 className="text-3xl md:text-4xl font-black text-white italic drop-shadow-2xl">
-                                                    {transitioningToTeam === 'open' ? 'السؤال الآن للمجموعة الأسرع!' : `الدور الآن لـ ${transitioningToTeam === 'team1' ? team1Name : team2Name}`}
-                                                </h3>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-col items-center gap-3">
-                                            <div className="relative w-20 h-20">
-                                                <svg className="w-full h-full transform -rotate-90">
-                                                    <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-white/10" />
-                                                    <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" className={`${transitioningToTeam === 'open' ? 'text-yellow-500' : transitioningToTeam === 'team1' ? 'text-[#FF0000]' : 'text-[#0066FF]'}`} strokeDasharray={213} strokeDashoffset={213 - (transitionTimer / (transitioningToTeam === 'open' ? 5 : 4)) * 213} style={{ transition: 'stroke-dashoffset 1s linear' }} />
-                                                </svg>
-                                                <div className="absolute inset-0 flex items-center justify-center text-3xl font-black text-white italic tabular-nums">
-                                                    {transitionTimer}
-                                                </div>
-                                            </div>
-                                            <span className="text-white/30 font-black text-[9px] uppercase tracking-[0.5em]">
-                                                {transitioningToTeam === 'open' ? 'Opening for All' : 'Starting Turn'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ) : openTurn ? (
+                                {openTurn ? (
                                     <div className="space-y-6 animate-in zoom-in">
                                         <div className="p-4 rounded-[1.5rem] border-3 flex items-center justify-between gap-4 border-yellow-500 bg-yellow-500/20 shadow-[0_0_30px_rgba(234,179,8,0.35)]">
                                             <div className="flex items-center justify-between gap-4 flex-1 min-w-0">
@@ -1230,13 +1217,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                         </div>
 
                                         {lastAnswer.text ? (
-                                            <div className={`p-4 rounded-2xl border-3 text-center animate-in slide-in-from-bottom flex flex-col items-center gap-2 ${lastAnswer.correct === true ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-red-500/20 border-red-500 text-red-400'}`}>
-                                                <div className="text-xs font-black uppercase tracking-widest opacity-60">الإجابة المكتوبة:</div>
-                                                <div className="text-2xl font-black">{lastAnswer.text}</div>
-                                                <div className="p-2 bg-white/10 rounded-full">
-                                                    {lastAnswer.correct === true ? <Check size={24} /> : <X size={24} />}
-                                                </div>
-                                            </div>
+                                            <AnswerReveal answer={lastAnswer} obs />
                                         ) : (
                                             <div className="flex flex-col items-center gap-4 animate-pulse p-6 bg-white/5 rounded-2xl border-2 border-dashed border-white/10">
                                                 <BrainCircuit size={48} className="text-purple-500" />
@@ -1283,16 +1264,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                         </div>
 
                                         {lastAnswer.text ? (
-                                            <div className={`p-4 rounded-2xl border-3 text-center animate-in slide-in-from-bottom flex flex-col items-center gap-2 ${lastAnswer.correct === true ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-red-500/20 border-red-500 text-red-400'}`}>
-                                                <div className="text-xs font-black uppercase tracking-widest opacity-60">الإجابة المكتوبة:</div>
-                                                <div className="text-2xl font-black">{lastAnswer.text}</div>
-                                                <div className="p-2 bg-white/10 rounded-full">
-                                                    {lastAnswer.correct === true ? <Check size={24} /> : <X size={24} />}
-                                                </div>
-                                                {lastAnswer.correct === false && currentBuzzedAttempts === 1 && (
-                                                    <div className="text-lg font-bold italic animate-pulse">محاولة أخيرة !!</div>
-                                                )}
-                                            </div>
+                                            <AnswerReveal answer={lastAnswer} obs showLastTry={currentBuzzedAttempts === 1} />
                                         ) : (
                                             <div className="flex flex-col items-center gap-4 animate-pulse p-6 bg-white/5 rounded-2xl border-2 border-dashed border-white/10">
                                                 <BrainCircuit size={48} className="text-purple-500" />
@@ -2135,33 +2107,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                     </div>
 
                                     {/* STATES */}
-                                    {transitioningToTeam ? (
-                                        <div className="space-y-5 animate-in zoom-in duration-500 pt-4">
-                                            <div className="flex flex-col items-center gap-4">
-                                                <div className="relative">
-                                                    <div className="absolute -inset-6 blur-2xl rounded-full opacity-40 animate-pulse" style={{ background: transitioningToTeam === 'open' ? '#e8be6e' : transitioningToTeam === 'team1' ? '#f0c25a' : '#cf7c43' }}></div>
-                                                    <div className="w-24 h-26 flex items-center justify-center text-5xl shadow-2xl relative z-10 animate-bounce" style={{ width: '6rem', height: '6.6rem', clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)', background: transitioningToTeam === 'open' ? 'linear-gradient(160deg,#f9e0a4,#b88a3e)' : transitioningToTeam === 'team1' ? 'linear-gradient(160deg,#f0c25a,#8f5f12)' : 'linear-gradient(160deg,#cf7c43,#6b3213)', border: '3px solid rgba(255,246,220,.5)' }}>
-                                                        {transitioningToTeam === 'open' ? <BellRing className="text-[#1a1006]" size={36} /> : transitioningToTeam === 'team1' ? <Crown className="text-[#2b1a05]" size={36} /> : <Swords className="text-[#fff3e2]" size={36} />}
-                                                    </div>
-                                                </div>
-                                                <div className="text-center px-4">
-                                                    <p className="text-[#b2a283] font-black text-sm mb-2 italic uppercase tracking-[0.2em]">{transitioningToTeam === 'open' ? 'انتهت محاولات الفريقين !!' : 'تم استنفاذ المحاولات !!'}</p>
-                                                    <h3 className={`${isOBS ? 'text-4xl' : 'text-3xl'} font-extrabold italic text-[#fbeccb] drop-shadow-2xl`}>
-                                                        {transitioningToTeam === 'open' ? 'السؤال الآن للمجموعة الأسرع!' : `الدور الآن لـ ${transitioningToTeam === 'team1' ? team1Name : team2Name}`}
-                                                    </h3>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-col items-center gap-2">
-                                                <div className="w-full h-4 rounded-full bg-black/60 border border-[#e8be6e]/25 overflow-hidden relative">
-                                                    <div className="h-full transition-all duration-1000 ease-linear" style={{ width: `${(transitionTimer / (transitioningToTeam === 'open' ? 5 : 4)) * 100}%`, background: transitioningToTeam === 'open' ? 'linear-gradient(90deg,#b88a3e,#f9e0a4)' : transitioningToTeam === 'team1' ? 'linear-gradient(90deg,#8f5f12,#f0c25a)' : 'linear-gradient(90deg,#6b3213,#cf7c43)' }}></div>
-                                                </div>
-                                                <div className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-[0.4em] text-[#e8be6e]/40">
-                                                    <span>{transitioningToTeam === 'open' ? 'Opening for All' : 'Starting Turn'}</span>
-                                                    <span className="text-2xl font-extrabold italic tabular-nums text-[#e8be6e]" style={{ fontFamily: FONT_DISPLAY }}>{transitionTimer}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : openTurn ? (
+                                    {openTurn ? (
                                         <div className="space-y-5 animate-in zoom-in pt-4">
                                             <div className="p-4 rounded-[1.5rem] border-2 flex items-center justify-between gap-4" style={{ borderColor: 'rgba(232,190,110,.6)', background: 'rgba(232,190,110,.08)', boxShadow: '0 0 30px rgba(232,190,110,.2)' }}>
                                                 <div className="flex items-center gap-4 min-w-0">
@@ -2187,10 +2133,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                             </div>
 
                                             {lastAnswer.text ? (
-                                                <div className="p-4 rounded-2xl border-2 text-center animate-in slide-in-from-bottom flex flex-col items-center gap-2" style={{ background: lastAnswer.correct === true ? 'rgba(111,220,158,.1)' : 'rgba(255,122,122,.1)', borderColor: lastAnswer.correct === true ? 'rgba(111,220,158,.5)' : 'rgba(255,122,122,.5)' }}>
-                                                    <div className="text-xs font-black uppercase tracking-widest text-[#b2a283]/60">الإجابة المكتوبة:</div>
-                                                    <div className="text-2xl font-extrabold" style={{ color: lastAnswer.correct === true ? '#6fdc9e' : '#ff7a7a' }}>{lastAnswer.text}</div>
-                                                </div>
+                                                <AnswerReveal answer={lastAnswer} obs={false} />
                                             ) : (
                                                 <div className="flex flex-col items-center gap-3 animate-pulse p-5 rounded-2xl border-2 border-dashed border-[#e8be6e]/20 bg-white/[.03]">
                                                     <BrainCircuit size={40} className="text-[#e8be6e]/60" />
@@ -2240,14 +2183,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                             </div>
 
                                             {lastAnswer.text ? (
-                                                <div className="p-4 rounded-2xl border-2 text-center animate-in slide-in-from-bottom flex flex-col items-center gap-2" style={{ background: lastAnswer.correct === true ? 'rgba(111,220,158,.1)' : 'rgba(255,122,122,.1)', borderColor: lastAnswer.correct === true ? 'rgba(111,220,158,.5)' : 'rgba(255,122,122,.5)' }}>
-                                                    <div className="text-xs font-black uppercase tracking-widest text-[#b2a283]/60">الإجابة المكتوبة:</div>
-                                                    <div className="text-2xl font-extrabold" style={{ color: lastAnswer.correct === true ? '#6fdc9e' : '#ff7a7a' }}>{lastAnswer.text}</div>
-                                                    <div className="p-2 rounded-full border" style={{ background: 'rgba(255,255,255,.05)', borderColor: lastAnswer.correct === true ? 'rgba(111,220,158,.4)' : 'rgba(255,122,122,.4)', color: lastAnswer.correct === true ? '#6fdc9e' : '#ff7a7a' }}>
-                                                        {lastAnswer.correct === true ? <Check size={24} strokeWidth={4} /> : <X size={24} strokeWidth={4} />}
-                                                    </div>
-                                                    {lastAnswer.correct === false && currentBuzzedAttempts === 1 && <div className="text-lg font-extrabold italic animate-pulse text-[#ff7a7a]">محاولة أخيرة !!</div>}
-                                                </div>
+                                                <AnswerReveal answer={lastAnswer} obs={false} showLastTry={currentBuzzedAttempts === 1} />
                                             ) : (
                                                 <div className="flex flex-col items-center gap-3 animate-pulse p-5 rounded-2xl border-2 border-dashed border-[#e8be6e]/20 bg-white/[.03]">
                                                     <BrainCircuit size={40} className="text-[#e8be6e]/60" />
