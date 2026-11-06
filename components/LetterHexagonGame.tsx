@@ -218,6 +218,23 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
     });
     useEffect(() => { localStorage.setItem('iabs_letter_game_highest', highestUnlocked.toString()); }, [highestUnlocked]);
 
+    // <html> keeps its solid #0a0805 even when the OBS browser source is set to
+    // transparent, so the streamer's scene never shows through unless we clear it.
+    useEffect(() => {
+        if (!isOBS) return;
+        const html = document.documentElement;
+        const body = document.body;
+        const prev = [html.style.cssText, body.style.cssText];
+        html.style.setProperty('background-color', 'transparent', 'important');
+        html.style.setProperty('background-image', 'none', 'important');
+        body.style.setProperty('background-color', 'transparent', 'important');
+        body.style.setProperty('background-image', 'none', 'important');
+        return () => {
+            html.style.cssText = prev[0];
+            body.style.cssText = prev[1];
+        };
+    }, [isOBS]);
+
     // Chat Bell Game Logic
     const [buzzedTeam, setBuzzedTeam] = useState<'team1' | 'team2' | null>(null);
     const [buzzedPlayer, setBuzzedPlayer] = useState<Player | null>(null);
@@ -1166,8 +1183,10 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                     {/* QUESTION OVERLAY (NOW PRESET-FREE) */}
                     {activeCell && (
                         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in zoom-in duration-300">
-                            {/* In OBS, use a solid black background for the modal area when active */}
-                            <div className="absolute inset-0 bg-black/90 backdrop-blur-3xl animate-in fade-in duration-500"></div>
+                            {/* The dark veil belongs to the manager screen only — in OBS it would flood the scene */}
+                            {!isOBS && (
+                                <div className="absolute inset-0 bg-black/90 backdrop-blur-3xl animate-in fade-in duration-500"></div>
+                            )}
 
                             <div className="w-full max-w-xl bg-[#0a0a1a] border-4 border-[#5A22A3] rounded-[2rem] p-6 shadow-[0_0_60px_rgba(0,0,0,1)] relative z-10 text-center transition-all duration-500 scale-[0.8]">
                                 <div className="flex flex-col items-center gap-8">
