@@ -177,6 +177,11 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
     const [buzzedTeam, setBuzzedTeam] = useState<'team1' | 'team2' | null>(null);
     const [buzzedPlayer, setBuzzedPlayer] = useState<Player | null>(null);
     const [answerTimer, setAnswerTimer] = useState<number>(0);
+    // The chat listener reads the clock from refs: answerTimer in its closure is frozen
+    // at registration time, so late answers would still score after time-out.
+    const clockOpenRef = useRef(false);
+    const turnDecidedRef = useRef(false);
+    const lateAnswerLoggedRef = useRef(false);
     const [triedTeams, setTriedTeams] = useState<('team1' | 'team2')[]>([]);
     // After both teams fail the cell opens to everyone — no bell needed, first correct answer takes it
     const [openTurn, setOpenTurn] = useState(false);
@@ -463,9 +468,19 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                         }
 
                         if (mayAnswer && turnTeam && content !== 'جرس') {
+                            if (!clockOpenRef.current) {
+                                if (!lateAnswerLoggedRef.current) {
+                                    lateAnswerLoggedRef.current = true;
+                                    pushLog(`إجابة «${player.username}» وصلت بعد انتهاء الوقت — لم تحتسب`, 'sys');
+                                }
+                                return;
+                            }
+                            if (turnDecidedRef.current) return;
+
                             const claimedBy = turnTeam;
 
                             if (isCorrectAnswer(content, currentQuestion, activeCell.letter)) {
+                                turnDecidedRef.current = true;
                                 setLastAnswer({ text: content, correct: true });
                                 playSfx('correct');
                                 // The answering player claimed the cell this round — credit one 'round'.
@@ -476,6 +491,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                 setLastAnswer({ text: content, correct: false });
                                 playSfx('wrong');
                                 if (nextAttempts >= 2) {
+                                    turnDecidedRef.current = true;
                                     setTimeout(() => handleWrongAnswer(true, claimedBy), 1500);
                                 } else {
                                     setCurrentBuzzedAttempts(nextAttempts);
@@ -773,6 +789,16 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
             }, 1000);
             return () => clearInterval(t);
         }
+    }, [answerTimer, buzzedTeam, openTurn]);
+
+    // Mirror the clock for the chat listener; a new turn re-opens answer acceptance.
+    useEffect(() => {
+        const running = answerTimer > 0 && (!!buzzedTeam || openTurn);
+        if (running && !clockOpenRef.current) {
+            turnDecidedRef.current = false;
+            lateAnswerLoggedRef.current = false;
+        }
+        clockOpenRef.current = running;
     }, [answerTimer, buzzedTeam, openTurn]);
 
     const women = lobbyPlayers.filter(p => p.team === 'team1');
