@@ -32,22 +32,9 @@ const normalize = (val: string) => {
         .trim();
 };
 
-// The bank scribbles its own notes inside the answer field — 'أرض (لا - نستخدم: أورانوس)' —
-// so every wording it lists counts as correct.
-const ANSWER_META = /^(?:لا|أو|نستخدم|استخدم|بالتسهيل)[:\s-]*/;
-function getAcceptedAnswers(answer: string): string[] {
-    const phrases = answer
-        .replace(/[()]/g, ' § ')
-        .split(/[§،,]/)
-        .flatMap(p => p.split(/\s+-\s+/))
-        .map(p => p.replace(ANSWER_META, '').replace(/\s*(?:نستخدم|لا)\s*[:\-]?\s*/g, ' ').trim())
-        .filter(p => p && p !== 'لا' && p.split(' ').length <= 4);
-    return phrases.length ? phrases : [answer.trim()];
-}
-
 // «ال» and «و» are prefixes players drop or add freely, so compare both shapes
-function answerVariants(phrase: string): string[] {
-    const base = normalize(phrase).replace(/ـ/g, '').replace(/[^ء-ي\s]/g, ' ').replace(/\s+/g, ' ').trim();
+function answerVariants(word: string): string[] {
+    const base = normalize(word).replace(/ـ/g, '').replace(/[^ء-ي]/g, '').trim();
     if (!base) return [];
     const out = new Set<string>([base]);
     let frontier = [base];
@@ -68,16 +55,7 @@ function isCorrectAnswer(typed: string, question: LetterQuestion | null, cellLet
     if (typedForms.length === 0) return false;
     if (!question) return normalize(typed)[0] === normalize(cellLetter)[0];
 
-    for (const accepted of getAcceptedAnswers(question.answer)) {
-        const pool = answerVariants(accepted);
-        const isPhrase = accepted.split(' ').length > 1;
-        for (const form of typedForms) {
-            if (pool.includes(form)) return true;
-            // 'أبو بكر' satisfies 'أبو بكر الصديق'
-            if (isPhrase && form.split(' ').length > 1 && pool.some(p => p.startsWith(form + ' '))) return true;
-        }
-    }
-    return false;
+    return answerVariants(question.answer).some(form => typedForms.includes(form));
 }
 
 function getTeamByColor(hexColor: string): 'team1' | 'team2' {
@@ -1672,7 +1650,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                 {[
                                     { icon: <Users size={18} />, t: '٠ — الانضمام لفريقك', d: 'في صفحة الانتظار اكتب في الشات «دخول الذهبي» أو «دخول النحاسي» حسب الفريق اللي تبيه. اسم الفريق مكتوب عند كل فريق.' },
                                     { icon: <BellRing size={18} />, t: '١ — اكتب «جرس»', d: 'أي لاعب من الفريقين يستطيع رنّ الجرس على الخلية المفتوحة. الفريق الذي جرّب يخسر حقه بالتناوب. الجرس مرة واحدة فقط — بعد الخطأ الدور يروح للفريق الثاني وهو جاهز للجواب بدون جرس.' },
-                                    { icon: <BrainCircuit size={18} />, t: '٢ — جاوب بالإجابة نفسها', d: 'لازم تكتب نفس الإجابة المطلوبة — «ال» والتشكيل ما يفرقون. جواب خاطئ مرتين أو انتهاء الوقت = الخسارة. بعد فشل الفريقين السؤال يصير مفتوحاً للأسرع — بدون جرس، وأول إجابة صحيحة تأخذ الخلية.' },
+                                    { icon: <BrainCircuit size={18} />, t: '٢ — جاوب بالإجابة نفسها', d: 'الإجابة المطلوبة كلمة واحدة — اكتبها كما هي، و«ال» والتشكيل ما يفرقون. جواب خاطئ مرتين أو انتهاء الوقت = الخسارة. بعد فشل الفريقين السؤال يصير مفتوحاً للأسرع — بدون جرس، وأول إجابة صحيحة تأخذ الخلية.' },
                                     { icon: <Vote size={18} />, t: '٣ — صوت على الحرف', d: 'خلال التصويت المفتوح اكتب الحرف اللي تبيه في الشات، وأكثر حرف تصويتاً هو اللي ينفتح للمنافسة.' },
                                     { icon: <Trophy size={18} />, t: '٤ — انتصر وكسّب فريقك', d: 'كل خلية تُفتح لفريقك نقطتين للجولة، والفوز بالمرحلة يرفعك لعالم أبعد في الخريطة.' },
                                 ].map((r, i) => (
@@ -2116,7 +2094,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                                             </div>
                                                             <span className={`block text-lg font-extrabold text-[#6fdc9e] mt-1 transition-all duration-300 ${answerRevealed ? '' : 'blur-[8px] select-none'}`}>{currentQuestion.answer}</span>
                                                         </div>
-                                                        <p className="text-xs font-bold text-[#b2a283]/60 italic">لازم تكتب نفس الإجابة — بدون «ال» أو التشكيل تُحتسب صحيحة</p>
+                                                        <p className="text-xs font-bold text-[#b2a283]/60 italic">الإجابة كلمة واحدة — اكتبها كما هي، بدون «ال» أو التشكيل تُحتسب صحيحة</p>
                                                     </>
                                                 )}
                                             </>
