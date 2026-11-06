@@ -132,7 +132,6 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
 
     // Settings
     const [entryKeyword, setEntryKeyword] = useState('دخول');
-    const [allowJoin, setAllowJoin] = useState(false);
     const [difficulty, setDifficulty] = useState<'normal' | 'hard'>('normal');
     const [answerDuration, setAnswerDuration] = useState(10);
     const [team1Name, setTeam1Name] = useState('الفريق الذهبي 🟡');
@@ -257,7 +256,6 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                     if (data.team1Name !== undefined) setTeam1Name(data.team1Name);
                     if (data.team2Name !== undefined) setTeam2Name(data.team2Name);
                     if (data.entryKeyword !== undefined) setEntryKeyword(data.entryKeyword);
-                    if (data.allowJoin !== undefined) setAllowJoin(data.allowJoin);
                     if (data.answerDuration !== undefined) setAnswerDuration(data.answerDuration);
                     if (data.difficulty !== undefined) setDifficulty(data.difficulty);
                     if (data.currentLevel !== undefined) setCurrentLevel(data.currentLevel);
@@ -306,7 +304,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                     cells, stage, activeCell, currentQuestion,
                     buzzedTeam, buzzedPlayer, answerTimer,
                     lastAnswer, triedTeams, openTurn, winner, winningPath,
-                    lobbyPlayers, team1Name, team2Name, entryKeyword, allowJoin,
+                    lobbyPlayers, team1Name, team2Name, entryKeyword,
                     answerDuration, difficulty, currentLevel,
                     currentBuzzedAttempts, transitioningToTeam, transitionTimer,
                     votingActive, letterVotes, votingEligibleTeam, showVotingPanel, votedUsers,
@@ -325,7 +323,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         if (stage === 'playing' || stage === 'ended') {
             broadcastFullState();
         }
-    }, [cells, stage, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, answerTimer, lastAnswer, triedTeams, openTurn, winner, winningPath, lobbyPlayers, team1Name, team2Name, entryKeyword, allowJoin, isOBS, currentLevel, currentBuzzedAttempts, transitioningToTeam, transitionTimer, answerDuration, votingActive, letterVotes, votingEligibleTeam, showVotingPanel, votedUsers, votingTimer, votingDuration]);
+    }, [cells, stage, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, answerTimer, lastAnswer, triedTeams, openTurn, winner, winningPath, lobbyPlayers, team1Name, team2Name, entryKeyword, isOBS, currentLevel, currentBuzzedAttempts, transitioningToTeam, transitionTimer, answerDuration, votingActive, letterVotes, votingEligibleTeam, showVotingPanel, votedUsers, votingTimer, votingDuration]);
 
     // Chat listener (Main Bell Game logic)
     const normalizeArabicText = (s: string) => s.replace(/[^\u0621-\u064A\s]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -350,7 +348,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
     useEffect(() => {
         const cleanup = chatService.onMessage(async (msg) => {
             try {
-                if (stage === 'lobby' && allowJoin) {
+                if (stage === 'lobby') {
                     const joinTeam = getTeamByJoinText(msg.content);
                     if (joinTeam) {
                         const u = msg.user.username;
@@ -491,7 +489,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
             }
         });
         return cleanup;
-    }, [stage, allowJoin, entryKeyword, team1Name, team2Name, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, openTurn, lobbyPlayers, triedTeams, answerDuration, transitioningToTeam, currentBuzzedAttempts, votingActive, letterVotes, votingEligibleTeam, votedUsers, cells]);
+    }, [stage, entryKeyword, team1Name, team2Name, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, openTurn, lobbyPlayers, triedTeams, answerDuration, transitioningToTeam, currentBuzzedAttempts, votingActive, letterVotes, votingEligibleTeam, votedUsers, cells]);
 
     // Voting Countdown Logic (Manager Only)
     useEffect(() => {
@@ -548,7 +546,6 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         setStage('playing');
         setWinner(null);
         setWinningPath([]);
-        setAllowJoin(false);
         setGameLog([]);
 
         // Immediate and direct broadcast
@@ -561,7 +558,6 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                     stage: 'playing',
                     winner: null,
                     winningPath: [],
-                    allowJoin: false,
                     lobbyPlayers, team1Name, team2Name, entryKeyword, answerDuration, difficulty, currentLevel
                 }
             });
@@ -918,14 +914,12 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                 </div>
                             ) : (
                                 <div className="flex flex-col items-center gap-4">
-                                    <div className={`px-10 py-4 rounded-[2rem] border-4 shadow-2xl transition-all duration-500 transform scale-110 flex flex-col items-center gap-2 ${allowJoin ? 'bg-kick-green border-white animate-bounce' : 'bg-red-600 border-white/20 opacity-50'}`} style={allowJoin ? { background: '#53fc18' } : undefined}>
+                                    <div className="px-10 py-4 rounded-[2rem] border-4 border-white shadow-2xl transition-all duration-500 transform scale-110 flex flex-col items-center gap-2 animate-bounce" style={{ background: '#53fc18' }}>
                                         <div className="flex items-center gap-3">
-                                            {allowJoin && <Volume2 className="text-black animate-pulse" size={28} />}
-                                            <span className="text-black font-black text-3xl italic tracking-tighter">
-                                                {allowJoin ? `أكتب [ ${entryKeyword} ] + اسم الفريق للدخول!` : 'بإنتظار إشارة البداية'}
-                                            </span>
+                                            <Volume2 className="text-black animate-pulse" size={28} />
+                                            <span className="text-black font-black text-3xl italic tracking-tighter">أكتب [ {entryKeyword} ] + اسم الفريق للدخول!</span>
                                         </div>
-                                        {allowJoin && <div className="text-[10px] font-black text-black/40 uppercase tracking-widest">JOIN THE BATTLE NOW</div>}
+                                        <div className="text-[10px] font-black text-black/40 uppercase tracking-widest">JOIN THE BATTLE NOW</div>
                                     </div>
 
                                     {/* TEAMS PREVIEW */}
@@ -1720,11 +1714,15 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                     </div>
                                 ))}
                                 {women.length === 0 && <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-[#e8be6e]/25"><Users size={36} /><span className="font-black text-sm italic">لا لاعبين بعد...</span></div>}
-                                {allowJoin && <div className="w-14 h-14 rounded-2xl border-2 border-dashed border-[#f0c25a]/25 flex items-center justify-center text-[#f0c25a]/30 animate-pulse"><Users size={16} /></div>}
+                                <div className="w-14 h-14 rounded-2xl border-2 border-dashed border-[#f0c25a]/25 flex items-center justify-center text-[#f0c25a]/30 animate-pulse"><Users size={16} /></div>
                             </div>
-                            <button onClick={() => setAllowJoin(!allowJoin)} className={`mt-auto pt-0 w-full py-4 rounded-2xl font-black text-lg border-2 transition-all relative z-10 ${allowJoin ? 'bg-[#ff7a7a]/10 border-[#ff7a7a]/40 text-[#ff7a7a]' : 'text-[#1a1006] shadow-lg border-white/60'}`} style={allowJoin ? undefined : { background: 'linear-gradient(180deg,#f9e0a4,#b88a3e)' }}>
-                                {allowJoin ? `إيقاف استقبال ${team1Name}` : `فتح استقبال ${team1Name}`}
-                            </button>
+                            <div className="mt-auto relative z-10 flex items-center justify-center gap-2.5 py-3.5 rounded-2xl border-2 border-[#f0c25a]/25 bg-[#f0c25a]/[.06]">
+                                <span className="relative w-2 h-2 shrink-0">
+                                    <span className="absolute inset-0 rounded-full bg-[#6fdc9e] opacity-60 animate-ping"></span>
+                                    <span className="absolute inset-0 rounded-full" style={{ background: '#6fdc9e', boxShadow: '0 0 10px #6fdc9e' }}></span>
+                                </span>
+                                <span className="text-[12px] font-black italic tracking-[0.22em] text-[#f0c25a]/85">مفتوح للانضمام</span>
+                            </div>
                         </div>
 
                         {/* TEAM 2 PANEL — COPPER */}
@@ -1749,27 +1747,31 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                     </div>
                                 ))}
                                 {men.length === 0 && <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-[#cf7c43]/25"><Users size={36} /><span className="font-black text-sm italic">لا لاعبين بعد...</span></div>}
-                                {allowJoin && <div className="w-14 h-14 rounded-2xl border-2 border-dashed border-[#cf7c43]/25 flex items-center justify-center text-[#cf7c43]/30 animate-pulse"><Users size={16} /></div>}
+                                <div className="w-14 h-14 rounded-2xl border-2 border-dashed border-[#cf7c43]/25 flex items-center justify-center text-[#cf7c43]/30 animate-pulse"><Users size={16} /></div>
                             </div>
-                            <button onClick={() => setAllowJoin(!allowJoin)} className={`mt-auto w-full py-4 rounded-2xl font-black text-lg border-2 transition-all relative z-10 ${allowJoin ? 'bg-[#ff7a7a]/10 border-[#ff7a7a]/40 text-[#ff7a7a]' : 'text-[#fff3e2] shadow-lg border-white/40'}`} style={allowJoin ? undefined : { background: 'linear-gradient(180deg,#e9b582,#8a4a1e)' }}>
-                                {allowJoin ? `إيقاف استقبال ${team2Name}` : `فتح استقبال ${team2Name}`}
-                            </button>
+                            <div className="mt-auto relative z-10 flex items-center justify-center gap-2.5 py-3.5 rounded-2xl border-2 border-[#cf7c43]/25 bg-[#cf7c43]/[.06]">
+                                <span className="relative w-2 h-2 shrink-0">
+                                    <span className="absolute inset-0 rounded-full bg-[#6fdc9e] opacity-60 animate-ping"></span>
+                                    <span className="absolute inset-0 rounded-full" style={{ background: '#6fdc9e', boxShadow: '0 0 10px #6fdc9e' }}></span>
+                                </span>
+                                <span className="text-[12px] font-black italic tracking-[0.22em] text-[#cf7c43]/85">مفتوح للانضمام</span>
+                            </div>
                         </div>
                     </div>
 
                     {/* LOBBY FOOTER — JOIN BANNER + CONTROLS */}
                     <div className="mt-8 flex items-center justify-between gap-6">
-                        <div className={`flex-1 rounded-[2rem] p-5 border-2 flex items-center justify-between transition-all ${allowJoin ? 'border-[#e8be6e]/60 bg-[#e8be6e]/10 shadow-[0_0_40px_rgba(232,190,110,.15)]' : 'border-[#e8be6e]/20 bg-black/40'}`}>
+                        <div className="flex-1 rounded-[2rem] p-5 border-2 border-[#e8be6e]/60 bg-[#e8be6e]/10 shadow-[0_0_40px_rgba(232,190,110,.15)] flex items-center justify-between transition-all">
                             <div className="flex items-center gap-4">
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${allowJoin ? 'bg-[linear-gradient(180deg,#f9e0a4,#b88a3e)] text-[#1a1006] animate-pulse' : 'bg-white/5 text-[#e8be6e]/30'}`}><BellRing size={24} /></div>
+                                <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[linear-gradient(180deg,#f9e0a4,#b88a3e)] text-[#1a1006] animate-pulse"><BellRing size={24} /></div>
                                 <div>
-                                    <div className={`font-extrabold italic text-2xl ${allowJoin ? 'text-[#e8be6e]' : 'text-[#b2a283]/40'}`} style={{ fontFamily: FONT_DISPLAY }}>
-                                        {allowJoin ? <>أكتب <span className="text-[#fbeccb] bg-black/50 px-4 py-1 rounded-xl border border-[#e8be6e]/40 text-xl">[ {entryKeyword} ]</span> + اسم الفريق للدخول!</> : 'استقبال اللاعبين متوقف'}
+                                    <div className="font-extrabold italic text-2xl text-[#e8be6e]" style={{ fontFamily: FONT_DISPLAY }}>
+                                        أكتب <span className="text-[#fbeccb] bg-black/50 px-4 py-1 rounded-xl border border-[#e8be6e]/40 text-xl">[ {entryKeyword} ]</span> + اسم الفريق للدخول!
                                     </div>
                                     <div className="flex items-center gap-2 mt-1.5">
                                         <span className="px-3 py-1 rounded-full text-[10px] font-black italic text-[#1a1006]" style={{ background: 'linear-gradient(180deg,#f9e0a4,#b88a3e)' }}>{entryKeyword} {cleanTeamName(team1Name)}</span>
                                         <span className="px-3 py-1 rounded-full text-[10px] font-black italic text-[#2b1a05]" style={{ background: 'linear-gradient(180deg,#e9b582,#8a4a1e)' }}>{entryKeyword} {cleanTeamName(team2Name)}</span>
-                                        <span className="text-[10px] font-black uppercase tracking-[0.35em]" style={{ color: allowJoin ? 'rgba(232,190,110,.5)' : 'rgba(178,162,131,.3)' }}>WRITE دخول + TEAM NAME</span>
+                                        <span className="text-[10px] font-black uppercase tracking-[0.35em]" style={{ color: 'rgba(232,190,110,.5)' }}>WRITE دخول + TEAM NAME</span>
                                     </div>
                                 </div>
                             </div>
@@ -1784,7 +1786,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                 </div>
                             </div>
                         </div>
-                        <button onClick={() => { setAllowJoin(false); startGame(); }} disabled={lobbyPlayers.length < 2}
+                        <button onClick={startGame} disabled={lobbyPlayers.length < 2}
                             className={`flex items-center gap-4 px-10 py-5 rounded-[1.8rem] font-black text-3xl italic shadow-2xl transition-all select-none border-b-4 border-black/30 ${lobbyPlayers.length < 2 ? 'bg-[#241a0c] text-[#b2a283]/30 cursor-not-allowed border-none shadow-none' : 'text-[#1a1006] hover:scale-105 active:scale-95 animate-goldpulse'}`}
                             style={lobbyPlayers.length < 2 ? undefined : { background: 'linear-gradient(180deg,#f9e0a4,#b88a3e)', fontFamily: FONT_DISPLAY }}>
                             <Play fill="currentColor" size={28} /> {lobbyPlayers.length < 2 ? 'لاعبان على الأقل' : 'بـدء الـتـحـدي'}
