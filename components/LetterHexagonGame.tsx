@@ -20,6 +20,66 @@ const GRID_LAYOUT = [6, 5, 6, 5, 6];
 
 const FONT_DISPLAY = "'Baloo Bhaijaan 2','Tajawal',sans-serif";
 
+const normalize = (val: string) => {
+    if (!val) return '';
+    return val.trim().toLowerCase()
+        .replace(/[ً-ْ]/g, '') // Remove Harakat (Fatha, Damma, Kasra, etc.)
+        .replace(/[أإآ]/g, 'ا')        // Normalize Alif forms
+        .replace(/ة/g, 'ه')           // Normalize Ta Marbuta to Ha
+        .replace(/ى/g, 'ي')           // Normalize Alef Maksura to Ya
+        .replace(/[ؤئ]/g, 'ء')        // Normalize Hamza forms
+        .replace(/\s+/g, ' ')         // Normalize extra spaces
+        .trim();
+};
+
+// The bank scribbles its own notes inside the answer field — 'أرض (لا - نستخدم: أورانوس)' —
+// so every wording it lists counts as correct.
+const ANSWER_META = /^(?:لا|أو|نستخدم|استخدم|بالتسهيل)[:\s-]*/;
+function getAcceptedAnswers(answer: string): string[] {
+    const phrases = answer
+        .replace(/[()]/g, ' § ')
+        .split(/[§،,]/)
+        .flatMap(p => p.split(/\s+-\s+/))
+        .map(p => p.replace(ANSWER_META, '').replace(/\s*(?:نستخدم|لا)\s*[:\-]?\s*/g, ' ').trim())
+        .filter(p => p && p !== 'لا' && p.split(' ').length <= 4);
+    return phrases.length ? phrases : [answer.trim()];
+}
+
+// «ال» and «و» are prefixes players drop or add freely, so compare both shapes
+function answerVariants(phrase: string): string[] {
+    const base = normalize(phrase).replace(/ـ/g, '').replace(/[^ء-ي\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!base) return [];
+    const out = new Set<string>([base]);
+    let frontier = [base];
+    for (let depth = 0; depth < 2; depth++) {
+        const next: string[] = [];
+        for (const s of frontier) {
+            if (s.startsWith('ال') && s.length > 3) next.push(s.slice(2));
+            if (s.startsWith('و') && s.length > 2) next.push(s.slice(1));
+        }
+        frontier = next.filter(s => !out.has(s));
+        frontier.forEach(s => out.add(s));
+    }
+    return [...out];
+}
+
+function isCorrectAnswer(typed: string, question: LetterQuestion | null, cellLetter: string): boolean {
+    const typedForms = answerVariants(typed);
+    if (typedForms.length === 0) return false;
+    if (!question) return normalize(typed)[0] === normalize(cellLetter)[0];
+
+    for (const accepted of getAcceptedAnswers(question.answer)) {
+        const pool = answerVariants(accepted);
+        const isPhrase = accepted.split(' ').length > 1;
+        for (const form of typedForms) {
+            if (pool.includes(form)) return true;
+            // 'أبو بكر' satisfies 'أبو بكر الصديق'
+            if (isPhrase && form.split(' ').length > 1 && pool.some(p => p.startsWith(form + ' '))) return true;
+        }
+    }
+    return false;
+}
+
 function getTeamByColor(hexColor: string): 'team1' | 'team2' {
     if (!hexColor) return 'team2';
     let hex = hexColor.replace(/^#/, '');
@@ -428,10 +488,8 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
 
                         if (mayAnswer && turnTeam && content !== 'جرس') {
                             const claimedBy = turnTeam;
-                            const normAns = normalize(content);
-                            const targetLetter = normalize(activeCell.letter)[0];
 
-                            if (normAns.length > 0 && normAns[0] === targetLetter) {
+                            if (isCorrectAnswer(content, currentQuestion, activeCell.letter)) {
                                 setLastAnswer({ text: content, correct: true });
                                 playSfx('correct');
                                 // The answering player claimed the cell this round — credit one 'round'.
@@ -474,18 +532,6 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
     }, [isOBS, votingActive, votingTimer]);
 
     // No longer using Supabase buzzer channel as the game is now "Direct Chat Only"
-
-    const normalize = (val: string) => {
-        if (!val) return '';
-        return val.trim().toLowerCase()
-            .replace(/[\u064B-\u0652]/g, '') // Remove Harakat (Fatha, Damma, Kasra, etc.)
-            .replace(/[أإآ]/g, 'ا')        // Normalize Alif forms
-            .replace(/ة/g, 'ه')           // Normalize Ta Marbuta to Ha
-            .replace(/ى/g, 'ي')           // Normalize Alef Maksura to Ya
-            .replace(/[ؤئ]/g, 'ء')        // Normalize Hamza forms
-            .replace(/\s+/g, ' ')         // Normalize extra spaces
-            .trim();
-    };
 
     const playSfx = (type: 'buzz' | 'correct' | 'wrong' | 'win' | 'timer' | 'click') => {
         if (sfxMutedRef.current) return;
@@ -1626,7 +1672,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                 {[
                                     { icon: <Users size={18} />, t: '٠ — الانضمام لفريقك', d: 'في صفحة الانتظار اكتب في الشات «دخول الذهبي» أو «دخول النحاسي» حسب الفريق اللي تبيه. اسم الفريق مكتوب عند كل فريق.' },
                                     { icon: <BellRing size={18} />, t: '١ — اكتب «جرس»', d: 'أي لاعب من الفريقين يستطيع رنّ الجرس على الخلية المفتوحة. الفريق الذي جرّب يخسر حقه بالتناوب. الجرس مرة واحدة فقط — بعد الخطأ الدور يروح للفريق الثاني وهو جاهز للجواب بدون جرس.' },
-                                    { icon: <BrainCircuit size={18} />, t: '٢ — جاوب بكلمة تبدأ بحرف الخلية', d: 'عندك مدة محددة للإجابة. جواب خاطئ مرتين أو انتهاء الوقت = الخسارة. بعد فشل الفريقين السؤال يصير مفتوحاً للأسرع — بدون جرس، وأول جواب صحيح يأخذ الخلية.' },
+                                    { icon: <BrainCircuit size={18} />, t: '٢ — جاوب بالإجابة نفسها', d: 'لازم تكتب نفس الإجابة المطلوبة — «ال» والتشكيل ما يفرقون. جواب خاطئ مرتين أو انتهاء الوقت = الخسارة. بعد فشل الفريقين السؤال يصير مفتوحاً للأسرع — بدون جرس، وأول إجابة صحيحة تأخذ الخلية.' },
                                     { icon: <Vote size={18} />, t: '٣ — صوت على الحرف', d: 'خلال التصويت المفتوح اكتب الحرف اللي تبيه في الشات، وأكثر حرف تصويتاً هو اللي ينفتح للمنافسة.' },
                                     { icon: <Trophy size={18} />, t: '٤ — انتصر وكسّب فريقك', d: 'كل خلية تُفتح لفريقك نقطتين للجولة، والفوز بالمرحلة يرفعك لعالم أبعد في الخريطة.' },
                                 ].map((r, i) => (
@@ -2070,7 +2116,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                                             </div>
                                                             <span className={`block text-lg font-extrabold text-[#6fdc9e] mt-1 transition-all duration-300 ${answerRevealed ? '' : 'blur-[8px] select-none'}`}>{currentQuestion.answer}</span>
                                                         </div>
-                                                        <p className="text-xs font-bold text-[#b2a283]/60 italic">أي إجابة تبدأ بحرف ( {activeCell.letter} ) تُعتبر صحيحة</p>
+                                                        <p className="text-xs font-bold text-[#b2a283]/60 italic">لازم تكتب نفس الإجابة — بدون «ال» أو التشكيل تُحتسب صحيحة</p>
                                                     </>
                                                 )}
                                             </>
@@ -2119,7 +2165,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                                     </div>
                                                     <div className="text-right min-w-0">
                                                         <div className={`${isOBS ? 'text-2xl' : 'text-xl'} font-extrabold italic text-[#fbeccb]`}>السؤال مفتوح للجميع !!</div>
-                                                        <div className={`${isOBS ? 'text-lg' : 'text-xs'} font-black mt-1 uppercase tracking-widest text-[#e8be6e]`}>أول جواب يبدأ بحرف {activeCell.letter} يأخذ الخلية</div>
+                                                        <div className={`${isOBS ? 'text-lg' : 'text-xs'} font-black mt-1 uppercase tracking-widest text-[#e8be6e]`}>أول إجابة صحيحة تأخذ الخلية</div>
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-col items-center gap-2 shrink-0">
