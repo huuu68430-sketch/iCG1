@@ -4,7 +4,7 @@ import { supabase } from '../services/supabase';
 import { awardPoints, awardPointsToMany } from '../services/points';
 import { LETTER_GAME_QUESTIONS, getQuestionsForLevel, getWorldForLevel } from '../data/letter_game_data';
 import { HexCellData, LetterQuestion } from '../types';
-import { Home, LogOut, Check, X, Shield, Trophy, Users, Play, Settings, Clock, BrainCircuit, RefreshCw, ArrowLeft, ArrowRight, ArrowLeftRight, Stars, Sparkles, Crown, BellRing, Volume2, VolumeX, ChevronDown, Link, Vote, Swords, Eye, EyeOff, Shuffle } from 'lucide-react';
+import { Home, LogOut, Check, X, Shield, Trophy, Users, Play, Settings, Clock, BrainCircuit, RefreshCw, ArrowLeft, ArrowRight, ArrowLeftRight, Stars, Sparkles, Crown, BellRing, Volume2, VolumeX, ChevronDown, Link, Vote, Swords, Eye, EyeOff, Shuffle, Map as MapIcon } from 'lucide-react';
 import { ProAvatar } from './ProAvatar';
 
 interface LetterHexagonGameProps {
@@ -22,6 +22,16 @@ const ARABIC_LETTERS = ['أ', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', '�
 const GRID_LAYOUT = [6, 5, 6, 5, 6];
 
 const FONT_DISPLAY = "'Baloo Bhaijaan 2','Tajawal',sans-serif";
+
+// The five gold worlds of the level map, shared by the map screen and the victory screen
+const GOLD_ISLAND = { filter: 'sepia(0.85) saturate(1.5) hue-rotate(-8deg) brightness(1.2) contrast(1.05)' };
+const WORLDS = [
+    { id: 1, name: 'الغابة الخضراء', range: [1, 20] as [number, number], color: '#f9e0a4', glow: 'rgba(249,224,164,0.4)', image: '/island_green.png', desc: 'أسئلة سهلة ومرحة للجميع' },
+    { id: 2, name: 'قمم الجليد', range: [21, 40] as [number, number], color: '#e8be6e', glow: 'rgba(232,190,110,0.4)', image: '/island_ice.png', desc: 'أسئلة متوسطة للمتحدين' },
+    { id: 3, name: 'وادي الحمم', range: [41, 60] as [number, number], color: '#c99743', glow: 'rgba(201,151,67,0.4)', image: '/island_lava.png', desc: 'أسئلة صعبة للمحترفين' },
+    { id: 4, name: 'عرين التنين', range: [61, 80] as [number, number], color: '#d2824a', glow: 'rgba(210,130,74,0.4)', image: '/island_lava.png', desc: 'أسئلة صعبة جداً للأبطال' },
+    { id: 5, name: 'عالم الأساطير', range: [81, 100] as [number, number], color: '#a97a30', glow: 'rgba(169,122,48,0.45)', image: '/island_purple.png', desc: 'أسئلة للخبراء فقط' },
+];
 
 const normalize = (val: string) => {
     if (!val) return '';
@@ -467,6 +477,139 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         }
         setLobbyPlayers(prev => prev.map(p => p.username === player.username ? { ...p, team: toTeam } : p));
         showSwitchNotice({ username: player.username, avatar: player.avatar, from: player.team, to: toTeam, kind: 'move' });
+    };
+
+    // شاشة النصر: الساحة بمسار الربح + شريط الخريطة الذي يبيّن أين وصلوا
+    const renderVictoryMap = () => {
+        const gold = '#f0c25a', copper = '#cf7c43';
+        const winColor = winner === 'team1' ? gold : copper;
+        const winInk = winner === 'team1' ? '#2b1a05' : '#fff3e2';
+        const winGlow = winner === 'team1' ? 'rgba(240,194,90,.55)' : 'rgba(207,124,67,.55)';
+        const pathCells = winningPath.map(id => cells.find(c => c.id === id)).filter((c): c is HexCellData => !!c);
+        const centerOf = (c: HexCellData) => ({
+            x: c.col * X_OFFSET + (c.row % 2 !== 0 ? X_OFFSET / 2 : 0) + SVG_WIDTH / 2,
+            y: c.row * Y_OFFSET + SVG_HEIGHT / 2,
+        });
+        const pts = pathCells.map(c => { const q = centerOf(c); return `${q.x.toFixed(0)},${q.y.toFixed(0)}`; }).join(' ');
+        const wonLevel = Math.max(1, currentLevel - 1);
+        const world = WORLDS.find(w => wonLevel >= w.range[0] && wonLevel <= w.range[1]) || WORLDS[0];
+        const scale = 0.58;
+        const vertical = winner === 'team1';
+
+        const cellLook = (cell: HexCellData) => {
+            if (cell.owner === winner) return { fill: winColor, ink: winInk, dim: 1 };
+            if (cell.owner === 'team1') return { fill: gold, ink: '#2b1a05', dim: .3 };
+            if (cell.owner === 'team2') return { fill: copper, ink: '#fff3e2', dim: .3 };
+            return { fill: 'rgba(255,246,220,.05)', ink: 'rgba(232,190,110,.35)', dim: 1 };
+        };
+
+        return (
+            <div className="relative w-full max-w-[640px] flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
+                {/* RIBBON */}
+                <div className="flex items-center gap-2 px-4 py-1.5 rounded-full border backdrop-blur-md" style={{ background: 'rgba(232,190,110,.07)', borderColor: `${winColor}66` }}>
+                    <MapIcon size={14} style={{ color: winColor }} />
+                    <span className="font-black text-[11px] italic tracking-wide text-[#fbeccb]">كيف فازوا — مسار الرباط على الساحة</span>
+                </div>
+
+                {/* MINI BOARD */}
+                <div className="relative" style={{ width: boardWidth * scale, height: boardHeight * scale }}>
+                    <div className="absolute top-0 left-0" style={{ width: boardWidth, height: boardHeight, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+                        <svg className="absolute inset-0 z-20 pointer-events-none" width={boardWidth} height={boardHeight} style={{ overflow: 'visible' }}>
+                            {pts && (
+                                <>
+                                    <polyline points={pts} fill="none" stroke={winColor} strokeWidth={22} strokeLinecap="round" strokeLinejoin="round" opacity={.35} style={{ filter: 'blur(9px)' }} />
+                                    <polyline points={pts} pathLength={100} strokeDasharray="100" fill="none" stroke="#fff6dc" strokeWidth={8} strokeLinecap="round" strokeLinejoin="round"
+                                        className="animate-[pathDraw_1.9s_ease-out_forwards]" style={{ filter: `drop-shadow(0 0 12px ${winGlow})` }} />
+                                </>
+                            )}
+                        </svg>
+
+                        {cells.map(cell => {
+                            const look = cellLook(cell);
+                            const onPath = winningPath.includes(cell.id);
+                            const left = cell.col * X_OFFSET + (cell.row % 2 !== 0 ? X_OFFSET / 2 : 0);
+                            const top = cell.row * Y_OFFSET;
+                            return (
+                                <div key={cell.id} className="absolute flex items-center justify-center" style={{ left, top, width: SVG_WIDTH, height: SVG_HEIGHT }}>
+                                    <svg width={SVG_WIDTH} height={SVG_HEIGHT} className="absolute inset-0 overflow-visible z-0">
+                                        <polygon points={hexPoints} fill={look.fill} fillOpacity={look.dim} stroke={onPath ? '#fff6dc' : cell.owner === 'none' ? 'rgba(232,190,110,.16)' : `${look.fill}88`}
+                                            strokeWidth={onPath ? 5 : 3} strokeLinejoin="round" className={onPath ? 'animate-[winCellPulse_1.8s_ease-in-out_infinite]' : ''}
+                                            style={onPath ? { filter: `drop-shadow(0 0 14px ${winGlow})` } : undefined} />
+                                    </svg>
+                                    <div className="relative z-10 font-black italic leading-none" style={{ fontFamily: FONT_DISPLAY, fontSize: '1.6rem', color: look.ink, opacity: cell.owner === 'none' ? .5 : .95 }}>
+                                        {cell.letter}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* بداية الرباط وهدفه — مثبتان على أول وآخر خلية في المسار */}
+                    {pathCells.length > 0 && (() => {
+                        const a = centerOf(pathCells[0]);
+                        const b = centerOf(pathCells[pathCells.length - 1]);
+                        const look = { background: 'rgba(13,9,4,.92)', border: `1px solid ${winColor}`, color: winColor, boxShadow: `0 0 16px ${winGlow}` };
+                        const startStyle = vertical
+                            ? { ...look, left: a.x * scale, top: -16, transform: 'translateX(-50%)' }
+                            : { ...look, left: -8, top: a.y * scale, transform: 'translate(-100%,-50%)' };
+                        const goalStyle = vertical
+                            ? { ...look, left: b.x * scale, top: boardHeight * scale - 15, transform: 'translateX(-50%)' }
+                            : { ...look, left: boardWidth * scale + 8, top: b.y * scale, transform: 'translateY(-50%)' };
+                        const pillCls = 'absolute z-30 px-2.5 py-1 rounded-full text-[9px] font-black italic whitespace-nowrap backdrop-blur-sm';
+                        return (<>
+                            <div className={pillCls} style={startStyle}>البداية</div>
+                            <div className={pillCls} style={goalStyle}>الهدف 🏆</div>
+                        </>);
+                    })()}
+                </div>
+
+                {/* WORLD TRAIL */}
+                <div className="w-full rounded-[1.6rem] border-2 p-4 relative overflow-hidden" style={{ background: 'linear-gradient(165deg,rgba(36,26,12,.85),rgba(10,7,4,.92))', borderColor: 'rgba(232,190,110,.22)' }}>
+                    <div className="absolute -top-12 right-10 w-40 h-40 rounded-full blur-3xl opacity-15" style={{ background: world.color }}></div>
+                    <div className="relative z-10 flex items-center justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <img src={world.image} className="w-14 h-14 object-contain drop-shadow-[0_6px_12px_rgba(0,0,0,.6)] shrink-0" style={GOLD_ISLAND} alt="" />
+                            <div className="min-w-0">
+                                <h4 className="font-black italic text-lg leading-none truncate" style={{ fontFamily: FONT_DISPLAY, color: world.color }}>{world.name}</h4>
+                                <p className="text-[10px] font-bold text-[#b2a283] mt-1 truncate">{world.desc}</p>
+                            </div>
+                        </div>
+                        <div className="px-3 py-2 rounded-xl text-center shrink-0" style={{ background: `${winColor}1f`, border: `1px solid ${winColor}55` }}>
+                            <div className="text-[8px] font-black uppercase tracking-widest text-[#b2a283]">المرحلة المكتملة</div>
+                            <div className="font-extrabold italic text-sm" style={{ color: winColor }}>{getArabicStageWord(wonLevel)}</div>
+                        </div>
+                    </div>
+
+                    <div className="relative z-10 flex flex-wrap gap-1.5 justify-center pb-7">
+                        {Array.from({ length: world.range[1] - world.range[0] + 1 }, (_, i) => world.range[0] + i).map(lvl => {
+                            const w = levelWinners[lvl];
+                            const isWon = lvl === wonLevel;
+                            const isNext = lvl === currentLevel;
+                            const locked = lvl > highestUnlocked;
+                            return (
+                                <div key={lvl} className={`relative flex items-center justify-center rounded-xl font-black italic border-2 transition-all ${isWon ? 'w-11 h-11 text-base animate-[winCellPulse_1.8s_ease-in-out_infinite]' : 'w-9 h-9 text-[11px]'}`}
+                                    style={isWon
+                                        ? { background: 'linear-gradient(180deg,#f9e0a4,#b88a3e)', borderColor: '#fff6dc', color: '#1a1006', boxShadow: `0 0 22px ${winGlow}` }
+                                        : w
+                                            ? { background: w === 'team1' ? 'rgba(240,194,90,.18)' : 'rgba(207,124,67,.18)', borderColor: w === 'team1' ? 'rgba(240,194,90,.5)' : 'rgba(207,124,67,.5)', color: w === 'team1' ? gold : '#e9b582' }
+                                            : locked
+                                                ? { background: 'rgba(0,0,0,.45)', borderColor: 'rgba(232,190,110,.1)', color: 'rgba(178,162,131,.45)' }
+                                                : { background: 'rgba(255,255,255,.04)', borderColor: 'rgba(232,190,110,.2)', color: 'rgba(251,236,203,.6)' }}>
+                                    {isWon ? <Trophy size={18} className="text-[#1a1006]" /> : locked ? <Shield size={12} /> : lvl}
+                                    {isNext && <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest whitespace-nowrap text-[#1a1006]" style={{ background: 'linear-gradient(180deg,#f9e0a4,#b88a3e)' }}>التالية ⚔️</span>}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="relative z-10 flex items-center justify-center gap-4 mt-1 text-[9px] font-black uppercase tracking-wider text-[#b2a283]">
+                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded" style={{ background: gold }}></span>فوز الذهبي</span>
+                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded" style={{ background: copper }}></span>فوز النحاسي</span>
+                        <span className="flex items-center gap-1.5"><Shield size={10} />مقفولة</span>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     // The announcement card, shared by the manager lobby and the OBS lobby
@@ -1590,14 +1733,8 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
             {/* STAGE: LEVEL SELECT MAP — GOLD WORLDS */}
             {/* STAGE: LEVEL SELECT — CLASSIC ISLAND MAP (gold/copper palette) */}
             {!isOBS && stage === 'levelSelect' && (() => {
-                const goldIsland = { filter: 'sepia(0.85) saturate(1.5) hue-rotate(-8deg) brightness(1.2) contrast(1.05)' };
-                const worlds = [
-                    { id: 1, name: 'الغابة الخضراء', range: [1, 20] as [number, number], color: '#f9e0a4', glow: 'rgba(249,224,164,0.4)', image: '/island_green.png', desc: 'أسئلة سهلة ومرحة للجميع' },
-                    { id: 2, name: 'قمم الجليد', range: [21, 40] as [number, number], color: '#e8be6e', glow: 'rgba(232,190,110,0.4)', image: '/island_ice.png', desc: 'أسئلة متوسطة للمتحدين' },
-                    { id: 3, name: 'وادي الحمم', range: [41, 60] as [number, number], color: '#c99743', glow: 'rgba(201,151,67,0.4)', image: '/island_lava.png', desc: 'أسئلة صعبة للمحترفين' },
-                    { id: 4, name: 'عرين التنين', range: [61, 80] as [number, number], color: '#d2824a', glow: 'rgba(210,130,74,0.4)', image: '/island_lava.png', desc: 'أسئلة صعبة جداً للأبطال' },
-                    { id: 5, name: 'عالم الأساطير', range: [81, 100] as [number, number], color: '#a97a30', glow: 'rgba(169,122,48,0.45)', image: '/island_purple.png', desc: 'أسئلة للخبراء فقط' },
-                ];
+                const worlds = WORLDS;
+                const goldIsland = GOLD_ISLAND;
                 return (
                     <div className="absolute inset-0 z-[100] bg-[#0a0805] flex flex-col items-center overflow-hidden animate-in fade-in duration-700">
                         {/* Immersive Space Background */}
@@ -2366,7 +2503,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
             {/* STAGE: ENDED — GOLD VICTORY SCREEN (manager only) */}
             {!isOBS && stage === 'ended' && (
                 <div className="absolute inset-0 z-[500] flex items-center justify-center overflow-hidden">
-                    {!isOBS && <div className="absolute inset-0" style={{ background: winner === 'team1' ? 'radial-gradient(ellipse at center,rgba(240,194,90,.16) 0%,rgba(10,8,5,.94) 70%)' : 'radial-gradient(ellipse at center,rgba(207,124,67,.16) 0%,rgba(10,8,5,.94) 70%)' }}></div>}
+                    {!isOBS && <div className="absolute inset-0 backdrop-blur-xl" style={{ background: winner === 'team1' ? 'radial-gradient(ellipse at center,rgba(240,194,90,.10) 0%,rgba(8,6,3,.93) 55%)' : 'radial-gradient(ellipse at center,rgba(207,124,67,.10) 0%,rgba(8,6,3,.93) 55%)' }}></div>}
                     {isOBS && <div className="absolute inset-0 pointer-events-none" style={{ background: winner === 'team1' ? 'radial-gradient(ellipse at center,rgba(240,194,90,.22) 0%,transparent 70%)' : 'radial-gradient(ellipse at center,rgba(207,124,67,.22) 0%,transparent 70%)' }}></div>}
 
                     {/* CELEBRATION PARTICLES */}
@@ -2384,7 +2521,9 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                         }} />
                     ))}
 
-                    <div className="relative z-10 flex flex-col items-center gap-4 max-w-lg w-full px-4 text-center animate-in zoom-in duration-700">
+                    <div className="relative z-10 w-full max-w-[1360px] px-6 flex items-center justify-center gap-8 lg:gap-12 animate-in fade-in duration-700">
+                        {/* يمين: بطاقة الفائز والأوامر */}
+                        <div className="flex flex-col items-center gap-4 w-full max-w-[420px] shrink-0 text-center animate-in zoom-in duration-700">
                         <div className="flex items-center gap-2 px-5 py-1.5 rounded-full backdrop-blur-md border" style={{ background: 'rgba(232,190,110,.08)', borderColor: 'rgba(232,190,110,.4)' }}>
                             <Trophy size={14} className="text-[#e8be6e]" />
                             <span className="text-[#fbeccb] font-black text-xs uppercase tracking-widest italic">نصر رائع!</span>
@@ -2392,7 +2531,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                         </div>
 
                         <div className="relative mt-2">
-                            <h1 className="text-[3.4rem] font-extrabold italic tracking-tighter leading-none select-none animate-pulse" style={{ fontFamily: FONT_DISPLAY, background: winner === 'team1' ? 'linear-gradient(180deg,#fff6dc,#e8be6e 55%,#8f5f12)' : 'linear-gradient(180deg,#ffe8cf,#cf7c43 55%,#6b3213)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', WebkitTextStroke: '1px rgba(232,190,110,.15)' }}>
+                            <h1 className="text-[2.6rem] font-extrabold italic tracking-tighter leading-none select-none whitespace-nowrap animate-pulse" style={{ fontFamily: FONT_DISPLAY, background: winner === 'team1' ? 'linear-gradient(180deg,#fff6dc,#e8be6e 55%,#8f5f12)' : 'linear-gradient(180deg,#ffe8cf,#cf7c43 55%,#6b3213)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', WebkitTextStroke: '1px rgba(232,190,110,.15)' }}>
                                 فـــــــــــــــــاز
                             </h1>
                             <div className="absolute -inset-8 blur-3xl opacity-20 animate-pulse rounded-full" style={{ background: winner === 'team1' ? '#f0c25a' : '#cf7c43' }}></div>
@@ -2431,18 +2570,26 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                         </div>
 
                         {!isOBS && (
-                            <div className="flex gap-3 mt-3">
-                                <button onClick={() => startGame()} className="flex items-center gap-3 px-7 py-4 rounded-2xl font-extrabold text-xl text-[#1a1006] transition-all hover:scale-105 active:scale-95 shadow-[0_12px_30px_rgba(232,190,110,.3)] border-b-4 border-black/30" style={{ background: 'linear-gradient(180deg,#f9e0a4,#b88a3e)', fontFamily: FONT_DISPLAY }}>
+                            <div className="w-full flex flex-col gap-3 mt-3">
+                                <button onClick={() => startGame()} className="flex items-center justify-center gap-3 w-full px-7 py-4 rounded-2xl font-extrabold text-xl text-[#1a1006] transition-all hover:scale-105 active:scale-95 shadow-[0_12px_30px_rgba(232,190,110,.3)] border-b-4 border-black/30" style={{ background: 'linear-gradient(180deg,#f9e0a4,#b88a3e)', fontFamily: FONT_DISPLAY }}>
                                     <Play fill="currentColor" size={20} /> المرحلة التالية
                                 </button>
-                                <button onClick={() => setStage('levelSelect')} className="flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-base transition-all border-2 hover:scale-105 active:scale-95 bg-[#e8be6e]/5 border-[#e8be6e]/30 text-[#e8be6e] hover:bg-[#e8be6e]/15">
-                                    <Stars size={20} /> الخريطة
-                                </button>
-                                <button onClick={onHome} className="flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-base transition-all border-2 hover:scale-105 active:scale-95 bg-[#cf7c43]/10 border-[#cf7c43]/30 text-[#d2824a] hover:bg-[#cf7c43] hover:text-[#fff3e2]">
-                                    <Home size={20} /> الرئيسية
-                                </button>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setStage('levelSelect')} className="flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-black text-base transition-all border-2 hover:scale-105 active:scale-95 bg-[#e8be6e]/5 border-[#e8be6e]/30 text-[#e8be6e] hover:bg-[#e8be6e]/15">
+                                        <Stars size={20} /> الخريطة
+                                    </button>
+                                    <button onClick={onHome} className="flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-black text-base transition-all border-2 hover:scale-105 active:scale-95 bg-[#cf7c43]/10 border-[#cf7c43]/30 text-[#d2824a] hover:bg-[#cf7c43] hover:text-[#fff3e2]">
+                                        <Home size={20} /> الرئيسية
+                                    </button>
+                                </div>
                             </div>
                         )}
+                        </div>
+
+                        {/* يسار: كيف فازوا — الساحة بمسار الربح + شريط الخريطة */}
+                        <div className="flex-1 min-w-0 flex justify-center">
+                            {renderVictoryMap()}
+                        </div>
                     </div>
                 </div>
             )}
@@ -2466,6 +2613,8 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                 @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
                 @keyframes switchPop { 0% { transform: translateY(26px) scale(.82); opacity: 0; } 60% { transform: translateY(-6px) scale(1.04); opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
                 @keyframes switchNudge { 0%,100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+                @keyframes pathDraw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+                @keyframes winCellPulse { 0%,100% { stroke-width: 5; opacity: 1; } 50% { stroke-width: 8; opacity: .82; } }
                 @keyframes float { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-60px) rotate(180deg); } }
             `}</style>
         </div>
