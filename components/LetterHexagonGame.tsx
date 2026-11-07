@@ -4,7 +4,7 @@ import { supabase } from '../services/supabase';
 import { awardPoints, awardPointsToMany } from '../services/points';
 import { LETTER_GAME_QUESTIONS, getQuestionsForLevel, getWorldForLevel } from '../data/letter_game_data';
 import { HexCellData, LetterQuestion } from '../types';
-import { Home, LogOut, Check, X, Shield, Trophy, Users, Play, Settings, Clock, BrainCircuit, RefreshCw, ArrowLeft, ArrowRight, Stars, Sparkles, Crown, BellRing, Volume2, VolumeX, ChevronDown, Link, Vote, Swords, Eye, EyeOff } from 'lucide-react';
+import { Home, LogOut, Check, X, Shield, Trophy, Users, Play, Settings, Clock, BrainCircuit, RefreshCw, ArrowLeft, ArrowRight, ArrowLeftRight, Stars, Sparkles, Crown, BellRing, Volume2, VolumeX, ChevronDown, Link, Vote, Swords, Eye, EyeOff, Shuffle } from 'lucide-react';
 import { ProAvatar } from './ProAvatar';
 
 interface LetterHexagonGameProps {
@@ -154,6 +154,16 @@ interface Player {
     team: 'team1' | 'team2';
 }
 
+// Announcement shown on screen when chat asks to switch teams in the lobby
+interface SwitchNotice {
+    id: number;
+    username: string;
+    avatar: string;
+    from: 'team1' | 'team2' | null;
+    to: 'team1' | 'team2';
+    kind: 'move' | 'same' | 'outside';
+}
+
 type Stage = 'settings' | 'levelSelect' | 'lobby' | 'playing' | 'ended';
 
 interface LogEntry {
@@ -251,6 +261,12 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
     const [linkCopied, setLinkCopied] = useState(false);
     const [showInstructions, setShowInstructions] = useState(false);
 
+    // «تغيير + اسم الفريق» — لاعب يبدّل فريقه في اللوبي، والتبديل يظهر على الشاشة
+    const [switchNotice, setSwitchNotice] = useState<SwitchNotice | null>(null);
+    const switchSeqRef = useRef(0);
+    const switchTimerRef = useRef<any>(null);
+    useEffect(() => () => { if (switchTimerRef.current) clearTimeout(switchTimerRef.current); }, []);
+
     // Track winners per level
     const [levelWinners, setLevelWinners] = useState<Record<number, 'team1' | 'team2'>>(() => {
         if (typeof window !== 'undefined') {
@@ -317,6 +333,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                     if (data.winner !== undefined) setWinner(data.winner);
                     if (data.winningPath !== undefined) setWinningPath(data.winningPath);
                     if (data.lobbyPlayers !== undefined) setLobbyPlayers(data.lobbyPlayers);
+                    if (data.switchNotice !== undefined) setSwitchNotice(data.switchNotice);
                     if (data.team1Name !== undefined) setTeam1Name(data.team1Name);
                     if (data.team2Name !== undefined) setTeam2Name(data.team2Name);
                     if (data.entryKeyword !== undefined) setEntryKeyword(data.entryKeyword);
@@ -365,7 +382,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                     cells, stage, activeCell, currentQuestion,
                     buzzedTeam, buzzedPlayer, answerTimer,
                     lastAnswer, triedTeams, openTurn, winner, winningPath,
-                    lobbyPlayers, team1Name, team2Name, entryKeyword,
+                    lobbyPlayers, switchNotice, team1Name, team2Name, entryKeyword,
                     answerDuration, difficulty, currentLevel,
                     votingActive, letterVotes, votingEligibleTeam, showVotingPanel, votedUsers,
                     votingTimer, votingDuration
@@ -380,10 +397,11 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
     });
 
     useEffect(() => {
-        if (stage === 'playing' || stage === 'ended') {
+        // The lobby syncs too, so joins and team switches show up live on stream
+        if (stage === 'playing' || stage === 'ended' || stage === 'lobby') {
             broadcastFullState();
         }
-    }, [cells, stage, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, answerTimer, lastAnswer, triedTeams, openTurn, winner, winningPath, lobbyPlayers, team1Name, team2Name, entryKeyword, isOBS, currentLevel, answerDuration, votingActive, letterVotes, votingEligibleTeam, showVotingPanel, votedUsers, votingTimer, votingDuration]);
+    }, [cells, stage, activeCell, currentQuestion, buzzedTeam, buzzedPlayer, answerTimer, lastAnswer, triedTeams, openTurn, winner, winningPath, lobbyPlayers, switchNotice, team1Name, team2Name, entryKeyword, isOBS, currentLevel, answerDuration, votingActive, letterVotes, votingEligibleTeam, showVotingPanel, votedUsers, votingTimer, votingDuration]);
 
     // Chat listener (Main Bell Game logic)
     const normalizeArabicText = (s: string) => s.replace(/[^\u0621-\u064A\s]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -400,6 +418,14 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
     // Team name without emoji/symbols for typing in chat
     const cleanTeamName = (n: string) => normalizeArabicText(n).split(' ').filter(w => w && w !== 'فريق' && w !== 'الفريق').join(' ');
 
+    const teamFromName = (rest: string): 'team1' | 'team2' | null => {
+        const n1 = cleanTeamName(team1Name);
+        const n2 = cleanTeamName(team2Name);
+        if (n1 && (rest.includes(n1) || n1.includes(rest))) return 'team1';
+        if (n2 && (rest.includes(n2) || n2.includes(rest))) return 'team2';
+        return null;
+    };
+
     // Join command = entry keyword + team name, e.g. "دخول الذهبي"
     const getTeamByJoinText = (content: string): 'team1' | 'team2' | null => {
         const cleaned = normalizeArabicText(content);
@@ -407,11 +433,96 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
         if (!kw || !cleaned.startsWith(kw)) return null;
         const rest = cleaned.slice(kw.length).trim();
         if (!rest) return null;
-        const n1 = cleanTeamName(team1Name);
-        const n2 = cleanTeamName(team2Name);
-        if (n1 && (rest.includes(n1) || n1.includes(rest))) return 'team1';
-        if (n2 && (rest.includes(n2) || n2.includes(rest))) return 'team2';
-        return null;
+        return teamFromName(rest);
+    };
+
+    // Switch command = switch verb + team name, e.g. "تغير النحاسي" / "تغيير نحاسي"
+    const SWITCH_WORDS = ['تغيير', 'تغير', 'غير', 'تبديل', 'تبدل', 'بدل', 'انتقال', 'انتقل', 'تحويل', 'حول'];
+    const getTeamBySwitchText = (content: string): 'team1' | 'team2' | null => {
+        const cleaned = normalizeArabicText(content);
+        const [head, ...tail] = cleaned.split(' ');
+        const rest = tail.join(' ').trim();
+        if (!head || !rest) return null;
+        const verb = normalize(head).replace(/^ال/, '');
+        if (!SWITCH_WORDS.some(w => normalize(w) === verb)) return null;
+        return teamFromName(rest);
+    };
+
+    const showSwitchNotice = (n: Omit<SwitchNotice, 'id'>) => {
+        switchSeqRef.current += 1;
+        setSwitchNotice({ ...n, id: switchSeqRef.current });
+        if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
+        switchTimerRef.current = setTimeout(() => setSwitchNotice(null), 4500);
+    };
+
+    const handleTeamSwitch = (username: string, toTeam: 'team1' | 'team2') => {
+        const player = lobbyPlayers.find(p => p.username.toLowerCase() === username.toLowerCase());
+        if (!player) {
+            showSwitchNotice({ username, avatar: '', from: null, to: toTeam, kind: 'outside' });
+            return;
+        }
+        if (player.team === toTeam) {
+            showSwitchNotice({ username: player.username, avatar: player.avatar, from: player.team, to: toTeam, kind: 'same' });
+            return;
+        }
+        setLobbyPlayers(prev => prev.map(p => p.username === player.username ? { ...p, team: toTeam } : p));
+        showSwitchNotice({ username: player.username, avatar: player.avatar, from: player.team, to: toTeam, kind: 'move' });
+    };
+
+    // The announcement card, shared by the manager lobby and the OBS lobby
+    const renderSwitchToast = (obs: boolean) => {
+        if (!switchNotice) return null;
+        const skins = {
+            team1: { name: team1Name, grad: 'linear-gradient(180deg,#f9e0a4,#b88a3e)', chip: '#f0c25a', glow: 'rgba(240,194,90,.45)' },
+            team2: { name: team2Name, grad: 'linear-gradient(180deg,#e9b582,#8a4a1e)', chip: '#cf7c43', glow: 'rgba(207,124,67,.45)' },
+        };
+        const to = skins[switchNotice.to];
+        const from = switchNotice.from ? skins[switchNotice.from] : null;
+        const headline = switchNotice.kind === 'move' ? 'بدّل الفريق!'
+            : switchNotice.kind === 'same' ? 'أنت في هذا الفريق أصلاً'
+            : 'ما أنت داخل اللوبي بعد';
+        const chip = (s: { name: string; grad: string; glow: string }) => (
+            <span className="px-3 py-1 rounded-full font-black italic whitespace-nowrap shadow-lg"
+                style={{ background: s.grad, color: '#1a1006', fontSize: obs ? '1.15rem' : '.72rem', boxShadow: `0 0 16px ${s.glow}` }}>
+                {s.name}
+            </span>
+        );
+        return (
+            <div key={switchNotice.id} className={`absolute left-1/2 -translate-x-1/2 z-50 ${obs ? '-bottom-[170px]' : 'bottom-[152px]'}`}>
+                <div className="relative flex items-center gap-4 px-6 py-4 rounded-[1.8rem] border-2 overflow-hidden animate-[switchPop_.55s_cubic-bezier(.2,1.35,.35,1)]"
+                    style={{ background: 'linear-gradient(165deg,rgba(36,26,12,.96),rgba(10,8,5,.96))', borderColor: `${to.chip}99`, boxShadow: `0 18px 50px ${to.glow}` }}>
+                    <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full blur-3xl opacity-25" style={{ background: to.chip }}></div>
+                    <div className="absolute inset-0 pointer-events-none opacity-50" style={{ background: 'linear-gradient(115deg,transparent 35%,rgba(255,255,255,.18) 50%,transparent 65%)', animation: 'shimmer 2.4s ease-in-out infinite' }}></div>
+
+                    <div className="relative z-10 shrink-0">
+                        <ProAvatar username={switchNotice.username} url={switchNotice.avatar} size={obs ? 'w-20 h-20' : 'w-12 h-12'} className="overflow-visible" />
+                    </div>
+
+                    <div className="relative z-10 flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                            <Shuffle size={obs ? 26 : 16} style={{ color: to.chip }} />
+                            <span className="font-black italic leading-none" style={{ fontFamily: FONT_DISPLAY, color: to.chip, fontSize: obs ? '2rem' : '1.1rem' }}>{headline}</span>
+                        </div>
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                            <span className={`font-black text-white max-w-[10rem] truncate ${obs ? 'text-2xl' : 'text-sm'}`}>{switchNotice.username}</span>
+                            {switchNotice.kind === 'outside' ? (
+                                <span className={`font-black italic text-[#fbeccb]/75 ${obs ? 'text-xl' : 'text-[11px]'}`}>
+                                    اكتب <span style={{ color: to.chip }}>{entryKeyword} {cleanTeamName(to.name)}</span> للدخول
+                                </span>
+                            ) : switchNotice.kind === 'same' ? (
+                                chip(to)
+                            ) : (
+                                <>
+                                    {from && chip(from)}
+                                    <ArrowLeftRight size={obs ? 28 : 18} className="shrink-0 animate-[switchNudge_1.1s_ease-in-out_infinite]" style={{ color: to.chip }} />
+                                    {chip(to)}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     useEffect(() => {
@@ -429,6 +540,9 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                         chatService.fetchKickAvatar(u).then(avatar => {
                             setLobbyPlayers(prev => prev.map(p => p.username === u ? { ...p, avatar } : p));
                         });
+                    } else {
+                        const switchTeam = getTeamBySwitchText(msg.content);
+                        if (switchTeam) handleTeamSwitch(msg.user.username, switchTeam);
                     }
                 }
 
@@ -600,6 +714,8 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
     };
 
     const startGame = () => {
+        if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
+        setSwitchNotice(null);
         // Deterministic shuffle based on currentLevel
         const seededRandom = (seed: number) => {
             let currentSeed = seed;
@@ -972,12 +1088,16 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                             <Volume2 className="text-black animate-pulse" size={28} />
                                             <span className="text-black font-black text-3xl italic tracking-tighter">أكتب [ {entryKeyword} ] + اسم الفريق للدخول!</span>
                                         </div>
+                                        <div className="flex items-center gap-2 text-black/70">
+                                            <Shuffle size={16} />
+                                            <span className="text-black font-black text-base italic">للتبديل: اكتب [ تغيير ] + اسم الفريق</span>
+                                        </div>
                                         <div className="text-[10px] font-black text-black/40 uppercase tracking-widest">JOIN THE BATTLE NOW</div>
                                     </div>
 
                                     {/* TEAMS PREVIEW */}
                                     <div className="grid grid-cols-2 gap-12 mt-6 w-full">
-                                        {/* Team 1 — red */}
+                                        {/* Team 1 — gold */}
                                         <div className="flex flex-col items-center gap-4 group">
                                             <div className="relative">
                                                 <div className="absolute -inset-4 bg-[#f0c25a]/30 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -1012,7 +1132,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                             </div>
                                         </div>
 
-                                        {/* Team 2 — blue */}
+                                        {/* Team 2 — copper */}
                                         <div className="flex flex-col items-center gap-4 group">
                                             <div className="relative">
                                                 <div className="absolute -inset-4 bg-[#cf7c43]/30 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -1056,6 +1176,8 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                             <ChevronDown className="text-white/20" size={40} />
                             <span className="text-[9px] font-black text-white/10 uppercase tracking-[0.8em]">Get Ready For Battle</span>
                         </div>
+
+                        {renderSwitchToast(true)}
                     </div>
                 </div>
             )}
@@ -1644,6 +1766,7 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                             <div className="space-y-3 mb-6">
                                 {[
                                     { icon: <Users size={18} />, t: '٠ — الانضمام لفريقك', d: `في صفحة الانتظار اكتب في الشات «${entryKeyword} ${cleanTeamName(team1Name)}» أو «${entryKeyword} ${cleanTeamName(team2Name)}» حسب الفريق اللي تبيه. اسم الفريق مكتوب عند كل فريق.` },
+                                    { icon: <Shuffle size={18} />, t: '٠٫٥ — غيّرت رأيك؟', d: `اكتب «تغيير ${cleanTeamName(team2Name)}» أو «تغيير ${cleanTeamName(team1Name)}» وتنتقل فوراً للفريق الثاني — التبديل يظهر على الشاشة عندك وعند البث، والطابور كامل يتحدّث.` },
                                     { icon: <BellRing size={18} />, t: '١ — اكتب «جرس»', d: 'أي لاعب من الفريقين يستطيع رنّ الجرس على الخلية المفتوحة. الفريق الذي جرّب يخسر حقه بالتناوب. الجرس مرة واحدة فقط — بعد الخطأ الدور يروح للفريق الثاني وهو جاهز للجواب بدون جرس.' },
                                     { icon: <BrainCircuit size={18} />, t: '٢ — جاوب بالإجابة نفسها', d: 'الإجابة المطلوبة كلمة واحدة — اكتبها كما هي، و«ال» والتشكيل ما يفرقون. فرصة واحدة فقط: جواب خاطئ أو انتهاء الوقت = الخسارة والدور ينتقل فوراً. بعد فشل الفريقين السؤال يصير مفتوحاً للأسرع — بدون جرس، وأول إجابة صحيحة تأخذ الخلية.' },
                                     { icon: <Vote size={18} />, t: '٣ — صوت على الحرف', d: 'خلال التصويت المفتوح اكتب الحرف اللي تبيه في الشات، وأكثر حرف تصويتاً هو اللي ينفتح للمنافسة.' },
@@ -1774,6 +1897,12 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                                         <span className="px-3 py-1 rounded-full text-[10px] font-black italic text-[#2b1a05]" style={{ background: 'linear-gradient(180deg,#e9b582,#8a4a1e)' }}>{entryKeyword} {cleanTeamName(team2Name)}</span>
                                         <span className="text-[10px] font-black uppercase tracking-[0.35em]" style={{ color: 'rgba(232,190,110,.5)' }}>WRITE دخول + TEAM NAME</span>
                                     </div>
+                                    <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#cf7c43]/30 bg-[#cf7c43]/10">
+                                        <Shuffle size={13} className="text-[#d2824a]" />
+                                        <span className="text-[11px] font-bold italic text-[#fbeccb]/70">غيّرت رأيك؟ اكتب</span>
+                                        <span className="text-[11px] font-black italic text-[#cf7c43]">[ تغيير ] + اسم الفريق</span>
+                                        <span className="text-[10px] font-black text-[#b2a283]/60">مثال: تغيير {cleanTeamName(team2Name)}</span>
+                                    </div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
@@ -1793,6 +1922,8 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                             <Play fill="currentColor" size={28} /> {lobbyPlayers.length < 2 ? 'لاعبان على الأقل' : 'بـدء الـتـحـدي'}
                         </button>
                     </div>
+
+                    {renderSwitchToast(false)}
                 </div>
             )}
 
@@ -2333,6 +2464,8 @@ export const LetterHexagonGame: React.FC<LetterHexagonGameProps> = ({ onHome, is
                 @keyframes neonPulse { 0%, 100% { opacity: 0.4; filter: brightness(1); } 50% { opacity: 0.8; filter: brightness(2); } }
                 @keyframes letterGlow { 0%, 100% { text-shadow: 0 0 10px rgba(255,255,255,0.5); } 50% { text-shadow: 0 0 30px rgba(255,255,255,1), 0 0 50px rgba(90,34,163,0.5); } }
                 @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+                @keyframes switchPop { 0% { transform: translateY(26px) scale(.82); opacity: 0; } 60% { transform: translateY(-6px) scale(1.04); opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+                @keyframes switchNudge { 0%,100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
                 @keyframes float { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-60px) rotate(180deg); } }
             `}</style>
         </div>
