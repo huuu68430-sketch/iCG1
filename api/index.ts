@@ -65,11 +65,48 @@ const routes: Record<string, (req: any, res: any) => any> = {
 };
 
 export default function handler(req: any, res: any) {
+  ensureRes(res);
   // قاعدة vercel.json توجّه /api/(.*) إلى هنا مع ?route=(المسار الفرعي)
   const route = typeof req.query?.route === 'string' ? '/' + req.query.route : '/';
   const target = routes[route];
   if (!target) {
     return res.status(404).json({ error: 'Not found' });
   }
-  return target(req, res);
+  try {
+    return target(req, res);
+  } catch (e: any) {
+    console.error('[api]', route, e?.message || e);
+    if (!res.headersSent) return res.status(500).json({ error: 'Service error' });
+  }
+}
+
+/**
+ * طبقة توافق كاملة لـ Node res (منصة واحدة لا توفّر res.status/json):
+ * نكتب ترويسة + JSON صراحةً، وإن وُجدت الأدوات أصلًا لا نمسّها.
+ */
+function ensureRes(res: any) {
+  if (!res || typeof res !== 'object' || res.__icg1Shim) return res;
+  if (typeof res.json !== 'function') {
+    const origSetHeader = typeof res.setHeader === 'function' ? res.setHeader.bind(res) : null;
+    const origWriteHead = typeof res.writeHead === 'function' ? res.writeHead.bind(res) : null;
+    res.status = function (code: number) { res.statusCode = code; return res; };
+    res.json = function (obj: any) {
+      try {
+        if (!res.headersSent) {
+          if (origWriteHead) res.writeHead(res.statusCode || 200, { 'Content-Type': 'application/json; charset=utf-8' });
+          else { res.statusCode = res.statusCode || 200; if (origSetHeader) origSetHeader('Content-Type', 'application/json; charset=utf-8'); }
+        }
+        res.end(JSON.stringify(obj));
+      } catch { /* انتهى الرد */ }
+      return res;
+    };
+    if (!origSetHeader) {
+      res.setHeader = function (k: string, v: any) {
+        try { res[k] = v; } catch { /* */ }
+        return res;
+      };
+    }
+  }
+  res.__icg1Shim = true;
+  return res;
 }
