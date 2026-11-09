@@ -123,18 +123,8 @@ const App: React.FC = () => {
     if (pathView && pathView !== 'HOME' && pathView !== '') return pathView as any;
     if (isHostRoute()) return 'HOST_GATE';
     if (initialParams.view !== 'ABOUT' && initialParams.view !== 'HOME') return initialParams.view;
-    try {
-      const stored = localStorage.getItem('site_access_granted');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.valid) {
-          // التخزين المحلي يثبت بوابة الموقع فقط، ولا يمنح صلاحية الإدارة: لو رجعنا
-          // مباشرة ADMIN_PANEL فإن أي تحديث على «/» يقذفنا في /admin-login بعد فشل me().
-          if (parsed.role === 'admin') return 'HOME';
-          if (parsed.role === 'user') return 'USER_DASHBOARD';
-        }
-      }
-    } catch (e) { }
+    // الصفحة الشخصية /about هي الرئيسية للجميع (مسجلًا وضيفًا) —
+    // الجلسة (isAuthorized) تُستعاد منتهًا في useState أدناه، فلا حاجة لأي بوابة هنا.
     return initialParams.view;
   });
   const navigate = useNavigate();
@@ -481,13 +471,9 @@ useEffect(() => {
     return () => { alive = false; };
 }, [currentView, adminChecked]);
 
-  // PROTECTION: Prevent regular users from accessing the HOME page
-  useEffect(() => {
-    if (isAuthorized && userRole === 'user' && currentView === 'HOME') {
-      console.log("[Security] Redirecting user from HOME to DASHBOARD");
-      setCurrentView('USER_DASHBOARD');
-    }
-  }, [isAuthorized, userRole, currentView]);
+  // الصفحة الشخصية (/about) هي الرئيسية للموقع كاملًا للجميع:
+  // «ادخل العب الآن» يدخل مباشرة إلى شبكة الألعاب (HOME) وحسابه معه.
+  // لا توجيه تلقائي هنا.
 
   const handleCategorySelect = (id: string) => {
     setSelectedCategory(id);
