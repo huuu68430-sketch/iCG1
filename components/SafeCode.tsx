@@ -1,472 +1,801 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { chatService } from '../services/chatService';
-import { leaderboardService } from '../services/supabase';
-import { ChatUser } from '../types';
-import { Lock, Play, Trophy, ShieldAlert, Terminal, Zap, Fingerprint, Cpu, Eye, EyeOff, Settings, X, Award } from 'lucide-react';
+import { awardPoints } from '../services/points';
 import { ProAvatar } from './ProAvatar';
-import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Settings, Play, Plus, Minus, Users, LogOut, Trophy, Send, Lock, Key,
+  Clock, Shield, Target, Siren, Home
+} from 'lucide-react';
+import './SafeCode.css';
 
 interface SafeCodeProps {
   onHome: () => void;
   isOBS?: boolean;
 }
 
-interface PlayerGuess {
-  id: string;
-  user: ChatUser;
-  guess: string;
-  matches: boolean[];
-  isWinner: boolean;
-  timestamp: number;
+interface Player {
+  name: string;
+  avatar?: string;
+  pts: number;
+  att: number;
+  last: number;
 }
 
-export const SafeCode: React.FC<SafeCodeProps> = ({ onHome, isOBS }) => {
-  const [phase, setPhase] = useState<'SETUP' | 'PLAYING' | 'WINNER'>('SETUP');
-  const [targetCode, setTargetCode] = useState<string>('');
-  const [guesses, setGuesses] = useState<PlayerGuess[]>([]);
-  const [winner, setWinner] = useState<PlayerGuess | null>(null);
-  const [foundDigits, setFoundDigits] = useState<(string | null)[]>([null, null, null, null]);
-  const [isCodeVisible, setIsCodeVisible] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showHints, setShowHints] = useState(true);
-  
-  const phaseRef = useRef(phase);
-  const targetCodeRef = useRef(targetCode);
-  const guessesRef = useRef(guesses);
-  const foundDigitsRef = useRef(foundDigits);
-  const scrollRef = useRef<HTMLDivElement>(null);
+interface LogRow {
+  id: string;
+  name: string;
+  avatar?: string;
+  guess: string;
+  hit: boolean[];
+  nw: number;
+}
 
-  useEffect(() => { phaseRef.current = phase; }, [phase]);
-  useEffect(() => { targetCodeRef.current = targetCode; }, [targetCode]);
-  useEffect(() => { guessesRef.current = guesses; }, [guesses]);
-  useEffect(() => { foundDigitsRef.current = foundDigits; }, [foundDigits]);
+interface Result {
+  kind: 'win' | 'lose';
+  name?: string;
+  avatar?: string;
+  sec?: number;
+  tries?: number;
+}
 
-  const generateCode = () => {
-    return Math.floor(1000 + Math.random() * 9000).toString().padStart(4, '0');
-  };
+type Screen = 'SETUP' | 'LOBBY' | 'PLAY';
 
-  const startGame = () => {
-    setTargetCode(generateCode());
-    setGuesses([]);
-    setWinner(null);
-    setFoundDigits([null, null, null, null]);
-    setIsCodeVisible(false);
-    setPhase('PLAYING');
-  };
+const K_SIZE = [0, 0, 0, 9, 8.4, 7, 5.8];
+const BOUNDS: Record<'len' | 'time' | 'cd', [number, number, number]> = {
+  len: [3, 6, 1],
+  time: [30, 300, 15],
+  cd: [0, 10, 1],
+};
 
-  useEffect(() => {
-    const unsubscribe = chatService.onMessage((msg) => {
-      if (phaseRef.current !== 'PLAYING') return;
+const arDigits = (s: string) =>
+  String(s)
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
 
-      const content = msg.content.trim();
-      
-      const match = content.match(/^\d{4}$/);
-      
-      if (match) {
-        const guess = match[0];
-        const target = targetCodeRef.current;
-        let isWinner = true;
-        const matches: boolean[] = [false, false, false, false];
-        const newFound = [...foundDigitsRef.current];
-        let newlyDiscovered = false;
-
-        for (let i = 0; i < 4; i++) {
-          if (guess[i] === target[i]) {
-            matches[i] = true;
-            if (newFound[i] === null) {
-              newFound[i] = guess[i];
-              newlyDiscovered = true;
-            }
-          } else {
-            isWinner = false;
-          }
-        }
-
-        if (newlyDiscovered) {
-          setFoundDigits(newFound);
-        }
-
-        const newGuess: PlayerGuess = {
-          id: msg.id + Date.now() + Math.random(),
-          user: msg.user,
-          guess,
-          matches,
-          isWinner,
-          timestamp: Date.now()
-        };
-
-        setGuesses(prev => {
-          // Append to end for auto-scroll effect
-          const updated = [...prev, newGuess];
-          if (updated.length > 40) return updated.slice(updated.length - 40);
-          return updated;
-        });
-
-        if (isWinner) {
-          setPhase('WINNER');
-          setWinner(newGuess);
-          leaderboardService.recordWin(msg.user.username, msg.user.avatar || '', 200);
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Auto-scroll to bottom of log when new guesses come in
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
-  }, [guesses]);
+/* ------------------------------------------------------------------ */
+/*  الخزنة (SVG) — نفس تصميم icg1-bank                                 */
+/* ------------------------------------------------------------------ */
+const Vault: React.FC<{
+  digits: number;
+  open?: boolean;
+  revealed: boolean[];
+  revealAll?: boolean;
+  code: string[];
+  dial: number;
+  vaultRef?: React.RefObject<HTMLDivElement | null>;
+}> = ({ digits, open, revealed, revealAll, code, dial, vaultRef }) => {
+  const uid = React.useId().replace(/[:]/g, '');
+  const ticks = Array.from({ length: 48 });
+  const rivets = Array.from({ length: 12 });
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center font-sans overflow-hidden relative z-10 text-white">
-      {/* Dynamic Red Background FX */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(220,38,38,0.15)_0%,transparent_70%)]" />
-        <motion.div 
-          animate={{ opacity: [0.3, 0.5, 0.3], scale: [1, 1.05, 1] }} 
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-red-600/10 blur-[120px] rounded-full"
-        />
+    <div className={`vw${open ? ' open' : ''}`} style={{ '--k': K_SIZE[digits] ?? 8 } as React.CSSProperties} ref={vaultRef}>
+      <div className="glow"><Trophy className="ic f" /></div>
+      <div className="door">
+        <svg className="vs" viewBox="0 0 400 400" aria-hidden="true">
+          <defs>
+            <linearGradient id={`sg${uid}`} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#f6ebd9" />
+              <stop offset=".35" stopColor="#b99a72" />
+              <stop offset=".7" stopColor="#6b5238" />
+              <stop offset="1" stopColor="#2a1c10" />
+            </linearGradient>
+            <radialGradient id={`dg${uid}`} cx=".4" cy=".3" r=".9">
+              <stop offset="0" stopColor="#34241a" />
+              <stop offset="1" stopColor="#0d0805" />
+            </radialGradient>
+            <radialGradient id={`rv${uid}`} cx=".35" cy=".3">
+              <stop offset="0" stopColor="#fff" />
+              <stop offset="1" stopColor="#7a6350" />
+            </radialGradient>
+          </defs>
+
+          <g fill={`url(#sg${uid})`} stroke="#150e08" strokeWidth="2.5">
+            <rect x="-8" y="92" width="24" height="52" rx="7" />
+            <rect x="-8" y="256" width="24" height="52" rx="7" />
+            <rect className="bt b1" x="184" y="0" width="32" height="34" rx="8" />
+            <rect className="bt b2" x="184" y="366" width="32" height="34" rx="8" />
+            <rect className="bt b3" x="0" y="184" width="34" height="32" rx="8" />
+            <rect className="bt b4" x="366" y="184" width="34" height="32" rx="8" />
+          </g>
+
+          <circle cx="200" cy="200" r="176" fill={`url(#sg${uid})`} stroke="#150e08" strokeWidth="3" />
+          <circle cx="200" cy="200" r="167" fill="none" stroke="#fff" strokeOpacity=".35" strokeWidth="1.5" />
+          <circle cx="200" cy="200" r="152" fill="none" stroke="#150e08" strokeOpacity=".5" strokeWidth="2" strokeDasharray="2 7" />
+          <circle cx="200" cy="200" r="140" fill={`url(#dg${uid})`} stroke="#cdb391" strokeOpacity=".4" strokeWidth="2" />
+
+          {rivets.map((_, i) => {
+            const a = (i * Math.PI) / 6;
+            return (
+              <circle
+                key={i}
+                cx={(200 + 154 * Math.cos(a)).toFixed(1)}
+                cy={(200 + 154 * Math.sin(a)).toFixed(1)}
+                r="5"
+                fill={`url(#rv${uid})`}
+                stroke="#150e08"
+                strokeWidth="1.5"
+              />
+            );
+          })}
+
+          <circle className="lamp" cx="200" cy="47" r="5.5" />
+          <circle cx="200" cy="150" r="68" fill="#0a0604" stroke="#cdb391" strokeWidth="3" />
+          <g className="dial" style={{ transform: `rotate(${dial}deg)` }}>
+            {ticks.map((_, i) => (
+              <path
+                key={i}
+                d={`M200 88v${i % 6 ? 5 : 11}`}
+                transform={`rotate(${i * 7.5} 200 150)`}
+                stroke={i % 6 ? '#a8937a' : '#e0b77e'}
+                strokeWidth={i % 6 ? 1.5 : 2.5}
+                strokeLinecap="round"
+              />
+            ))}
+          </g>
+          <circle cx="200" cy="150" r="42" fill={`url(#dg${uid})`} stroke="#e0b77e" strokeOpacity=".6" strokeWidth="2" />
+          <path d="M194 76h12l-6 12z" fill="#e0b77e" />
+          <g transform="translate(182 132) scale(1.5)" fill="none" stroke="#e0b77e" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="4" y="11" width="16" height="10" rx="2.5" />
+            <path d="M8 11V7.5a4 4 0 0 1 8 0V11M12 15v2" />
+          </g>
+        </svg>
+
+        <div className="scan" />
+
+        <div className="drums">
+          {Array.from({ length: digits }).map((_, i) => {
+            const ok = !!revealed[i];
+            const bad = !ok && !!revealAll;
+            const landed = ok || bad;
+            return (
+              <div key={i} className={`dr${ok ? ' ok' : ''}${bad ? ' bad' : ''}`}>
+                <div
+                  className="st"
+                  style={landed ? { transform: `translateY(-${((+(code[i] ?? 0)) / 11) * 100}%)` } : undefined}
+                >
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((d, k) => (
+                    <b key={k}>{d}</b>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/*  اللعبة                                                             */
+/* ------------------------------------------------------------------ */
+export const SafeCode: React.FC<SafeCodeProps> = ({ onHome, isOBS }) => {
+  const [screen, setScreen] = useState<Screen>('SETUP');
+  const [cfg, setCfg] = useState({ len: 4, time: 120, cd: 3, word: 'دخول' });
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [code, setCode] = useState<string[]>([]);
+  const [rev, setRev] = useState<boolean[]>([]);
+  const [revealAll, setRevealAll] = useState(false);
+  const [tries, setTries] = useState(0);
+  const [remain, setRemain] = useState(0);
+  const [log, setLog] = useState<LogRow[]>([]);
+  const [open, setOpen] = useState(false);
+  const [result, setResult] = useState<Result | null>(null);
+  const [toast, setToast] = useState('');
+  const [alarm, setAlarm] = useState(false);
+  const [dial, setDial] = useState(0);
+  const [newName, setNewName] = useState('');
+  const [reduce, setReduce] = useState(false);
+
+  const screenRef = useRef<Screen>('SETUP');
+  const cfgRef = useRef(cfg);
+  const playersRef = useRef<Player[]>([]);
+  const codeRef = useRef<string[]>([]);
+  const revRef = useRef<boolean[]>([]);
+  const triesRef = useRef(0);
+  const lockRef = useRef(true);
+  const endRef = useRef(0);
+  const startRef = useRef(0);
+  const triedRef = useRef<Set<string>>(new Set());
+  const timersRef = useRef<number[]>([]);
+  const audioRef = useRef<AudioContext | null>(null);
+  const vaultRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const burstRef = useRef<(n: number) => void>(() => {});
+  const lastTickRef = useRef(-1);
+  const toastTimer = useRef<number | undefined>(undefined);
+
+  useEffect(() => { screenRef.current = screen; }, [screen]);
+  useEffect(() => { cfgRef.current = cfg; }, [cfg]);
+
+  const later = (fn: () => void, ms: number) => {
+    const id = window.setTimeout(fn, ms);
+    timersRef.current.push(id);
+    return id;
+  };
+  const clearTimers = () => {
+    timersRef.current.forEach((id) => window.clearTimeout(id));
+    timersRef.current = [];
+  };
+
+  /* ---------- preferred-reduced-motion ---------- */
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduce(mq.matches);
+    update();
+    mq.addEventListener?.('change', update);
+    return () => mq.removeEventListener?.('change', update);
+  }, []);
+
+  /* ---------- audio ---------- */
+  const tone = (f: number, d: number, at = 0, v = 0.1, type: OscillatorType = 'sine') => {
+    try {
+      if (!audioRef.current) {
+        const Ctor = window.AudioContext || (window as any).webkitAudioContext;
+        if (!Ctor) return;
+        audioRef.current = new Ctor();
+      }
+      const c = audioRef.current;
+      const o = c.createOscillator();
+      const g = c.createGain();
+      const n = c.currentTime + at;
+      o.type = type;
+      o.frequency.value = f;
+      o.connect(g);
+      g.connect(c.destination);
+      g.gain.setValueAtTime(v, n);
+      g.gain.exponentialRampToValueAtTime(0.001, n + d);
+      o.start(n);
+      o.stop(n + d);
+    } catch { /* متصفح بلا صوت */ }
+  };
+  const sCrack = () => { tone(660, 0.12, 0, 0.1, 'triangle'); tone(990, 0.2, 0.1, 0.1, 'triangle'); };
+  const sWrong = () => tone(140, 0.25, 0, 0.12, 'sawtooth');
+  const sTick = () => tone(1000, 0.05, 0, 0.05, 'square');
+  const sAlarm = () => { for (let i = 0; i < 8; i++) tone(i % 2 ? 620 : 880, 0.3, i * 0.3, 0.1, 'square'); };
+  const sOpen = () => {
+    tone(80, 0.5, 0, 0.3);
+    [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.6, 0.7 + i * 0.14, 0.11, 'triangle'));
+  };
+
+  /* ---------- toast ---------- */
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(''), 2300);
+  }, []);
+
+  /* ---------- مركز المنطقة داخل الصفحة (الشات على اليمين) ---------- */
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty('--sc-shift', `${Math.max(0, window.innerWidth / 2 - (r.left + r.width / 2))}px`);
+      el.style.setProperty('--sc-pr', `${Math.max(0, window.innerWidth - r.right)}px`);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    let ro: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(measure);
+      ro.observe(el);
+    }
+    return () => {
+      window.removeEventListener('resize', measure);
+      ro?.disconnect();
+    };
+  }, []);
+
+  /* ---------- particles ---------- */
+  useEffect(() => {
+    const cv = canvasRef.current;
+    if (!cv || reduce) { burstRef.current = () => {}; return; }
+    const ctx = cv.getContext('2d');
+    if (!ctx) return;
+
+    let W = 0, H = 0;
+    type P = { x: number; y: number; r: number; vx: number; vy: number; a: number; l: number };
+    const dots: P[] = [];
+    const resize = () => { W = cv.width = window.innerWidth; H = cv.height = window.innerHeight; };
+    resize();
+    window.addEventListener('resize', resize);
+
+    for (let i = 0; i < 40; i++) {
+      dots.push({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.6 + 0.4, vx: 0, vy: -(Math.random() * 0.5 + 0.15), a: Math.random() * 0.5 + 0.15, l: 0 });
+    }
+
+    burstRef.current = (n: number) => {
+      const b = vaultRef.current?.getBoundingClientRect();
+      const cx = b ? b.left + b.width / 2 : W / 2;
+      const cy = b ? b.top + b.height / 2 : H / 2;
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * 7;
+        const v = Math.random() * 7 + 2;
+        dots.push({ x: cx, y: cy, r: Math.random() * 2.4 + 0.8, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2, a: 1, l: 1 });
+      }
+    };
+
+    let raf = 0;
+    const frame = () => {
+      ctx.clearRect(0, 0, W, H);
+      for (let i = dots.length - 1; i >= 0; i--) {
+        const p = dots[i];
+        if (p.l) {
+          p.vy += 0.12; p.vx *= 0.985; p.a -= 0.012;
+          if (p.a <= 0.02) { dots.splice(i, 1); continue; }
+        } else if (p.y < -5) {
+          p.y = H + 5; p.x = Math.random() * W;
+        }
+        p.x += p.vx + (p.l ? 0 : Math.sin(p.y / 60) * 0.3);
+        p.y += p.vy;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, 7);
+        ctx.fillStyle = `rgba(232,190,120,${p.a})`;
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    frame();
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', resize);
+    };
+  }, [reduce]);
+
+  /* ---------- helpers ---------- */
+  const commitPlayers = (next: Player[]) => {
+    playersRef.current = next;
+    setPlayers(next);
+  };
+
+  const goSetup = useCallback(() => {
+    clearTimers();
+    lockRef.current = true;
+    setAlarm(false);
+    setResult(null);
+    setOpen(false);
+    setRevealAll(false);
+    setPlayers([]);
+    playersRef.current = [];
+    setScreen('SETUP');
+  }, []);
+
+  const addPlayer = useCallback((name: string, avatar?: string): boolean => {
+    const nm = String(name || '').trim().slice(0, 18);
+    if (!nm) return false;
+    if (screenRef.current !== 'LOBBY' && screenRef.current !== 'PLAY') return false;
+    if (playersRef.current.some((p) => p.name.toLowerCase() === nm.toLowerCase())) return false;
+    playersRef.current = [...playersRef.current, { name: nm, avatar, pts: 0, att: 0, last: 0 }];
+    setPlayers(playersRef.current);
+    tone(740, 0.1, 0, 0.07, 'triangle');
+    return true;
+  }, []);
+
+  const startLobby = () => {
+    clearTimers();
+    commitPlayers([]);
+    setScreen('LOBBY');
+  };
+
+  const startGame = useCallback(() => {
+    if (!playersRef.current.length) return;
+    clearTimers();
+    const fresh = playersRef.current.map((p) => ({ ...p, pts: 0, att: 0, last: 0 }));
+    commitPlayers(fresh);
+
+    const len = cfgRef.current.len;
+    const bytes = new Uint32Array(len);
+    crypto.getRandomValues(bytes);
+    const nextCode = [...bytes].map((x) => String(x % 10));
+
+    codeRef.current = nextCode;
+    revRef.current = Array(len).fill(false);
+    triedRef.current = new Set();
+    triesRef.current = 0;
+    lockRef.current = false;
+    lastTickRef.current = -1;
+    startRef.current = Date.now();
+    endRef.current = Date.now() + cfgRef.current.time * 1000;
+
+    setCode(nextCode);
+    setRev(Array(len).fill(false));
+    setRevealAll(false);
+    setTries(0);
+    setLog([]);
+    setOpen(false);
+    setResult(null);
+    setAlarm(false);
+    setRemain(cfgRef.current.time * 1000);
+    setDial((d) => d + 720);
+    setScreen('PLAY');
+  }, []);
+
+  const win = useCallback((p: Player) => {
+    lockRef.current = true;
+    setOpen(true);
+    sOpen();
+    burstRef.current(180);
+    const sec = Math.round((Date.now() - startRef.current) / 1000);
+    awardPoints('SAFE_CODE', p.name, p.avatar || '', 'match');
+    later(() => {
+      setResult({ kind: 'win', name: p.name, avatar: p.avatar, sec, tries: triesRef.current });
+    }, 2200);
+  }, []);
+
+  const timeout = useCallback(() => {
+    if (lockRef.current) return;
+    lockRef.current = true;
+    setAlarm(true);
+    setRevealAll(true);
+    sAlarm();
+    later(() => {
+      setAlarm(false);
+      setResult({ kind: 'lose' });
+    }, 2600);
+  }, []);
+
+  const guess = useCallback((username: string, avatar: string | undefined, raw: string, fromHost = false): boolean => {
+    if (screenRef.current !== 'PLAY' || lockRef.current) return false;
+    const text = arDigits(String(raw || '')).replace(/\s/g, '');
+    const len = cfgRef.current.len;
+    if (!/^\d+$/.test(text) || text.length !== len) return false;
+
+    let idx = playersRef.current.findIndex((p) => p.name.toLowerCase() === String(username).toLowerCase());
+    if (idx === -1) {
+      const nm = String(username || '').trim().slice(0, 18) || 'مخترق';
+      playersRef.current = [...playersRef.current, { name: nm, avatar, pts: 0, att: 0, last: 0 }];
+      idx = playersRef.current.length - 1;
+    }
+
+    const player = playersRef.current[idx];
+    const now = Date.now();
+    if (now - player.last < cfgRef.current.cd * 1000) {
+      if (fromHost) showToast(`انتظر ${Math.ceil((cfgRef.current.cd * 1000 - (now - player.last)) / 1000)} ثواني للمحاولة التالية`);
+      return false;
+    }
+    if (triedRef.current.has(text)) {
+      if (fromHost) showToast('هذا الرمز جُرّب من قبل');
+      return false;
+    }
+
+    triedRef.current.add(text);
+    triesRef.current += 1;
+    setTries(triesRef.current);
+
+    const nextRev = [...revRef.current];
+    let nw = 0;
+    const hit = [...text].map((c, i) => {
+      const ok = c === codeRef.current[i];
+      if (ok && !nextRev[i]) { nextRev[i] = true; nw++; }
+      return ok;
+    });
+    revRef.current = nextRev;
+    setRev(nextRev);
+
+    const nextPlayers = [...playersRef.current];
+    nextPlayers[idx] = { ...player, last: now, att: player.att + 1, pts: player.pts + nw };
+    commitPlayers(nextPlayers);
+
+    setDial((d) => d + (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random() * 180));
+
+    setLog((prev) => {
+      const row: LogRow = {
+        id: `${now}-${Math.random().toString(36).slice(2, 8)}`,
+        name: nextPlayers[idx].name,
+        avatar,
+        guess: text,
+        hit,
+        nw,
+      };
+      return [row, ...prev].slice(0, 40);
+    });
+
+    if (nextRev.every(Boolean)) {
+      win(nextPlayers[idx]);
+    } else if (nw) {
+      sCrack();
+      burstRef.current(30);
+    } else {
+      sWrong();
+    }
+    return true;
+  }, [showToast, win]);
+
+  /* ---------- chat wiring ---------- */
+  useEffect(() => {
+    const unsub = chatService.onMessage((msg) => {
+      const text = String(msg.content || '').trim();
+      const name = msg.user?.username || '';
+      if (!name) return;
+      const word = cfgRef.current.word.trim();
+
+      if (screenRef.current === 'LOBBY') {
+        if (text === word) addPlayer(name, msg.user?.avatar);
+        return;
+      }
+      if (screenRef.current === 'PLAY') {
+        if (text === word) { addPlayer(name, msg.user?.avatar); return; }
+        guess(name, msg.user?.avatar, text);
+      }
+    });
+    return () => unsub();
+  }, [addPlayer, guess]);
+
+  /* ---------- countdown ---------- */
+  useEffect(() => {
+    if (screen !== 'PLAY') return;
+    const id = window.setInterval(() => {
+      if (lockRef.current) return;
+      const rest = Math.max(0, endRef.current - Date.now());
+      setRemain(rest);
+      const sec = Math.ceil(rest / 1000);
+      if (rest <= 5000 && rest > 0 && sec !== lastTickRef.current) {
+        lastTickRef.current = sec;
+        sTick();
+      }
+      if (rest <= 0) timeout();
+    }, 100);
+    return () => window.clearInterval(id);
+  }, [screen, timeout]);
+
+  useEffect(() => () => {
+    clearTimers();
+    window.clearTimeout(toastTimer.current);
+  }, []);
+
+  /* ---------- derived ---------- */
+  const step = (k: 'len' | 'time' | 'cd', dir: number) => {
+    const [min, max, s] = BOUNDS[k];
+    setCfg((prev) => ({ ...prev, [k]: Math.max(min, Math.min(max, prev[k] + dir * s)) }));
+  };
+  const fmt = (k: 'len' | 'time' | 'cd') => (k === 'len' ? cfg.len : `${cfg[k]}s`);
+
+  const foundCount = rev.filter(Boolean).length;
+  const secs = Math.ceil(remain / 1000);
+  const clock = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+  const low = remain < 15000;
+  const top = [...players].sort((a, b) => b.pts - a.pts || a.att - b.att).slice(0, 5);
+  const topThree = [...players].filter((p) => p.pts).sort((a, b) => b.pts - a.pts).slice(0, 3);
+  const winner = result?.kind === 'win' ? players.find((p) => p.name === result.name) : undefined;
+
+  const stepper = (k: 'len' | 'time' | 'cd') => (
+    <div className="stp">
+      <button type="button" onClick={() => step(k, 1)} aria-label="زيادة"><Plus className="ic" /></button>
+      <b>{fmt(k)}</b>
+      <button type="button" onClick={() => step(k, -1)} aria-label="إنقاص"><Minus className="ic" /></button>
+    </div>
+  );
+
+  return (
+    <div
+      ref={rootRef}
+      className={`safecode-root${alarm ? ' alarm' : ''}${reduce ? ' reduce-motion' : ''}`}
+      data-s={screen.toLowerCase()}
+    >
+      <canvas ref={canvasRef} className="fx" aria-hidden="true" />
+      <div className="cam" aria-hidden="true"><i /><i /><i /><i /></div>
+
+      <div className="top">
+        <img src="/logo-435242.png" alt="" />
+        <span className="topname">iCG1</span>
       </div>
 
-
-
-      {phase === 'SETUP' && (
-        <motion.div 
-          initial={{ scale: 0.8, opacity: 0, y: 50 }} 
-          animate={{ scale: 1, opacity: 1, y: 0 }} 
-          transition={{ type: "spring", bounce: 0.5 }}
-          className="bg-black/60 p-16 rounded-[3rem] border border-red-500/40 flex flex-col items-center gap-8 backdrop-blur-xl z-10 shadow-[0_0_80px_rgba(220,38,38,0.2)] relative overflow-hidden"
-        >
-          {!isOBS && (
-            <div className="absolute top-4 left-4 flex gap-3">
-              <button onClick={onHome} className="bg-black/60 p-2.5 rounded-full hover:bg-red-900/50 transition-colors border border-red-500/30 backdrop-blur-md group" title="الرئيسية">
-                <Lock className="w-5 h-5 text-red-500 group-hover:text-red-400" />
-              </button>
-              <button onClick={() => setShowSettings(true)} className="bg-black/60 p-2.5 rounded-full hover:bg-red-900/50 transition-colors border border-red-500/30 backdrop-blur-md group" title="الإعدادات">
-                <Settings className="w-5 h-5 text-red-500 group-hover:text-red-400" />
-              </button>
-            </div>
-          )}
-          {/* Decorative elements */}
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
-          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 blur-3xl rounded-full" />
-          
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            className="relative"
-          >
-            <ShieldAlert className="w-32 h-32 text-red-500 drop-shadow-[0_0_15px_rgba(220,38,38,0.8)]" />
-            <div className="absolute inset-0 border-2 border-dashed border-red-500/30 rounded-full scale-125" />
-          </motion.div>
-
-          <div className="text-center space-y-2">
-            <h1 className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-red-100 to-red-500 tracking-wider">
-              البنك الآمن
-            </h1>
-            <p className="text-red-400/80 text-2xl max-w-lg mx-auto font-medium">
-              الخزنة المركزية مقفلة برمز سري من 4 أرقام. أسرع هكر يخترق الرمز سيفوز!
-            </p>
-          </div>
-
-          <motion.button 
-            whileHover={{ scale: 1.05, boxShadow: "0 0 30px rgba(220,38,38,0.5)" }}
-            whileTap={{ scale: 0.95 }}
-            onClick={startGame} 
-            className="mt-6 bg-gradient-to-r from-red-700 to-red-500 hover:from-red-600 hover:to-red-400 text-white font-bold py-5 px-16 rounded-full text-3xl flex items-center gap-4 transition-all border border-red-400/50"
-          >
-            <Zap className="w-8 h-8 fill-white" />
-            بدء الهجوم
-          </motion.button>
-        </motion.div>
+      {!isOBS && (
+        <button className="homebtn" onClick={onHome} title="الرئيسية" aria-label="الرئيسية">
+          <Home className="ic" />
+        </button>
       )}
+      <button className="exit" onClick={goSetup} aria-label="خروج إلى الإعدادات"><LogOut className="ic" /></button>
 
-      {phase === 'PLAYING' && (
-        <div className="w-full h-full flex flex-col p-8 z-10 min-h-0 relative">
-          {/* Top bar */}
-          <div className="flex items-center justify-between mb-8 shrink-0">
-            <motion.div 
-              initial={{ y: -50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-            >
-              <div className="bg-black/50 border border-red-500/40 px-10 py-5 rounded-3xl flex items-center gap-6 backdrop-blur-md shadow-[0_0_30px_rgba(220,38,38,0.2)]">
-                <Terminal className="w-10 h-10 text-red-500 animate-pulse" />
-                <h2 className="text-4xl font-black text-white tracking-[0.2em] uppercase">SYSTEM BREACH IN PROGRESS</h2>
+      <main>
+        <header className="ttl">
+          <h1>البنك الآمن</h1>
+          <div className="sub">Safe Bank</div>
+        </header>
+
+        {/* ================= SETUP ================= */}
+        {screen === 'SETUP' && (
+          <div className="two">
+            <div className="card">
+              <div className="ch"><h2>إعدادات اللعبة</h2><Settings className="ic" /></div>
+              <div className="box c"><label>عدد أرقام الرمز السري</label>{stepper('len')}</div>
+              <div className="row2">
+                <div className="box c"><label>وقت الاختراق</label>{stepper('time')}</div>
+                <div className="box c"><label>انتظار بين المحاولات</label>{stepper('cd')}</div>
               </div>
-            </motion.div>
-
-            {!isOBS && (
-              <div className="flex items-center gap-3">
-                <button onClick={onHome} className="bg-black/60 p-2.5 rounded-full hover:bg-red-900/50 transition-colors border border-red-500/30 backdrop-blur-md group" title="الرئيسية">
-                  <Lock className="w-5 h-5 text-red-500 group-hover:text-red-400" />
-                </button>
-                <button onClick={() => setShowSettings(true)} className="bg-black/60 p-2.5 rounded-full hover:bg-red-900/50 transition-colors border border-red-500/30 backdrop-blur-md group" title="الإعدادات">
-                  <Settings className="w-5 h-5 text-red-500 group-hover:text-red-400" />
-                </button>
-                <div className="flex items-center gap-3 bg-black/60 px-5 py-2.5 rounded-full border border-red-500/30 backdrop-blur-md shadow-lg">
-                  <span className={`font-mono text-xl tracking-[0.3em] font-black transition-all duration-300 ${isCodeVisible ? 'text-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'text-gray-400 blur-md select-none'}`}>
-                    {targetCode}
-                  </span>
-                  <button 
-                    onMouseEnter={() => setIsCodeVisible(true)}
-                    onMouseLeave={() => setIsCodeVisible(false)}
-                    className="text-red-500 hover:text-red-400 p-1 border-l border-red-500/30 pl-3"
-                  >
-                    {isCodeVisible ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1 flex gap-10 max-w-[90rem] w-full mx-auto min-h-0">
-            {/* Safe Display - Left Side */}
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0">
-              <div className="relative group mb-10 shrink-0">
-                <motion.div 
-                  animate={{ scale: [1, 1.02, 1], opacity: [0.8, 1, 0.8] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className="absolute inset-0 bg-red-600/30 blur-[100px] rounded-full" 
+              <div className="box">
+                <label htmlFor="sc-jw">كلمة الانضمام</label>
+                <input
+                  className="txt"
+                  id="sc-jw"
+                  value={cfg.word}
+                  maxLength={12}
+                  onChange={(e) => setCfg((p) => ({ ...p, word: e.target.value }))}
                 />
-                <div className="bg-black/60 border border-red-500/50 rounded-full w-[18rem] h-[18rem] flex items-center justify-center shadow-[0_0_80px_rgba(220,38,38,0.4)] relative z-10 backdrop-blur-xl">
-                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 15, repeat: Infinity, ease: "linear" }} className="absolute inset-4 border-[3px] border-dashed border-red-500/30 rounded-full" />
-                  <motion.div animate={{ rotate: -360 }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="absolute inset-10 border-2 border-dotted border-red-400/20 rounded-full" />
-                  <Lock className="w-24 h-24 text-red-500 drop-shadow-[0_0_15px_rgba(220,38,38,0.8)]" />
-                  <div className="absolute bottom-16 text-red-500/50 font-mono text-lg tracking-widest">LOCKED</div>
-                </div>
-              </div>
-
-              <div className="flex gap-5 text-5xl font-black text-white font-mono bg-black/50 p-6 rounded-[2rem] border border-red-500/30 shadow-[0_0_40px_rgba(0,0,0,0.5)] backdrop-blur-md shrink-0 mb-8" dir="ltr">
-                {[0, 1, 2, 3].map((i) => {
-                  const digit = showHints ? foundDigits[i] : null;
-                  return (
-                    <div key={i} className={`w-20 h-28 rounded-2xl flex items-center justify-center border-2 shadow-inner relative overflow-hidden transition-all duration-500
-                      ${digit !== null 
-                        ? 'bg-green-500/20 border-green-500 text-green-400 shadow-[0_0_30px_rgba(34,197,94,0.5)]' 
-                        : 'bg-black/80 border-red-900/50 text-red-500/30'}`}
-                    >
-                      <div className={`absolute inset-0 bg-gradient-to-b ${digit !== null ? 'from-green-500/10' : 'from-red-500/5'} to-transparent pointer-events-none`} />
-                      {digit !== null ? (
-                        <motion.span initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring' }}>
-                          {digit}
-                        </motion.span>
-                      ) : (
-                        '?'
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <motion.div 
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className="text-red-400 text-lg flex items-center justify-center gap-3 bg-red-950/40 px-6 py-3 rounded-full border border-red-900/50 shrink-0 w-[85%]"
-              >
-                <Cpu className="w-5 h-5 shrink-0" />
-                <span>اكتب 4 أرقام في الشات لاختراق الخزنة...</span>
-              </motion.div>
-            </div>
-
-            {/* Protocol Log - Right Side */}
-            <div className="flex-[0.9] bg-black/60 border border-red-500/30 rounded-[2rem] p-6 flex flex-col relative backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden shrink-0 max-h-[60%] mt-40">
-              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-red-600 to-transparent opacity-70" />
-              
-              <div className="flex items-center gap-3 mb-5 border-b border-red-500/20 pb-4 shrink-0">
-                <Fingerprint className="w-7 h-7 text-red-500" />
-                <h3 className="text-red-500 font-mono text-xl tracking-widest font-bold">LIVE PROTOCOL LOG</h3>
-                <div className="mr-auto flex items-center gap-2 text-red-400/60 font-mono text-sm">
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                  INTERCEPTING
-                </div>
-              </div>
-              
-              <div ref={scrollRef} className="flex-1 overflow-y-auto pr-3 flex flex-col gap-3 custom-scrollbar min-h-0">
-                <AnimatePresence initial={false}>
-                  {guesses.map((g) => (
-                    <motion.div 
-                      key={g.id}
-                      initial={{ opacity: 0, x: 50, scale: 0.9 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
-                      className="bg-black/80 p-4 rounded-xl border border-red-900/40 flex items-center justify-between group hover:border-red-500/50 transition-colors relative overflow-hidden shrink-0"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                      
-                      <div className="flex items-center gap-3 relative z-10">
-                        <ProAvatar url={g.user.avatar} username={g.user.username} size="w-10 h-10" className="border-2 border-red-900/50" />
-                        <span className="text-gray-200 font-bold text-base truncate max-w-[140px]">{g.user.username}</span>
-                      </div>
-                      <div className="flex gap-1.5 relative z-10" dir="ltr">
-                        {g.guess.split('').map((char, i) => {
-                          const isCorrect = g.matches[i];
-                          return (
-                            <motion.div 
-                              initial={{ rotateX: 90 }}
-                              animate={{ rotateX: 0 }}
-                              transition={{ delay: i * 0.1, type: "spring" }}
-                              key={i} 
-                              className={`w-10 h-12 flex items-center justify-center text-xl font-black font-mono rounded-lg border-2 
-                                ${isCorrect 
-                                  ? 'bg-green-500/20 border-green-500 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.6)]' 
-                                  : 'bg-red-950/40 border-red-900/40 text-red-500/40'}`}
-                            >
-                              {char}
-                            </motion.div>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
-                  ))}
-                  
-                  {guesses.length === 0 && (
-                    <div className="h-full flex items-center justify-center text-red-500/30 font-mono text-lg opacity-50 animate-pulse">
-                      WAITING FOR INPUT...
-                    </div>
-                  )}
-                </AnimatePresence>
               </div>
             </div>
-          </div>
-        </div>
-      )}
 
-      {phase === 'WINNER' && winner && (
-        <motion.div 
-          initial={{ scale: 0.5, opacity: 0 }} 
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", bounce: 0.5, duration: 0.8 }}
-          className="absolute inset-0 z-50 flex items-center justify-center p-8 bg-black/80 backdrop-blur-xl"
-        >
-          {/* Confetti / Particle effect behind winner */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-             {[...Array(20)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ y: "100vh", x: "50vw", scale: 0 }}
-                  animate={{ 
-                    y: "-10vh", 
-                    x: `${Math.random() * 100}vw`,
-                    scale: [0, Math.random() * 2 + 1, 0],
-                    rotate: Math.random() * 360
-                  }}
-                  transition={{ duration: 2 + Math.random() * 2, repeat: Infinity, ease: "easeOut" }}
-                  className="absolute w-4 h-4 bg-red-500 rounded-full shadow-[0_0_10px_#dc2626]"
-                />
-             ))}
-          </div>
-
-          <div className="bg-black/90 p-16 rounded-[3rem] border-4 border-red-500/50 flex flex-col items-center gap-8 shadow-[0_0_150px_rgba(220,38,38,0.4)] relative overflow-hidden z-10 pointer-events-auto">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(220,38,38,0.2)_0%,transparent_70%)] pointer-events-none" />
-            
-            <motion.div
-              animate={{ rotate: [0, -10, 10, -10, 10, 0] }}
-              transition={{ duration: 1, delay: 0.5 }}
-            >
-              <Trophy className="w-40 h-40 text-red-500 drop-shadow-[0_0_40px_rgba(220,38,38,0.8)]" />
-            </motion.div>
-
-            <h2 className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-red-500 mb-4">
-              تم الاختراق بنجاح!
-            </h2>
-            
-            <motion.div 
-              initial={{ x: -50, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="flex items-center justify-center gap-8 my-4"
-            >
-              <ProAvatar url={winner.user.avatar} username={winner.user.username} size="w-32 h-32" className="border-4 border-red-500 shadow-[0_0_30px_rgba(220,38,38,0.6)]" />
-              <div className="text-right">
-                <p className="text-5xl text-white font-black mb-2 drop-shadow-[0_2px_10px_rgba(220,38,38,0.5)]">{winner.user.username}</p>
-                <div className="flex items-center gap-2 justify-end mb-2">
-                  <div className="flex items-center gap-2 bg-green-500/20 border border-green-500/40 px-4 py-1.5 rounded-full">
-                    <Award size={18} className="text-green-400" />
-                    <span className="text-green-300 font-black text-xl">+200 نقطة</span>
-                  </div>
-                </div>
-                <p className="text-2xl text-red-400 font-medium">هو أول من اخترق البنك وفتح الخزنة!</p>
+            <div className="card hw">
+              <div className="vm">
+                <Vault digits={4} revealed={[]} code={[]} dial={0} />
               </div>
-            </motion.div>
-
-            <div className="flex gap-6 mt-6" dir="ltr">
-              {winner.guess.split('').map((char, i) => (
-                <motion.div 
-                  key={i}
-                  initial={{ scale: 0, rotate: -180 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ delay: 0.5 + (i * 0.1), type: "spring" }}
-                  className="w-28 h-32 bg-red-950/40 border-4 border-red-500 rounded-2xl flex items-center justify-center text-7xl font-black font-mono text-red-500 shadow-[0_0_40px_rgba(220,38,38,0.6)]"
-                >
-                  {char}
-                </motion.div>
-              ))}
+              <h2>كيف تلعب؟</h2>
+              <ol>
+                <li><span className="sn">1</span><span>الخزنة مقفلة برمز سري، والوقت يعدّ تنازلياً</span></li>
+                <li><span className="sn">2</span><span>اكتب الرمز في الشات، مثل <span className="nb">4821</span></span></li>
+                <li><span className="sn">3</span><span>الرقم الصحيح في مكانه ينكشف للجميع، ومن يكشف آخر رقم يفتح الخزنة</span></li>
+              </ol>
+              <button className="go" onClick={startLobby}><Play className="ic f" />بدء الهجوم</button>
             </div>
-
-            <motion.button 
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={startGame} 
-              className="mt-12 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-black py-5 px-16 rounded-full text-2xl transition-all shadow-[0_0_30px_rgba(220,38,38,0.6)] cursor-pointer relative z-50"
-            >
-              تأمين الخزنة ولعب جولة جديدة
-            </motion.button>
           </div>
-        </motion.div>
-      )}
-
-      {/* Settings Modal */}
-      <AnimatePresence>
-        {showSettings && !isOBS && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-black/90 border-2 border-red-500/50 p-8 rounded-3xl min-w-[500px] shadow-[0_0_50px_rgba(220,38,38,0.3)] relative overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
-              
-              <div className="flex justify-between items-center mb-8 border-b border-red-500/20 pb-4">
-                <h3 className="text-2xl font-bold text-red-500 flex items-center gap-3">
-                  <Settings className="w-7 h-7" /> 
-                  إعدادات اللعبة
-                </h3>
-                <button onClick={() => setShowSettings(false)} className="text-red-500 hover:text-white bg-red-950/50 p-2 rounded-full transition-colors">
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between bg-red-950/20 p-5 rounded-2xl border border-red-900/40">
-                  <div>
-                    <span className="text-white text-xl font-bold block mb-1">إظهار التلميحات</span>
-                    <span className="text-red-400/60 text-sm">عرض الأرقام التي تم تخمينها بشكل صحيح في الشاشة</span>
-                  </div>
-                  <button 
-                    onClick={() => setShowHints(!showHints)}
-                    className={`w-16 h-8 rounded-full transition-colors relative flex-shrink-0 border ${showHints ? 'bg-green-500/20 border-green-500' : 'bg-red-950 border-red-900'}`}
-                  >
-                    <div className={`w-6 h-6 rounded-full absolute top-0.5 transition-all shadow-md ${showHints ? 'left-9 bg-green-400' : 'left-1 bg-red-500/50'}`} />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
         )}
-      </AnimatePresence>
+
+        {/* ================= LOBBY ================= */}
+        {screen === 'LOBBY' && (
+          <>
+            <div className="lob">
+              <div className="vm">
+                <Vault digits={cfg.len} revealed={[]} code={[]} dial={0} />
+              </div>
+              <h2 className="h2">الخزنة جاهزة للاختراق</h2>
+              <div className="pill"><span>أرسل</span><b className="word">{cfg.word}</b><span>للمشاركة</span></div>
+
+
+
+              <div className="plist">
+                {players.length ? players.map((p) => (
+                  <div className="pcard" key={p.name}>
+                    <span className="pav">
+                      <ProAvatar url={p.avatar} username={p.name} size="w-9 h-9" />
+                      <span className="ring" />
+                    </span>
+                    <span className="t">{p.name}</span>
+                  </div>
+                )) : (
+                  <div className="emp"><Users className="ic" /><span>لا يوجد مخترقون بعد</span></div>
+                )}
+              </div>
+            </div>
+
+            <div className="dock">
+              <div className="cnt"><b>{players.length}</b><small>لاعب</small></div>
+              <span className="sp" />
+              <button className="btn2" onClick={goSetup}>تراجع</button>
+              <button className="btn1" onClick={startGame} disabled={!players.length}>
+                <Play className="ic f" />ابدأ!
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ================= PLAY ================= */}
+        {screen === 'PLAY' && (
+          <>
+            <div className="hud">
+              <span className={`chip${low ? ' low' : ''}`}><Clock className="ic" /><b>{clock}</b></span>
+              <span className="chip"><Shield className="ic" /><b>{foundCount}/{cfg.len}</b></span>
+              <span className="chip"><Target className="ic" /><b>{tries}</b></span>
+            </div>
+            <div className="tb"><i className={low ? 'low' : ''} style={{ width: `${Math.max(0, Math.min(100, (remain / (cfg.time * 1000)) * 100))}%` }} /></div>
+
+            <div className="play">
+              <div className="vcol">
+                <Vault
+                  digits={cfg.len}
+                  open={open}
+                  revealed={rev}
+                  revealAll={revealAll}
+                  code={code}
+                  dial={dial}
+                  vaultRef={vaultRef}
+                />
+                <div className="hint"><Key className="ic" /><span>اكتب {cfg.len} أرقام في الشات لاختراق الخزنة</span></div>
+
+
+              </div>
+
+              <aside className="card side">
+                <div className="ch"><h2>سجل المحاولات</h2><Target className="ic" /></div>
+                <div className="lg">
+                  {log.length ? log.map((row) => (
+                    <div className="lr" key={row.id}>
+                      <span className="pav">
+                        <ProAvatar url={row.avatar} username={row.name} size="w-9 h-9" />
+                        <span className="ring" />
+                      </span>
+                      <span className="t">{row.name}</span>
+                      {row.nw > 0 && <span className="pl">+{row.nw}</span>}
+                      <div className="dg">
+                        {row.guess.split('').map((c, i) => (
+                          <i key={i} className={row.hit[i] ? 'y' : ''}>{c}</i>
+                        ))}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="emp"><Lock className="ic" /><span>لا توجد محاولات بعد</span></div>
+                  )}
+                </div>
+
+                <div className="ch" style={{ marginTop: 18 }}><h3>أسرع المخترقين</h3><Trophy className="ic" /></div>
+                <ol className="bd">
+                  {top.length ? top.map((p, i) => (
+                    <li key={p.name}>
+                      <span className="r">{i + 1}</span>
+                      <span className="pav">
+                        <ProAvatar url={p.avatar} username={p.name} size="w-8 h-8" />
+                        <span className="ring" />
+                      </span>
+                      <span>{p.name}</span>
+                      <b>{p.pts}</b>
+                    </li>
+                  )) : <li className="emp" style={{ padding: '12px 0' }}>لا نقاط بعد</li>}
+                </ol>
+              </aside>
+            </div>
+          </>
+        )}
+      </main>
+
+      {/* ================= RESULT ================= */}
+      <div className={`ov${result ? ' on' : ''}`}>
+        {result?.kind === 'win' && (
+          <div className="card res">
+            <div className="big"><Trophy className="ic" /></div>
+            <h2>فُتحت الخزنة!</h2>
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0 4px' }}>
+              <span className="pav lg2">
+                <ProAvatar url={winner?.avatar ?? result.avatar} username={result.name || ''} size="w-[110px] h-[110px]" />
+                <span className="ring" />
+              </span>
+            </div>
+            <h2>{result.name}</h2>
+            <p>كشف آخر رقم بعد {result.tries} محاولة في {result.sec} ثانية</p>
+
+            {topThree.length > 1 && (
+              <ol className="bd rboard">
+                {topThree.map((p, i) => (
+                  <li key={p.name}>
+                    <span className="r">{i + 1}</span>
+                    <span className="pav">
+                      <ProAvatar url={p.avatar} username={p.name} size="w-8 h-8" />
+                      <span className="ring" />
+                    </span>
+                    <span>{p.name}</span>
+                    <b>{p.pts}</b>
+                  </li>
+                ))}
+              </ol>
+            )}
+
+            <div className="row">
+              <button className="btn1" onClick={startGame}><Play className="ic f" />العب مرة ثانية</button>
+              <button className="btn2" onClick={goSetup}>الإعدادات</button>
+            </div>
+          </div>
+        )}
+
+        {result?.kind === 'lose' && (
+          <div className="card res bd2">
+            <div className="big"><Siren className="ic" /></div>
+            <h2>انتهى الوقت، الخزنة بقيت مقفلة</h2>
+            <p>الرمز السري كان</p>
+            <div className="dg">
+              {code.map((c, i) => <i key={i} className={rev[i] ? '' : 'y'}>{c}</i>)}
+            </div>
+            {topThree[0]?.pts ? <p>الأقرب للاختراق: {topThree[0].name} ({topThree[0].pts} أرقام)</p> : null}
+            <div className="row">
+              <button className="btn1" onClick={startGame}><Play className="ic f" />العب مرة ثانية</button>
+              <button className="btn2" onClick={goSetup}>الإعدادات</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className={`toast${toast ? ' on' : ''}`} role="status">{toast}</div>
     </div>
   );
 };

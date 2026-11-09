@@ -12,18 +12,22 @@ const KEY_VAL = getEnv('EXPO_PUBLIC_SUPABASE_KEY');
 const isConfigured = !!(URL_VAL && KEY_VAL && URL_VAL !== 'https://placeholder.supabase.co' && !KEY_VAL.includes('placeholder'));
 
 if (isConfigured) {
-  console.log("%c[iABS] 🟢 System Online: Connected to Supabase", "color: #53fc18; font-weight: bold;");
+  console.log("%c[iCG1] 🟢 System Online: Connected to Supabase", "color: #53fc18; font-weight: bold;");
 } else {
-  console.warn("%c[iABS] 🟡 System Offline: Using Fallback Mode", "color: #fbbf24; font-weight: bold;");
+  console.warn("%c[iCG1] 🟡 System Offline: Using Fallback Mode", "color: #fbbf24; font-weight: bold;");
 }
 
 const SUPABASE_URL = URL_VAL || 'https://placeholder.supabase.co';
 const SUPABASE_KEY = KEY_VAL || 'placeholder';
 
+/** إعدادات REST لمكوّنات الـ iframe التي تتواصل مع PostgREST مباشرة (بدون مكتبة). */
+export const supabaseRestConfig = () =>
+  isConfigured ? { url: SUPABASE_URL, key: SUPABASE_KEY } : null;
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   db: { schema: 'public' },
   global: {
-    headers: { 'x-client-info': 'iabs-web' },
+    headers: { 'x-client-info': 'icg1-web' },
     fetch: (...args: any[]) => {
       const [url, options] = args;
       return fetch(url, { ...options, keepalive: true });
@@ -131,9 +135,15 @@ export const adminService = {
     data?.forEach(item => { status[item.key] = item.value; });
     return { status, error };
   },
+  // arena_status ما لها مفتاح primary، فـ update وحده ما كان يلمّ صفوف:
+  // upsert على مؤشر key الفريد (يُنشأ في supabase/admin_center.sql).
+  // الكتابة من المتصفح مرفوضة بأمن الصفوف (select فقط لـ anon) — اللوحة
+  // الحالية تحفظ عبر /api/admin/mutate، وهذه للوحة الأرشيفية فقط.
   async updateArenaStatus(key: string, value: any) {
     if (!isConfigured) return { error: null };
-    return await supabase.from('arena_status').update({ value, updated_at: new Date().toISOString() }).eq('key', key);
+    return await supabase
+      .from('arena_status')
+      .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
   },
   async getAuditLogs(limit = 50) {
     return safeCall(supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(limit));
@@ -144,73 +154,73 @@ export const adminService = {
   }
 };
 
+// `leaderboard` has no FK to `profiles`, so the PostgREST embed fails; profile
+// metadata is fetched separately and merged in JS instead.
+const mergeProfileMeta = async (rows: any[]) => {
+  if (!rows.length) return rows;
+  const names = Array.from(new Set(rows.map((r: any) => String(r.username ?? '')))).filter(Boolean);
+  const variants = Array.from(new Set([...names, ...names.map(n => n.toLowerCase())]));
+  const result = await safeCall(
+    supabase.from('profiles').select('username, avatar_url, is_banned, credits, active_frame_url').in('username', variants),
+    { data: [], error: null }
+  );
+  const byUser: Record<string, any> = {};
+  (result.data || []).forEach((p: any) => {
+    if (p?.username) byUser[String(p.username).toLowerCase()] = p;
+  });
+  return rows.map((r: any) => {
+    const p = byUser[String(r.username ?? '').toLowerCase()];
+    return {
+      ...r,
+      score: r.score || 0,
+      wins: r.wins || 0,
+      avatar_url: p?.avatar_url || r.avatar_url,
+      is_banned: p?.is_banned,
+      credits: p?.credits,
+      active_frame_url: p?.active_frame_url,
+    };
+  });
+};
+
 export const leaderboardService = {
   async getTopPlayers(limit = 20) {
     if (!isConfigured) return [];
     const result = await safeCall(
-      supabase.from('leaderboard').select('*, profiles(avatar_url, is_banned, credits)').order('score', { ascending: false }).limit(limit),
+      supabase.from('leaderboard').select('*').order('score', { ascending: false }).limit(limit),
       { data: [], error: null }
     );
-    return (result.data || []).map((item: any) => ({
-      ...item,
-      avatar_url: item.profiles?.avatar_url || item.avatar_url,
-      is_banned: item.profiles?.is_banned,
-      credits: item.profiles?.credits
-    }));
+    return await mergeProfileMeta(result.data || []);
   },
   async getPlayersWithPoints() {
     if (!isConfigured) return [];
     const result = await safeCall(
-      supabase.from('leaderboard').select('*, profiles(avatar_url, is_banned, credits)').or('score.gt.0,wins.gt.0').order('score', { ascending: false }),
+      supabase.from('leaderboard').select('*').or('score.gt.0,wins.gt.0').order('score', { ascending: false }),
       { data: [], error: null }
     );
-    return (result.data || []).map((item: any) => ({
-      ...item,
-      avatar_url: item.profiles?.avatar_url || item.avatar_url,
-      is_banned: item.profiles?.is_banned,
-      credits: item.profiles?.credits
-    }));
+    return await mergeProfileMeta(result.data || []);
   },
   async getAllRankedPlayers() {
     if (!isConfigured) return [];
     try {
       const [lbResult, profsResult] = await Promise.all([
-        supabaseQuery(() => supabase.from('leaderboard').select('*, profiles(avatar_url, is_banned, credits, active_frame_url)').order('score', { ascending: false }), 3, 1000),
-        supabaseQuery(() => supabase.from('profiles').select('*').gt('credits', 0), 3, 1000),
+        supabaseQuery(() => supabase.from('leaderboard').select('*').order('score', { ascending: false }), 3, 1000),
+        supabaseQuery(() => supabase.from('profiles').select('username, credits').gt('credits', 0), 3, 1000),
       ]);
-      const lb = lbResult.data;
-      const profs = profsResult.data;
-      const byUser: Record<string, any> = {};
-      (lb || []).forEach(item => {
-        byUser[item.username] = {
-          ...item,
-          score: item.score || 0,
-          wins: item.wins || 0,
-          avatar_url: item.profiles?.avatar_url || item.avatar_url,
-          is_banned: item.profiles?.is_banned,
-          credits: item.profiles?.credits,
-          active_frame_url: item.profiles?.active_frame_url
-        };
-      });
-      (profs || []).forEach(p => {
-        if (byUser[p.username]) {
-          byUser[p.username] = {
-            ...byUser[p.username],
-            credits: p.credits,
-            avatar_url: p.avatar_url || byUser[p.username].avatar_url,
-            is_banned: p.is_banned,
-            active_frame_url: p.active_frame_url
-          };
-        } else {
-          byUser[p.username] = { id: p.id, username: p.username, score: 0, wins: 0, avatar_url: p.avatar_url, is_banned: p.is_banned, credits: p.credits, active_frame_url: p.active_frame_url };
-        }
-      });
-      const combined = Object.values(byUser);
-      combined.sort((a: any, b: any) => {
-        if ((b.score || 0) !== (a.score || 0)) return (b.score || 0) - (a.score || 0);
-        return (b.credits || 0) - (a.credits || 0);
-      });
-      return combined;
+      const rows = await mergeProfileMeta(lbResult.data || []);
+      const ranked = rows.filter((r: any) => !r.is_banned);
+      const seen: Record<string, boolean> = {};
+      ranked.forEach((r: any) => { seen[String(r.username).toLowerCase()] = true; });
+      const creditOnly = (profsResult.data || [])
+        .filter((p: any) => p?.username && !seen[String(p.username).toLowerCase()])
+        .map((p: any) => ({
+          username: p.username,
+          score: 0,
+          wins: 0,
+          credits: p.credits,
+          avatar_url: p.avatar_url,
+          is_banned: p.is_banned,
+        }));
+      return [...ranked, ...creditOnly];
     } catch (e) {
       return [];
     }
@@ -249,9 +259,16 @@ export const leaderboardService = {
     return { success: true, amount: promo.reward_amount };
   },
   async recordWin(username: string, avatarUrl: string, points: number = 10) {
+    return await leaderboardService.addScore(username, avatarUrl, points, true);
+  },
+  // countWin=false credits points for a single round win without inflating the
+  // victory counter, so «فوز» always means an actual match won.
+  async addScore(username: string, avatarUrl: string, points: number, countWin: boolean = true) {
     if (!isConfigured || !username || username === 'Unknown') return;
+    const delta = Math.max(0, Math.round(points || 0));
+    if (delta <= 0 && !countWin) return;
     const normalizedUser = username.toLowerCase();
-    
+
     const { data: profiles } = await supabase.from('profiles').select('*').ilike('username', normalizedUser).limit(1);
     const profile = profiles?.[0];
 
@@ -264,16 +281,16 @@ export const leaderboardService = {
 
     if (existing) {
       await supabase.from('leaderboard').update({
-        wins: (existing.wins || 0) + 1,
-        score: (existing.score || 0) + points,
+        wins: (existing.wins || 0) + (countWin ? 1 : 0),
+        score: (existing.score || 0) + delta,
         last_win_at: new Date().toISOString()
       }).eq('id', existing.id);
     } else {
       // Use upsert to be completely safe against race conditions during insert
       await supabase.from('leaderboard').upsert([{
         username: normalizedUser,
-        wins: 1,
-        score: points,
+        wins: countWin ? 1 : 0,
+        score: delta,
         last_win_at: new Date().toISOString()
       }], { onConflict: 'username' });
     }
@@ -312,13 +329,6 @@ export const leaderboardService = {
       });
     }
     return res;
-  },
-  async verifyAdminPassword(inputPassword: string): Promise<boolean> {
-    // 🔒 لا توجد نسخة محلية من كلمة السر داخل الحزمة — مصدر واحد فقط: Supabase
-    if (!isConfigured) return false;
-    const { data, error } = await supabase.from('app_config').select('value').eq('key', 'admin_password').single();
-    if (error || !data?.value) return false;
-    return data.value === inputPassword;
   },
   async resetLeaderboard() {
     if (!isConfigured) return { error: null };
@@ -378,4 +388,59 @@ export const gamesService = {
       .upsert(games);
     return { error };
   }
+};
+
+/**
+ * لوحات الصدارة الخاصة بكل لعبة (supabase/game_leaderboard.sql).
+ * الكتابة: سطر في game_points — والتركيبي (trigger) يحدّث game_leaderboard.
+ * القراءة: دوال RPC فقط، عشان الفلترة بالفترة وحظر اللاعبين تبقى في مكان واحد.
+ */
+export const gameLeaderboardService = {
+  async logEvent(gameCode: string, username: string, points: number, kind: 'round' | 'match') {
+    if (!isConfigured || !gameCode || !username) return { error: null };
+    return await supabase.from('game_points').insert([{
+      game_code: String(gameCode).trim().toUpperCase(),
+      username: String(username).trim().toLowerCase(),
+      points: Math.max(0, Math.round(points || 0)),
+      kind,
+    }]);
+  },
+
+  async getTop(gameCode: string, since: string | null = null, limit = 200) {
+    if (!isConfigured) return [];
+    const result = await safeCall(
+      supabase.rpc('game_top', { p_game: gameCode, p_since: since, p_limit: limit, p_offset: 0 }),
+      { data: [], error: null }
+    );
+    return result.data || [];
+  },
+
+  async getSummary(gameCode: string, since: string | null = null) {
+    if (!isConfigured) return null;
+    const result = await safeCall(
+      supabase.rpc('game_summary', { p_game: gameCode, p_since: since }),
+      { data: [], error: null }
+    );
+    return (result.data || [])[0] || null;
+  },
+
+  async getGamesSummary(since: string | null = null) {
+    if (!isConfigured) return {};
+    const result = await safeCall(
+      supabase.rpc('games_board_summary', { p_since: since }),
+      { data: [], error: null }
+    );
+    const byGame: Record<string, any> = {};
+    (result.data || []).forEach((r: any) => { if (r?.game_code) byGame[String(r.game_code).toUpperCase()] = r; });
+    return byGame;
+  },
+
+  async getPosition(gameCode: string, username: string, since: string | null = null) {
+    if (!isConfigured || !username) return null;
+    const result = await safeCall(
+      supabase.rpc('game_position', { p_game: gameCode, p_username: username, p_since: since }),
+      { data: [], error: null }
+    );
+    return (result.data || [])[0] || null;
+  },
 };

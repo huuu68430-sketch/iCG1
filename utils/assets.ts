@@ -21,8 +21,7 @@ export const getAssetUrl = (path: string | null | undefined) => {
     return `${normalizedBase}${cleanPath}`;
 };
 
-export const getFrameUrl = (path: string | null | undefined) => {
-    if (!path) return '';
+export const getFrameUrl = (path: string | null | undefined) => {    if (!path) return '';
     if (path.startsWith('http')) return path;
 
     // Remove leading slash
@@ -34,5 +33,18 @@ export const getFrameUrl = (path: string | null | undefined) => {
     }
 
     return getAssetUrl(cleanPath) || '';
+};
+
+/**
+ * صور كيك روابط S3 موقّعة تنتهي صلاحيتها بعد دقائق. استخدام رابط منتهي يعرض
+ * أيقونة الصورة المكسورة بدل صورة العضو، فلازم تُستبدل برابط جديد من كيك.
+ */
+export const isExpiredSignedUrl = (url: string | null | undefined): boolean => {
+    if (!url || !url.includes('X-Amz-Date=')) return false;
+    const stamp = /[?&]X-Amz-Date=(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/.exec(url);
+    if (!stamp) return false;
+    const seconds = Number(/[?&]X-Amz-Expires=(\d+)/.exec(url)?.[1] || 600);
+    const issued = Date.UTC(+stamp[1], +stamp[2] - 1, +stamp[3], +stamp[4], +stamp[5], +stamp[6]);
+    return Date.now() > issued + seconds * 1000;
 };
 

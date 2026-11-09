@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { chatService } from '../services/chatService';
-import { leaderboardService } from '../services/supabase';
+import { awardPoints } from '../services/points';
 import { ChatUser } from '../types';
 import { Globe, Play, Trophy, MapPin, Search, Check, X, AlertCircle } from 'lucide-react';
 import { ProAvatar } from './ProAvatar';
@@ -181,7 +181,7 @@ export const MapGuesser: React.FC<MapGuesserProps> = ({ onHome, isOBS }) => {
         };
 
         setWinner(newGuess);
-        leaderboardService.recordWin(msg.user.username, msg.user.avatar || '', 150);
+        awardPoints('MAP_GUESSER', msg.user.username, msg.user.avatar || '', 'round');
       }
     });
 
@@ -189,17 +189,18 @@ export const MapGuesser: React.FC<MapGuesserProps> = ({ onHome, isOBS }) => {
   }, []);
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center font-sans overflow-hidden relative z-10 text-white bg-black">
+    <div className="w-full h-full flex flex-col items-center justify-center font-sans overflow-hidden relative z-10 text-white" style={{ background: 'radial-gradient(60% 50% at 72% 26%, rgba(160,100,40,.25), transparent 70%), radial-gradient(50% 40% at 12% 92%, rgba(232,190,110,.09), transparent 70%), #0a0805' }}>
       {/* Dynamic Background FX */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(30,58,138,0.2)_0%,rgba(0,0,0,1)_80%)]" />
-        <div className="absolute top-0 w-full h-[500px] bg-blue-900/10 blur-[150px] rounded-full translate-y-[-50%]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(160,110,40,0.18)_0%,rgba(10,7,4,1)_80%)]" />
+        <div className="absolute top-0 w-full h-[500px] bg-amber-900/10 blur-[150px] rounded-full translate-y-[-50%]" />
+        <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(rgba(232,190,110,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(232,190,110,.05) 1px, transparent 1px)', backgroundSize: '48px 48px', WebkitMask: 'radial-gradient(70% 70% at 50% 45%, #000, transparent)', mask: 'radial-gradient(70% 70% at 50% 45%, #000, transparent)' }} />
       </div>
 
       {!isOBS && (
         <div className="absolute top-4 left-4 z-50 flex gap-4 items-center">
-          <button onClick={onHome} className="bg-blue-900/40 p-3 rounded-full hover:bg-blue-700/50 transition-colors border border-blue-500/30 backdrop-blur-md group" title="الرئيسية">
-            <Globe className="w-6 h-6 text-blue-400 group-hover:text-blue-300" />
+          <button onClick={onHome} className="bg-amber-900/40 p-3 rounded-full hover:bg-amber-700/50 transition-colors border border-amber-500/40 backdrop-blur-md group" title="الرئيسية">
+            <Globe className="w-6 h-6 text-amber-400 group-hover:text-amber-300" />
           </button>
         </div>
       )}
@@ -224,32 +225,32 @@ export const MapGuesser: React.FC<MapGuesserProps> = ({ onHome, isOBS }) => {
           initial={{ scale: 0.8, opacity: 0, y: 50 }} 
           animate={{ scale: 1, opacity: 1, y: 0 }} 
           transition={{ type: "spring", bounce: 0.5 }}
-          className="bg-black/40 p-16 rounded-[3rem] border border-blue-500/40 flex flex-col items-center gap-8 backdrop-blur-xl z-10 shadow-[0_0_80px_rgba(59,130,246,0.1)] relative overflow-hidden"
+          className="bg-gradient-to-br from-[#1a1408]/95 to-[#0a0805]/95 p-16 rounded-[3rem] border border-[#e8be6e]/50 flex flex-col items-center gap-8 backdrop-blur-xl z-10 shadow-[0_0_80px_rgba(232,190,110,0.15)] relative overflow-hidden"
         >
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50" />
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#e8be6e] to-transparent opacity-60" />
           
           <motion.div animate={{ rotate: 360 }} transition={{ duration: 40, repeat: Infinity, ease: "linear" }} className="relative">
-            <Globe className="w-32 h-32 text-blue-500 drop-shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
+            <Globe className="w-32 h-32 text-[#e8be6e] drop-shadow-[0_0_15px_rgba(232,190,110,0.8)]" />
           </motion.div>
 
           <div className="text-center space-y-4">
-            <h1 className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-blue-100 via-blue-400 to-indigo-600 tracking-wider">
+            <h1 className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-[#fff7de] via-[#e8be6e] to-[#a97a30] tracking-wider">
               خمن الدولة
             </h1>
-            <p className="text-blue-300/80 text-2xl max-w-lg mx-auto font-medium">
+            <p className="text-[#fbeccb]/80 text-2xl max-w-lg mx-auto font-medium">
               سيتم تظليل دولة على الخريطة، أسرع شخص يكتب اسمها في الشات يفوز! أكثر من {COUNTRIES.length} دولة بدون تكرار.
             </p>
           </div>
 
           <div className="flex flex-col gap-4 w-full max-w-lg mt-4">
-            <div className="flex items-center gap-6 bg-blue-950/30 p-6 rounded-2xl border border-blue-900/50 justify-center">
-              <span className="text-xl text-blue-200">عدد الجولات:</span>
+            <div className="flex items-center gap-6 bg-[#1a1408]/60 p-6 rounded-2xl border border-[#e8be6e]/30 justify-center">
+              <span className="text-xl text-[#fbeccb]">عدد الجولات:</span>
               <div className="flex items-center gap-4">
                 {[1, 3, 5, 10, 20].map(num => (
                   <button
                     key={num}
                     onClick={() => setRoundsToPlay(num)}
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black transition-all ${roundsToPlay === num ? 'bg-blue-500 text-white shadow-[0_0_20px_rgba(59,130,246,0.6)] border-2 border-blue-300' : 'bg-black/50 text-blue-500/50 border border-blue-900 hover:bg-blue-900/40'}`}
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black transition-all ${roundsToPlay === num ? 'bg-gradient-to-br from-[#f9e0a4] to-[#c08b3a] text-[#1a1006] shadow-[0_0_20px_rgba(232,190,110,0.6)] border-2 border-[#fbeccb]' : 'bg-black/50 text-[#b2a283] border border-[#e8be6e]/30 hover:bg-[#e8be6e]/10'}`}
                   >
                     {num}
                   </button>
@@ -257,8 +258,8 @@ export const MapGuesser: React.FC<MapGuesserProps> = ({ onHome, isOBS }) => {
               </div>
             </div>
 
-            <div className="flex flex-col gap-4 bg-blue-950/30 p-6 rounded-2xl border border-blue-900/50">
-              <span className="text-xl text-blue-200 text-center">مستوى الصعوبة:</span>
+            <div className="flex flex-col gap-4 bg-[#1a1408]/60 p-6 rounded-2xl border border-[#e8be6e]/30">
+              <span className="text-xl text-[#fbeccb] text-center">مستوى الصعوبة:</span>
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { id: 'EASY', label: 'سهل', desc: 'زوم خفيف ودول معروفة' },
@@ -268,11 +269,11 @@ export const MapGuesser: React.FC<MapGuesserProps> = ({ onHome, isOBS }) => {
                   <button
                     key={diff.id}
                     onClick={() => setDifficulty(diff.id as any)}
-                    className={`p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${difficulty === diff.id ? (diff.id === 'HARD' ? 'bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.6)] border-2 border-rose-300' : diff.id === 'MEDIUM' ? 'bg-amber-500 text-black shadow-[0_0_20px_rgba(245,158,11,0.6)] border-2 border-amber-200' : 'bg-blue-500 text-white shadow-[0_0_20px_rgba(59,130,246,0.6)] border-2 border-blue-300') : 'bg-black/50 text-blue-400 border border-blue-900 hover:bg-blue-900/40'}`}
+                    className={`p-3 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${difficulty === diff.id ? (diff.id === 'HARD' ? 'bg-gradient-to-br from-[#d2432a] to-[#8b2a1a] text-white shadow-[0_0_20px_rgba(210,67,42,0.6)] border-2 border-[#ff9a3c]' : diff.id === 'MEDIUM' ? 'bg-gradient-to-br from-[#f9e0a4] to-[#c08b3a] text-[#1a1006] shadow-[0_0_20px_rgba(232,190,110,0.6)] border-2 border-[#fbeccb]' : 'bg-gradient-to-br from-[#e8be6e] to-[#a97a30] text-[#1a1006] shadow-[0_0_20px_rgba(232,190,110,0.6)] border-2 border-[#fbeccb]') : 'bg-black/50 text-[#b2a283] border border-[#e8be6e]/30 hover:bg-[#e8be6e]/10'}`}
                   >
                     <span className="font-black text-lg">{diff.label}</span>
                     <span className="text-xs opacity-70">{diff.desc}</span>
-                    <span className={`text-xs font-black px-2 py-0.5 rounded-full ${difficulty === diff.id ? 'bg-white/20' : 'bg-blue-950/60'}`}>
+                    <span className={`text-xs font-black px-2 py-0.5 rounded-full ${difficulty === diff.id ? 'bg-white/20' : 'bg-[#1a1408]/80'}`}>
                       {difficultyCounts[diff.id as 'EASY' | 'MEDIUM' | 'HARD']} دولة
                     </span>
                   </button>
@@ -282,12 +283,12 @@ export const MapGuesser: React.FC<MapGuesserProps> = ({ onHome, isOBS }) => {
           </div>
 
           <motion.button 
-            whileHover={{ scale: 1.05, boxShadow: "0 0 30px rgba(59,130,246,0.5)" }}
+            whileHover={{ scale: 1.05, boxShadow: "0 0 30px rgba(232,190,110,0.5)" }}
             whileTap={{ scale: 0.95 }}
             onClick={startGame} 
-            className="mt-6 bg-gradient-to-r from-blue-700 to-indigo-600 hover:from-blue-600 hover:to-indigo-500 text-white font-bold py-5 px-16 rounded-full text-3xl flex items-center gap-4 transition-all border border-blue-400/50"
+            className="mt-6 bg-gradient-to-r from-[#f9e0a4] to-[#c08b3a] hover:from-[#fff0b8] hover:to-[#d9a441] text-[#1a1006] font-bold py-5 px-16 rounded-full text-3xl flex items-center gap-4 transition-all border border-[#fbeccb]/60"
           >
-            <Play className="w-8 h-8 fill-white" />
+            <Play className="w-8 h-8 fill-[#1a1006]" />
             بدء اللعبة
           </motion.button>
         </motion.div>
@@ -299,7 +300,7 @@ export const MapGuesser: React.FC<MapGuesserProps> = ({ onHome, isOBS }) => {
           
           <div className="flex-1 flex gap-8">
             {/* Map Container */}
-            <div className="flex-[3] bg-black/40 border border-blue-900/50 rounded-[3rem] overflow-hidden relative shadow-[0_0_50px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+            <div className="flex-[3] bg-gradient-to-br from-[#1a1408]/90 to-[#0a0805]/95 border border-[#e8be6e]/40 rounded-[3rem] overflow-hidden relative shadow-[0_0_50px_rgba(232,190,110,0.12)] backdrop-blur-xl">
               
               <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
                 <ComposableMap 
@@ -359,15 +360,15 @@ export const MapGuesser: React.FC<MapGuesserProps> = ({ onHome, isOBS }) => {
                               <g key={geo.rsmKey}>
                                 <Geography
                                   geography={geo}
-                                fill={isTarget ? (winner ? "url(#flagPattern)" : "#3b82f6") : "#0f172a"} 
-                                stroke={isTarget ? (winner ? "#ffffff" : "#93c5fd") : "#1e293b"}
+                                fill={isTarget ? (winner ? "url(#flagPattern)" : "#e8be6e") : "#1a1408"} 
+                                stroke={isTarget ? (winner ? "#ffffff" : "#fbeccb") : "#2a2015"}
                                 strokeWidth={isTarget ? (winner ? winnerStroke : targetStroke) : (showFullMap ? 0.3 : 0.1)}
                                 style={{
                                   default: { 
                                     outline: "none", 
                                     filter: isTarget 
-                                      ? (winner ? `drop-shadow(0 0 ${winnerGlow}px rgba(255,255,255,0.4))` : "url(#glow-target)") 
-                                      : (showFullMap ? "none" : "brightness(0.3)"),
+                                      ? (winner ? `drop-shadow(0 0 ${winnerGlow}px rgba(255,255,255,0.4))` : "drop-shadow(0 0 6px rgba(232,190,110,0.7))") 
+                                      : (showFullMap ? "none" : "brightness(0.25)"),
                                     transition: "all 1s ease-in-out"
                                   },
                                   hover: { outline: "none" },

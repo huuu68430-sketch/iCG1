@@ -50,7 +50,7 @@ body.obs-mode *::-webkit-scrollbar {
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+  width: 5px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -58,12 +58,12 @@ body.obs-mode *::-webkit-scrollbar {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--iabs-red);
-  border-radius: 10px;
+  background: var(--icg1-gold-deep, #a97a30);
+  border-radius: 99px;
 }
 
 .neon-glow-red {
-  box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+  box-shadow: 0 0 20px rgba(232, 190, 110, 0.35);
 }
 
 .neon-glow-green {
@@ -188,13 +188,13 @@ body.obs-mode *::-webkit-scrollbar {
 
 @keyframes blink-caret {
   from, to { border-color: transparent; }
-  50% { border-color: #ff0000; }
+  50% { border-color: #e8be6e; }
 }
 
 .animate-typewriter {
   overflow: hidden;
   white-space: nowrap;
-  border-left: 3px solid #ff0000;
+  border-left: 3px solid #e8be6e;
   animation: typewriter 2s steps(30) forwards, blink-caret 0.75s step-end infinite;
 }
 
@@ -210,8 +210,8 @@ body.obs-mode *::-webkit-scrollbar {
 
 /* Glow pulse for cards */
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(255,0,0,0.2); }
-  50% { box-shadow: 0 0 40px rgba(255,0,0,0.4); }
+  0%, 100% { box-shadow: 0 0 20px rgba(232,190,110,0.2); }
+  50% { box-shadow: 0 0 40px rgba(232,190,110,0.4); }
 }
 
 .animate-glow-pulse {

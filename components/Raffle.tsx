@@ -727,8 +727,8 @@ const subCount = useMemo(() => participants.filter(isSubscriberUser).length, [pa
          <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 10px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(220, 38, 38, 0.4); border-radius: 20px; border: 4px solid transparent; background-clip: content-box; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(220, 38, 38, 1); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(232, 190, 110, 0.35); border-radius: 20px; border: 4px solid transparent; background-clip: content-box; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(232, 190, 110, 0.8); background-clip: content-box; }
 
         @keyframes shimmer {
           0% { transform: translateX(-150%) skewX(-30deg); }

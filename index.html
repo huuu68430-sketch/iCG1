@@ -8,11 +8,50 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0a0805">
-  <meta name="description" content="iCG1 — ساحة ألعاب تفاعلية لمجتمع القناة على Kick.">
-  <title>iCG1 — ساحة الألعاب</title>
+  <title>iCG1 — ساحة الألعاب التفاعلية على Kick | ألعاب جماعية ومسابقات</title>
+  <meta name="description" content="iCG1 — ساحة ألعاب تفاعلية لمجتمع القناة على Kick. العب فوازير، مافيا، كراسي موسيقية، سيف كود، وألعاب جماعية مباشرة مع الشات واربح النقاط وحتّل صدارة المتصدرين.">
+  <meta name="keywords" content="iCG1, ألعاب كيك, Kick Games, فوازير, مافيا, ألعاب جماعية, مسابقات, بث مباشر, سيف كود, لعبة الكراسي, مسبقيل, لوحة المتصدرين">
+  <meta name="author" content="iCG1">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <meta name="googlebot" content="index, follow, max-image-preview:large">
+  <link rel="canonical" href="https://icg1.vercel.app/">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="application-name" content="iCG1">
+  <meta name="apple-mobile-web-app-title" content="iCG1">
 
-  <!-- Favicon Updated to new logo -->
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ar_SA">
+  <meta property="og:site_name" content="iCG1">
+  <meta property="og:title" content="iCG1 — ساحة الألعاب التفاعلية على Kick">
+  <meta property="og:description" content="العب ألعابًا جماعية مباشرة مع مجتمع Kick: فوازير، مافيا، سيف كود، كراسي موسيقية والمزيد. اربح النقاط وتصدّر.">
+  <meta property="og:url" content="https://icg1.vercel.app/">
+  <meta property="og:image" content="https://icg1.vercel.app/og-image.jpg">
+  <meta property="og:image:alt" content="iCG1 — ساحة الألعاب التفاعلية">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="iCG1 — ساحة الألعاب التفاعلية على Kick">
+  <meta name="twitter:description" content="ألعاب جماعية مباشرة مع مجتمع Kick. العب واربح وتصدّر.">
+  <meta name="twitter:image" content="https://icg1.vercel.app/og-image.jpg">
+
+  <!-- Structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "iCG1",
+    "alternateName": "iCG1 — ساحة الألعاب التفاعلية",
+    "url": "https://icg1.vercel.app/",
+    "inLanguage": "ar",
+    "description": "ساحة ألعاب تفاعلية لمجتمع القناة على Kick.",
+    "publisher": { "@type": "Organization", "name": "iCG1", "url": "https://icg1.vercel.app/" }
+  }
+  </script>
+
+  <!-- Favicon -->
   <link rel="icon" type="image/png" href="/icg1-logo-v2.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -32,12 +71,58 @@
             sans: ['Tajawal', 'sans-serif'],
             display: ['El Messiri', 'sans-serif'],
             gaming: ['Bangers', 'cursive'],
+            heading: ['Tajawal', 'Outfit', 'Cairo', 'sans-serif'],
+            arabic: ['Tajawal', 'Cairo', 'sans-serif'],
+            cairo: ['Cairo', 'Tajawal', 'sans-serif'],
+            engrave: ['Cinzel', 'serif'],
+          },
+          colors: {
+            kick: { DEFAULT: '#C6A474', dark: '#8B6342', glow: 'rgba(198,164,116,0.36)' },
+            neon: { DEFAULT: '#53FC18', dim: '#3ecb10' },
+            accent: { red: '#C6A474', deep: '#140F0B', gold: '#E7C99E' },
+            ink: { 950: '#050505', 900: '#0a0a0a', 800: '#101010', 700: '#161616' },
+            icg: {
+              gold: '#e8be6e',
+              light: '#f9e0a4',
+              deep: '#a97a30',
+              bronze: '#5a3a14',
+              brown: '#2a1a08',
+              espresso: '#1a1006',
+              ink: '#0a0805',
+              cream: '#fbeccb',
+              muted: '#b2a283',
+              ember: '#e8552f',
+              flame: '#ff9a3c',
+              crimson: '#c0342b',
+              live: '#4be07a',
+            },
+          },
+          gridTemplateColumns: {
+            15: 'repeat(15, minmax(0, 1fr))',
+            20: 'repeat(20, minmax(0, 1fr))',
+            30: 'repeat(30, minmax(0, 1fr))',
+            60: 'repeat(60, minmax(0, 1fr))',
           },
           animation: {
             'glow': 'glow 2s infinite alternate',
             'float': 'float 4s ease-in-out infinite',
             'spin-slow': 'spin 8s linear infinite',
             'shine-down': 'shine-down 0.7s ease-in-out',
+            'fade-in-up': 'fadeInUp 0.7s cubic-bezier(0.16,1,0.3,1) forwards',
+            'fade-in': 'fadeIn 0.8s ease forwards',
+            'slide-down': 'slideDown 0.4s cubic-bezier(0.16,1,0.3,1) forwards',
+            'gradient-x': 'gradientX 4s ease infinite',
+            'charge': 'charge 0.45s cubic-bezier(0.4,0,0.2,1) forwards',
+            'shine-periodic': 'shinePeriodic 5.5s cubic-bezier(0.4,0,0.2,1) infinite',
+            'float-soft': 'floatSoft 5s ease-in-out infinite',
+            'pulse-red': 'pulseRed 2.2s ease-in-out infinite',
+            'pulse-slow': 'pulse 3.5s cubic-bezier(0.4,0,0.6,1) infinite',
+            'marquee': 'marquee 28s linear infinite',
+            'marquee-rev': 'marqueeRev 32s linear infinite',
+            'aurora': 'aurora 14s ease-in-out infinite alternate',
+            'glitch': 'glitchFx 0.35s steps(2) infinite',
+            'tick': 'tickGlow 1.6s ease-in-out infinite',
+            'ring-orbit': 'spin 7s linear infinite',
           },
           keyframes: {
             glow: {
@@ -52,7 +137,20 @@
               '0%': { top: '-100%', opacity: '0' },
               '50%': { opacity: '0.5' },
               '100%': { top: '100%', opacity: '0' }
-            }
+            },
+            fadeInUp: { '0%': { opacity: '0', transform: 'translateY(26px) scale(0.99)' }, '100%': { opacity: '1', transform: 'translateY(0) scale(1)' } },
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideDown: { '0%': { opacity: '0', transform: 'translateY(-12px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+            gradientX: { '0%,100%': { backgroundPosition: '0% 50%' }, '50%': { backgroundPosition: '100% 50%' } },
+            charge: { '0%': { width: '0%', opacity: '1' }, '100%': { width: '100%', opacity: '0' } },
+            shinePeriodic: { '0%': { transform: 'translateX(-160%) skewX(-18deg)', opacity: '0' }, '8%': { opacity: '1' }, '22%': { transform: 'translateX(160%) skewX(-18deg)', opacity: '0' }, '100%': { transform: 'translateX(160%) skewX(-18deg)', opacity: '0' } },
+            floatSoft: { '0%,100%': { transform: 'translateY(0) rotate(0deg)' }, '50%': { transform: 'translateY(-10px) rotate(1deg)' } },
+            pulseRed: { '0%,100%': { opacity: '1', filter: 'drop-shadow(0 0 6px #C6A474)' }, '50%': { opacity: '0.75', filter: 'drop-shadow(0 0 22px #C6A474)' } },
+            marquee: { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(50%)' } },
+            marqueeRev: { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(-50%)' } },
+            aurora: { '0%': { transform: 'translate(-6%, -2%) scale(1)', opacity: '0.7' }, '50%': { transform: 'translate(5%, 4%) scale(1.12)', opacity: '1' }, '100%': { transform: 'translate(-3%, 6%) scale(1.05)', opacity: '0.8' } },
+            glitchFx: { '0%': { transform: 'translate(0)' }, '25%': { transform: 'translate(-2px,1px)' }, '50%': { transform: 'translate(2px,-1px)' }, '75%': { transform: 'translate(-1px,-2px)' }, '100%': { transform: 'translate(0)' } },
+            tickGlow: { '0%,100%': { boxShadow: '0 0 0 0 rgba(198,164,116,0.45)' }, '50%': { boxShadow: '0 0 0 7px rgba(198,164,116,0)' } },
           }
         },
       },
@@ -61,18 +159,18 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Outfit:wght@800;900&family=Lalezar&family=Tajawal:wght@400;500;700;800;900&family=Bebas+Neue&family=Bangers&display=swap">
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Outfit:wght@800;900&family=Lalezar&family=Tajawal:wght@400;500;700;800;900&family=Bebas+Neue&family=Bangers&family=Baloo+Bhaijaan+2:wght@600;700;800&display=swap">
   <link
-    href="https://fonts.googleapis.com/css2?family=Outfit:wght@800;900&family=Lalezar&family=Tajawal:wght@400;500;700;800;900&family=Bebas+Neue&family=Bangers&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@800;900&family=Lalezar&family=Tajawal:wght@400;500;700;800;900&family=Bebas+Neue&family=Bangers&family=Baloo+Bhaijaan+2:wght@600;700;800&display=swap"
     rel="stylesheet" media="print" onload="this.media='all'">
   <noscript>
     <link
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@800;900&family=Lalezar&family=Tajawal:wght@400;500;700;800;900&family=Bebas+Neue&family=Bangers&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@800;900&family=Lalezar&family=Tajawal:wght@400;500;700;800;900&family=Bebas+Neue&family=Bangers&family=Baloo+Bhaijaan+2:wght@600;700;800&display=swap"
       rel="stylesheet">
   </noscript>
 
     <link
-      href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400;700&family=Tajawal:wght@300;400;500;700;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400;700&family=Cinzel:wght@600;800&family=Tajawal:wght@300;400;500;700;900&display=swap"
     rel="stylesheet">
 
   <style>
@@ -184,25 +282,32 @@
     }
 
     ::-webkit-scrollbar {
-      width: 6px;
+      width: 10px;
     }
 
     ::-webkit-scrollbar-track {
-      background: transparent;
+      background: rgba(10, 8, 5, 0.55);
     }
 
     ::-webkit-scrollbar-thumb {
-      background: #ff0000;
-      border-radius: 10px;
+      background: linear-gradient(180deg, #e8be6e, #a97a30);
+      border-radius: 99px;
+      border: 3px solid transparent;
+      background-clip: padding-box;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, #f9e0a4, #c9962f);
+      background-clip: padding-box;
     }
 
     .custom-scrollbar::-webkit-scrollbar {
-      width: 4px;
+      width: 5px;
     }
 
     .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(255, 0, 0, 0.3);
-      border-radius: 10px;
+      background: rgba(232, 190, 110, 0.32);
+      border-radius: 99px;
     }
 
     button span {
@@ -217,6 +322,8 @@
 
 <body>
   <div id="root"></div>
+  <!-- محرك الإطارات المشترك (16 إطاراً) — يُستخدم في لوحة المستخدم وكل الألعاب -->
+  <script src="frames-runtime.js"></script>
   <script type="module" src="index.tsx"></script>
 </body>
 

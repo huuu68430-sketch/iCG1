@@ -1,620 +1,1208 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import confetti from 'canvas-confetti';
+import {
+    Award, ChevronLeft, ChevronRight, Eye, EyeOff, Gauge, History, Home, Image as ImageIcon,
+    Lightbulb, Play, RotateCcw, Shuffle, SkipForward, Sparkles, Timer, Type, Volume2, Wand2, Zap, ZoomIn,
+} from 'lucide-react';
 import { chatService } from '../services/chatService';
-import { leaderboardService } from '../services/supabase';
-import { Eye, EyeOff, Search, Play, RotateCcw, Trophy, Image as ImageIcon, Trash2, Wand2, ChevronRight, ChevronLeft, LogOut, Home, Sparkles } from 'lucide-react';
+import { awardPoints } from '../services/points';
 import { ProAvatar } from './ProAvatar';
+import {
+    BLUR_CATEGORIES, BLUR_TIERS, BLUR_TOTAL,
+    findBlurByArabic, pickBlurEntry,
+    type BlurCategoryId, type BlurEntry, type BlurTier,
+} from '../data/blurBank';
 
 interface BlurGuessProps {
-  channelConnected: boolean;
-  onHome: () => void;
+    channelConnected: boolean;
+    onHome: () => void;
+    isOBS?: boolean;
 }
 
-const PEXELS_API_KEY = process.env.PEXELS_API_KEY || "";
+type Phase = 'SETUP' | 'COUNTDOWN' | 'PLAYING' | 'WINNER';
+type CatSel = BlurCategoryId | 'random';
+type TierSel = BlurTier | 0;
 
-const ENGLISH_WORDS = [
-  "Lion", "Tiger", "Elephant", "Giraffe", "Zebra", "Monkey", "Kangaroo", "Panda", "Koala", "Leopard",
-  "Cheetah", "Wolf", "Fox", "Bear", "Polar Bear", "Rabbit", "Squirrel", "Deer", "Horse", "Donkey",
-  "Camel", "Cow", "Sheep", "Goat", "Pig", "Chicken", "Duck", "Goose", "Turkey", "Eagle",
-  "Hawk", "Falcon", "Owl", "Parrot", "Penguin", "Flamingo", "Peacock", "Swan", "Sparrow", "Pigeon",
-  "Crow", "Seagull", "Whale", "Dolphin", "Shark", "Octopus", "Jellyfish", "Crab", "Lobster", "Shrimp",
-  "Starfish", "Seahorse", "Turtle", "Frog", "Toad", "Snake", "Lizard", "Crocodile", "Alligator", "Chameleon",
-  "Butterfly", "Bee", "Ant", "Spider", "Scorpion", "Mosquito", "Fly", "Beetle", "Ladybug", "Dragonfly",
-  "Grasshopper", "Cricket", "Snail", "Slug", "Worm", "Apple", "Banana", "Orange", "Grape", "Strawberry",
-  "Blueberry", "Raspberry", "Blackberry", "Cherry", "Peach", "Pear", "Plum", "Apricot", "Pineapple", "Mango",
-  "Papaya", "Watermelon", "Melon", "Kiwi", "Lemon", "Lime", "Coconut", "Pomegranate", "Fig", "Date",
-  "Avocado", "Tomato", "Potato", "Carrot", "Onion", "Garlic", "Ginger", "Pepper", "Cucumber", "Zucchini",
-  "Eggplant", "Broccoli", "Cauliflower", "Cabbage", "Lettuce", "Spinach", "Kale", "Corn", "Peas", "Beans",
-  "Mushroom", "Pumpkin", "Radish", "Celery", "Asparagus", "Artichoke", "Okra", "Turnip", "Beet", "Yam",
-  "Sweet Potato", "Rice", "Wheat", "Oats", "Barley", "Quinoa", "Bread", "Pasta", "Noodle", "Pizza",
-  "Burger", "Sandwich", "Soup", "Salad", "Steak", "Chicken", "Fish", "Sushi", "Taco", "Burrito",
-  "Curry", "Rice", "Egg", "Cheese", "Milk", "Yogurt", "Butter", "Cream", "Ice Cream", "Cake",
-  "Cookie", "Pie", "Donut", "Muffin", "Pancake", "Waffle", "Chocolate", "Candy", "Honey", "Jam",
-  "Tea", "Coffee", "Juice", "Water", "Soda", "Wine", "Beer", "Chair", "Table", "Sofa",
-  "Bed", "Lamp", "Desk", "Cabinet", "Shelf", "Mirror", "Clock", "Rug", "Curtain", "Pillow",
-  "Blanket", "Door", "Window", "Wall", "Floor", "Ceiling", "Roof", "Stairs", "Elevator", "House",
-  "Apartment", "Building", "School", "Library", "Hospital", "Bank", "Post Office", "Police Station", "Fire Station", "Park",
-  "Garden", "Zoo", "Museum", "Cinema", "Theater", "Restaurant", "Cafe", "Hotel", "Airport", "Station",
-  "Car", "Bus", "Train", "Bicycle", "Motorcycle", "Truck", "Van", "Taxi", "Boat", "Ship",
-  "Airplane", "Helicopter", "Rocket", "Spaceship", "Traffic Light", "Road", "Bridge", "Tunnel", "Map", "Compass",
-  "Phone", "Computer", "Laptop", "Tablet", "Camera", "Television", "Radio", "Speaker", "Headphones", "Microphone",
-  "Keyboard", "Mouse", "Screen", "Battery", "Charger", "Cable", "Light Bulb", "Fan", "Heater", "Air Conditioner",
-  "Washing Machine", "Dryer", "Fridge", "Oven", "Stove", "Microwave", "Toaster", "Blender", "Mixer", "Iron",
-  "Vacuum", "Broom", "Mop", "Bucket", "Sponge", "Soap", "Shampoo", "Toothbrush", "Toothpaste", "Towel",
-  "Comb", "Brush", "Razor", "Scissors", "Knife", "Fork", "Spoon", "Plate", "Bowl", "Cup",
-  "Glass", "Bottle", "Jar", "Can", "Box", "Bag", "Backpack", "Wallet", "Purse", "Key",
-  "Lock", "Umbrella", "Raincoat", "Hat", "Cap", "Scarf", "Gloves", "Jacket", "Coat", "Shirt",
-  "T-shirt", "Blouse", "Sweater", "Dress", "Skirt", "Pants", "Jeans", "Shorts", "Socks", "Shoes",
-  "Boots", "Sandals", "Slippers", "Watch", "Ring", "Necklace", "Bracelet", "Earrings", "Glasses", "Sunglasses",
-  "Book", "Notebook", "Pen", "Pencil", "Eraser", "Ruler", "Paper", "Envelope", "Stamp", "Card",
-  "Gift", "Toy", "Doll", "Ball", "Bat", "Racket", "Net", "Goal", "Tent", "Sleeping Bag",
-  "Fire", "Water", "Earth", "Air", "Sun", "Moon", "Star", "Cloud", "Rain", "Snow",
-  "Wind", "Storm", "Lightning", "Thunder", "Rainbow", "Mountain", "Hill", "Valley", "River", "Lake",
-  "Ocean", "Sea", "Beach", "Island", "Desert", "Forest", "Jungle", "Tree", "Flower", "Grass",
-  "Leaf", "Root", "Seed", "Fruit", "Vegetable", "Meat", "Bone", "Skin", "Hair", "Eye",
-  "Ear", "Nose", "Mouth", "Tooth", "Tongue", "Lip", "Hand", "Finger", "Thumb", "Palm",
-  "Arm", "Elbow", "Shoulder", "Leg", "Knee", "Foot", "Toe", "Heel", "Ankle", "Body",
-  "Head", "Neck", "Chest", "Back", "Stomach", "Heart", "Brain", "Blood", "Sweat", "Tears",
-  "Smile", "Laugh", "Cry", "Shout", "Whisper", "Sing", "Dance", "Run", "Walk", "Jump",
-  "Sit", "Stand", "Sleep", "Dream", "Wake", "Eat", "Drink", "Cook", "Wash", "Clean",
-  "Read", "Write", "Draw", "Paint", "Listen", "Speak", "Think", "Learn", "Teach", "Work",
-  "Play", "Win", "Lose", "Buy", "Sell", "Give", "Take", "Open", "Close", "Push",
-  "Pull", "Cut", "Paste", "Copy", "Delete", "Save", "Search", "Find", "Help", "Love",
-  "Hate", "Like", "Dislike", "Happy", "Sad", "Angry", "Fear", "Surprise", "Disgust", "Bored",
-  "Tired", "Hungry", "Thirsty", "Sick", "Healthy", "Strong", "Weak", "Fast", "Slow", "Big",
-  "Small", "Tall", "Short", "Fat", "Thin", "Old", "Young", "New", "Good", "Bad",
-  "High", "Low", "Hot", "Cold", "Warm", "Cool", "Dry", "Wet", "Hard", "Soft",
-  "Rough", "Smooth", "Heavy", "Light", "Dark", "Bright", "Clean", "Dirty", "Rich", "Poor",
-  "Cheap", "Expensive", "Free", "Busy", "Lazy", "Smart", "Stupid", "Funny", "Serious", "Kind",
-  "Cruel", "Brave", "Coward", "Calm", "Nervous", "Shy", "Friendly", "Rude", "Polite", "Honest",
-  "Liar", "True", "False", "Right", "Wrong", "Easy", "Difficult", "Simple", "Complex", "Beautiful",
-  "Ugly", "Cute", "Scary", "Funny", "Strange", "Normal", "Loud", "Quiet", "Sweet", "Sour",
-  "Bitter", "Salty", "Spicy", "Red", "Blue", "Green", "Yellow", "Orange", "Purple", "Pink",
-  "Brown", "Black", "White", "Gray", "Gold", "Silver", "One", "Two", "Three", "Four",
-  "Five", "Six", "Seven", "Eight", "Nine", "Ten", "First", "Second", "Third", "Last",
-  "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "Day", "Night", "Morning",
-  "Afternoon", "Evening", "Week", "Month", "Year", "Time", "Hour", "Minute", "Second", "Now",
-  "Today", "Tomorrow", "Yesterday", "Future", "Past", "History", "Science", "Math", "Art", "Music"
-];
+interface WinInfo {
+    name: string;
+    avatar?: string;
+    color?: string;
+    seconds: number;
+    base: number;
+    bonus: number;
+    penalty: number;
+    points: number;
+}
+
+interface GuessRow { user: string; text: string; color?: string }
+interface RoundRow { ar: string; winner: string; seconds: number; points: number; tier: BlurTier }
+interface SessionRow { username: string; avatar: string; points: number; wins: number }
+
+const PEXELS_API_KEY = process.env.PEXELS_API_KEY || '';
+
+const GOLD = '#e8be6e';
+const EMBER = '#e8552f';
+const LIVE = '#4be07a';
+const CREAM = '#fbeccb';
+
+const CLEAR_CHOICES = [30, 45, 60, 90];
+/**سلم الضباب: نسبة من مدة الوضوح ← شدة الضباب */
+const BLUR_LADDER: Array<[number, number]> = [[0.18, 100], [0.36, 64], [0.55, 38], [0.75, 18], [1, 8]];
+
+const blurFor = (elapsed: number, clearSeconds: number): number => {
+    if (clearSeconds <= 0) return 0;
+    const p = Math.min(1.5, elapsed / clearSeconds);
+    for (const [edge, blur] of BLUR_LADDER) if (p < edge) return blur;
+    return 0;
+};
+
+const speedBonus = (elapsed: number, clearSeconds: number): number => {
+    const p = clearSeconds <= 0 ? 1 : elapsed / clearSeconds;
+    if (p <= 0.2) return 150;
+    if (p <= 0.4) return 100;
+    if (p <= 0.6) return 50;
+    return 0;
+};
+
+/** توحيد النص: يشيل التشكيل والرموز ويوحّد الهمزات والتاء المربوطة — "الأسد/اسد/أسد" شكل واحد */
+const canon = (s: string) => s
+    .replace(/[ً-ْٰـ]/g, '')
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ئ/g, 'ي')
+    .replace(/ؤ/g, 'و')
+    .replace(/ة/g, 'ه')
+    .replace(/[^ؠ-يA-Za-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+const stripArticle = (t: string) => (t.length > 4 && t.startsWith('ال') ? t.slice(2) : t);
+
+const buildForms = (entry: BlurEntry): Set<string> => {
+    const out = new Set<string>();
+    const add = (raw: string) => {
+        const c = canon(raw);
+        if (!c) return;
+        out.add(c);
+        const bare = stripArticle(c);
+        if (bare) out.add(bare);
+    };
+    add(entry.ar);
+    entry.alt.forEach(add);
+    add(entry.en.replace(/[-/]/g, ' '));
+    return out;
+};
+
+/** تخمين اللاعب يقبل الإجابة كاملة، أو ككلمة داخل الجملة، أو بدون «ال»، أو المصطلح الإنجليزي */
+const matchesGuess = (raw: string, forms: Set<string>): boolean => {
+    if (!forms.size) return false;
+    const text = canon(raw);
+    if (!text) return false;
+    if (forms.has(text) || forms.has(stripArticle(text))) return true;
+    for (const form of forms) {
+        if (form.includes(' ') && text.includes(form)) return true;
+    }
+    return text.split(' ').some(tok => forms.has(tok) || forms.has(stripArticle(tok)));
+};
+
+const shuffleArr = <T,>(arr: T[]): T[] => {
+    const out = [...arr];
+    for (let i = out.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+};
+
+const USED_KEY = 'blur_used_photo_ids';
+const readUsed = (): number[] => {
+    try { return JSON.parse(localStorage.getItem(USED_KEY) || '[]'); } catch { return []; }
+};
+const markUsed = (id: number) => {
+    try {
+        const used = readUsed();
+        if (!used.includes(id)) localStorage.setItem(USED_KEY, JSON.stringify([...used, id].slice(-400)));
+    } catch { /* التخزين اختياري */ }
+};
+
+/** صور Pexels — مصطلح البحث إنجليزي دائماً، مع تجاوز الصور المستخدَمة recently */
+const fetchPhotos = async (en: string): Promise<any[]> => {
+    const term = (en || '').trim();
+    if (!term || !PEXELS_API_KEY) return [];
+    try {
+        const page = Math.floor(Math.random() * 3) + 1;
+        const res = await fetch(
+            `https://api.pexels.com/v1/search?query=${encodeURIComponent(term)}&per_page=20&page=${page}`,
+            { headers: { Authorization: PEXELS_API_KEY } },
+        );
+        if (!res.ok) return [];
+        const data = await res.json();
+        const photos: any[] = data?.photos || [];
+        if (!photos.length) return [];
+        const used = readUsed();
+        const fresh = photos.filter(p => !used.includes(p.id));
+        return shuffleArr((fresh.length ? fresh : photos).slice(0, 12));
+    } catch {
+        return [];
+    }
+};
+
+/** مصدر بديل بدون مفتاح — الصورة لا تُجلب عبر fetch لذلك لا يوجد منع CORS */
+const fallbackUrl = (en: string) => {
+    const terms = (en || 'nature').trim().split(/\s+/).slice(0, 4).join(',');
+    return `https://loremflickr.com/1280/720/${encodeURIComponent(terms)}?lock=${Math.floor(Math.random() * 9999)}`;
+};
+
+/** ترجمة احتياطية للكلمة الحرة فقط — كلمات البنك كلها مكتوبة يدوياً */
+const translateToEnglish = async (text: string): Promise<string> => {
+    try {
+        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ar&tl=en&dt=t&q=${encodeURIComponent(text)}`);
+        const data = await res.json();
+        return String(data?.[0]?.[0]?.[0] || text).trim();
+    } catch {
+        return text;
+    }
+};
 
 const SidebarPortal = ({ children }: { children?: React.ReactNode }) => {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); return () => setMounted(false); }, []);
-  const el = document.getElementById('game-sidebar-portal');
-  if (!mounted || !el) return null;
-  return createPortal(children, el);
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); return () => setMounted(false); }, []);
+    const el = document.getElementById('game-sidebar-portal');
+    if (!mounted || !el) return null;
+    return createPortal(children, el);
 };
 
-export const BlurGuess: React.FC<BlurGuessProps> = ({ channelConnected, onHome }) => {
-  const [gameState, setGameState] = useState<'SETUP' | 'PLAYING' | 'WINNER'>('SETUP');
-  const [arabicWord, setArabicWord] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [photos, setPhotos] = useState<any[]>([]);
-  const [photoIndex, setPhotoIndex] = useState(0);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [blurLevel, setBlurLevel] = useState(100);
-  const [timer, setTimer] = useState(0);
-  const [winner, setWinner] = useState<{ name: string, avatar?: string, color?: string } | null>(null);
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showSolution, setShowSolution] = useState(false);
-  const [recentMessages, setRecentMessages] = useState<{ user: string, content: string, color?: string }[]>([]);
-
-  const gameStateRef = useRef(gameState);
-  const arabicWordRef = useRef(arabicWord);
-  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
-  useEffect(() => { arabicWordRef.current = arabicWord; }, [arabicWord]);
-
-  const [isImageLoading, setIsImageLoading] = useState(false);
-
-  useEffect(() => {
-    if (photos.length > 0 && photos[photoIndex]) {
-      setIsImageLoading(true);
-      // Use 'large' instead of 'large2x' for faster loading (approx 50% smaller file size but good quality)
-      const src = photos[photoIndex].src.large;
-
-      const img = new Image();
-      img.src = src;
-      img.onload = () => {
-        setImageUrl(src);
-        setIsImageLoading(false);
-      };
-      img.onerror = () => {
-        // Fallback if large fails, though unlikely
-        setIsImageLoading(false);
-      }
-    }
-  }, [photos, photoIndex]);
-
-  useEffect(() => {
-    let interval: number;
-    if (gameState === 'PLAYING') {
-      interval = window.setInterval(() => setTimer(prev => prev + 1), 1000);
-    }
-    return () => clearInterval(interval);
-  }, [gameState]);
-
-  useEffect(() => {
-    if (gameState !== 'PLAYING') return;
-    // Stricter/Slower blur progression for more challenge
-    if (timer < 10) setBlurLevel(100);
-    else if (timer < 25) setBlurLevel(60);
-    else if (timer < 45) setBlurLevel(30);
-    else if (timer < 60) setBlurLevel(15);
-    else setBlurLevel(0);
-  }, [timer, gameState]);
-
-  useEffect(() => {
-    if (!channelConnected) return;
-    const cleanup = chatService.onMessage(async (msg) => {
-      if (gameStateRef.current !== 'PLAYING') return;
-      setRecentMessages(prev => [{
-        user: msg.user.username,
-        content: msg.content,
-        color: msg.user.color
-      }, ...prev].slice(0, 5));
-
-      if (msg.content.trim().toLowerCase() === arabicWordRef.current.trim().toLowerCase()) {
-        const username = msg.user.username;
-        const userWinner = { name: username, avatar: msg.user.avatar, color: msg.user.color };
-        setWinner(userWinner);
-        setGameState('WINNER');
-        setBlurLevel(0);
-        await leaderboardService.recordWin(userWinner.name, userWinner.avatar || '', 100);
-      }
-    });
-    return cleanup;
-  }, [channelConnected]);
-
-  // Improved translation logic using Google Translate fallback
-  const translateToArabic = async (text: string): Promise<string> => {
-    if (!text) return '';
-    try {
-      // Use a more reliable translation mirror for Google Translate
-      const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ar&tl=en&dt=t&q=${encodeURIComponent(text)}`);
-      const data = await res.json();
-      return data[0][0][0] || text;
-    } catch (e) {
-      // Fallback to MyMemory if Google fails
-      try {
-        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=ar|en`);
-        const data = await res.json();
-        return data.responseData?.translatedText?.replace(/[.!?,]/g, '') || text;
-      } catch (err) { return text; }
-    }
-  };
-
-  const handleArabicChange = async (val: string) => {
-    setArabicWord(val);
-    if (val.length > 2) {
-      setIsTranslating(true);
-      const translated = await translateToArabic(val);
-      setSearchQuery(translated);
-      setIsTranslating(false);
-
-      // Auto-fetch images behind the scenes
-      if (translated) {
-        setIsSearching(true);
-        try {
-          const res = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(translated)}&per_page=30`, {
-            headers: { Authorization: PEXELS_API_KEY }
-          });
-          const data = await res.json();
-          if (data.photos?.length > 0) {
-            setPhotos(data.photos);
-            setPhotoIndex(0);
-          }
-        } catch (e) { } finally { setIsSearching(false); }
-      }
-    }
-  };
-
-  const handleRandomWord = async () => {
-    setIsTranslating(true);
-    setIsSearching(true);
-    setPhotos([]);
-    setImageUrl(null);
-    setPhotoIndex(0);
-
-    const randomEnglish = ENGLISH_WORDS[Math.floor(Math.random() * ENGLISH_WORDS.length)];
-
-    // Translate English -> Arabic for the "Answer"
-    const arabicRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ar&dt=t&q=${encodeURIComponent(randomEnglish)}`);
-    const arabicData = await arabicRes.json();
-    const arabicTranslation = arabicData[0][0][0];
-
-    setArabicWord(arabicTranslation);
-    setSearchQuery(randomEnglish); // Use English for Pexels search (Better results)
-
-    // Fetch Images using English word
-    try {
-      const res = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(randomEnglish)}&per_page=30`, {
-        headers: { Authorization: PEXELS_API_KEY }
-      });
-      const data = await res.json();
-      if (data.photos?.length > 0) {
-        setPhotos(data.photos);
-        setPhotoIndex(0);
-      }
-    } catch (e) { } finally {
-      setIsSearching(false);
-      setIsTranslating(false);
-    }
-  };
-
-  // Auto-advance slideshow during SETUP
-  useEffect(() => {
-    if (gameState !== 'SETUP' || photos.length < 2) return;
-    const interval = setInterval(() => {
-      setPhotoIndex(p => (p + 1) % photos.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [gameState, photos.length]);
-
-  const resetGame = () => { setGameState('SETUP'); setWinner(null); setBlurLevel(100); setTimer(0); setPhotos([]); setImageUrl(null); setArabicWord(''); setSearchQuery(''); };
-
-  return (
-    <>
-      <SidebarPortal>
-        <div className="bg-[#080808] p-4 rounded-[1.5rem] border border-white/5 space-y-4 shadow-2xl animate-in slide-in-from-right duration-500 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-600 to-transparent"></div>
-
-          <div className="flex items-center justify-between">
-            <h4 className="text-[11px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-              <ImageIcon size={14} className="text-red-600" /> مـحرك الـتخمين الـذكي
-            </h4>
-          </div>
-
-          {gameState === 'SETUP' ? (
-            <div className="space-y-4">
-              {/* Single Input: Only Arabic solution */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
-                  ادخـل الـكلمة بـالعربية
-                </label>
-                <div className="relative">
-                  <input
-                    value={arabicWord}
-                    onChange={(e) => handleArabicChange(e.target.value)}
-                    placeholder="مثال: أسد، سيارة، برج..."
-                    className="w-full bg-black/60 border-2 border-white/5 rounded-xl py-4 px-8 text-white font-black text-lg outline-none focus:border-red-600 focus:shadow-[0_0_20px_rgba(255,0,0,0.15)] transition-all shadow-inner text-center"
-                  />
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2">
-                    {(isTranslating || isSearching) && <div className="w-5 h-5 border-3 border-red-600/20 border-t-red-600 rounded-full animate-spin" />}
-                    {!(isTranslating || isSearching) && arabicWord && (
-                      <div className="w-5 h-5 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.6)]"></div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-red-600">
-                    <Sparkles size={16} className="animate-pulse" />
-                  </div>
-                </div>
-                {arabicWord && searchQuery && (
-                  <div className="bg-white/5 rounded-lg px-3 py-1.5 border border-white/5 flex items-center gap-2">
-                    <span className="text-[8px] text-gray-500 font-bold uppercase tracking-wider">EN:</span>
-                    <span className="text-[10px] text-gray-400 italic font-bold">{searchQuery}</span>
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={handleRandomWord}
-                disabled={isTranslating || isSearching}
-                className="w-full bg-gradient-to-r from-blue-600/20 to-purple-600/20 hover:from-blue-600/30 hover:to-purple-600/30 text-blue-400 font-black py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all border border-blue-500/20 hover:border-blue-400/40 text-[10px] group"
-              >
-                <Wand2 size={16} className={`${isTranslating ? "animate-spin" : "group-hover:rotate-45 transition-transform"} drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]`} />
-                {isTranslating ? 'جاري السحر...' : 'كلمة عشوائية'}
-              </button>
-
-              {/* Preview Image Only in Sidebar for Privacy */}
-              <div className="relative h-36 rounded-[1.25rem] overflow-hidden border border-white/5 group shadow-2xl animate-in zoom-in bg-black/50">
-                {isImageLoading && (
-                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <div className="w-8 h-8 border-4 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
-                  </div>
-                )}
-                {imageUrl && (
-                  <>
-                    <img src={imageUrl} className={`w-full h-full object-cover transition-all duration-700 ${isImageLoading ? 'opacity-50' : 'opacity-100'}`} alt="preview" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
-                    <div className="absolute inset-x-0 bottom-0 bg-black/70 backdrop-blur-sm px-2 py-2 flex items-center justify-between">
-                      <button onClick={() => setPhotoIndex(p => (p - 1 + photos.length) % photos.length)} className="p-1.5 bg-white/10 hover:bg-red-600 rounded-lg transition-all hover:scale-110 active:scale-90"><ChevronRight size={14} className="text-white" /></button>
-                      <span className="text-[9px] font-black text-white/80 italic tracking-wide">{photoIndex + 1} / {photos.length}</span>
-                      <button onClick={() => setPhotoIndex(p => (p + 1) % photos.length)} className="p-1.5 bg-white/10 hover:bg-red-600 rounded-lg transition-all hover:scale-110 active:scale-90"><ChevronLeft size={14} className="text-white" /></button>
-                    </div>
-                    <div className="absolute top-2 right-2 bg-red-600/90 backdrop-blur-sm text-white text-[8px] font-black px-2 py-0.5 rounded-md shadow-lg italic">للمشرف فقط</div>
-                  </>
-                )}
-                {!imageUrl && !isImageLoading && (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div className="text-center">
-                      <ImageIcon size={24} className="text-white/10 mx-auto mb-1" />
-                      <p className="text-[9px] text-white/10 font-black italic">انتظر الصور...</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={() => setGameState('PLAYING')}
-                disabled={!imageUrl || !arabicWord}
-                className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white font-black py-4 rounded-[1.25rem] text-base shadow-[0_12px_30px_rgba(220,38,38,0.3)] hover:scale-[1.03] active:scale-95 transition-all disabled:opacity-10 italic border-t-2 border-white/20 flex items-center justify-center gap-3"
-              >
-                <Play fill="currentColor" size={16} /> بـدء الـتحدي الآن
-              </button>
-
-              <button
-                onClick={onHome}
-                className="w-full bg-white/5 py-3 rounded-[1rem] text-[10px] font-black text-gray-500 hover:text-white hover:bg-white/10 border border-white/5 transition-all flex items-center justify-center gap-2 uppercase tracking-widest italic"
-              >
-                <Home size={12} /> الـعودة للـقائمة الـرئيسـية
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Answer reveal */}
-              <div className="bg-white/5 p-4 rounded-[1.25rem] border border-white/5 shadow-xl">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-[9px] text-gray-500 uppercase font-black tracking-widest">الإجـابة هـي</div>
-                  <button onClick={() => setShowSolution(!showSolution)} className="w-7 h-7 flex items-center justify-center bg-red-600/10 text-red-500 rounded-full hover:bg-red-600 hover:text-white transition-all">
-                    {showSolution ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                </div>
-                <div className="text-lg font-black text-white italic tracking-wide">{showSolution ? arabicWord : '••••••••'}</div>
-              </div>
-
-              {/* Timer and blur status */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white/5 p-3 rounded-[1rem] border border-white/5 text-center">
-                  <div className="text-[8px] text-gray-500 font-black uppercase tracking-wider">الوقت</div>
-                  <div className="text-lg font-black text-white font-mono">{timer}s</div>
-                </div>
-                <div className="bg-white/5 p-3 rounded-[1rem] border border-white/5 text-center">
-                  <div className="text-[8px] text-gray-500 font-black uppercase tracking-wider">الضباب</div>
-                  <div className="text-lg font-black text-emerald-400 font-mono">{blurLevel}%</div>
-                </div>
-              </div>
-
-              {/* Recent guesses live */}
-              {recentMessages.length > 0 && (
-                <div className="bg-white/5 p-3 rounded-[1rem] border border-white/5">
-                  <div className="text-[8px] text-gray-500 font-black uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                    آخر التخمينات
-                  </div>
-                  <div className="space-y-1 max-h-[120px] overflow-y-auto custom-scrollbar">
-                    {recentMessages.map((msg, i) => (
-                      <div key={i} className="flex items-center gap-1.5 text-[10px] bg-black/20 rounded-lg px-2 py-1">
-                        <span className="font-bold truncate max-w-[70px]" style={{color: msg.color || '#fff'}}>{msg.user}</span>
-                        <span className="text-gray-600">:</span>
-                        <span className="text-gray-400 italic truncate max-w-[90px]">{msg.content}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Actions */}
-              <button onClick={resetGame} className="w-full bg-gradient-to-r from-emerald-600/20 to-emerald-700/10 hover:from-emerald-600/30 hover:to-emerald-700/20 text-emerald-400 font-black py-3 rounded-[1rem] text-xs border border-emerald-500/20 transition-all flex items-center justify-center gap-2 group">
-                <RotateCcw size={14} className="group-hover:rotate-180 transition-transform duration-500" /> جـولة جـديـدة
-              </button>
-              <button onClick={onHome} className="w-full bg-red-600/10 py-3 rounded-[1rem] text-xs font-black text-red-500 hover:bg-red-600/20 border border-red-500/20 transition-all flex items-center justify-center gap-2">
-                <Home size={12} /> خـروج
-              </button>
-            </div>
-          )}
+const Section: React.FC<{
+    title: string;
+    icon: React.ElementType;
+    color?: string;
+    right?: React.ReactNode;
+    children: React.ReactNode;
+}> = ({ title, icon: Icon, color = GOLD, right, children }) => (
+    <div className="rounded-2xl border border-icg-gold/10 bg-icg-espresso/45 p-2.5 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-[9px] font-black text-icg-muted tracking-[0.2em]">
+                <Icon size={11} style={{ color }} /> {title}
+            </span>
+            {right}
         </div>
-      </SidebarPortal>
+        {children}
+    </div>
+);
 
-      <div className="w-full h-full flex flex-col items-center justify-center p-5 relative overflow-hidden bg-black select-none">
-        {/* Main Display: Static Info during Setup, Hidden image for privacy */}
-        {gameState === 'SETUP' && (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-4 animate-in fade-in duration-700 px-4">
-            {/* Image display area - shows actual images when available */}
-            {photos.length > 0 && imageUrl ? (
-              <div className="relative w-full max-w-5xl aspect-video rounded-[2.5rem] overflow-hidden border-[6px] border-[#16161a] shadow-[0_0_80px_rgba(0,0,0,0.9)] bg-zinc-900 group">
-                {/* Auto-advancing slideshow */}
-                {isImageLoading && (
-                  <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
-                    <div className="w-10 h-10 border-4 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
-                  </div>
-                )}
-                <img
-                  src={imageUrl}
-                  className={`w-full h-full object-cover transition-all duration-700 ${isImageLoading ? 'opacity-0 scale-110' : 'opacity-100 scale-100'}`}
-                />
-                {/* Gradient overlays */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30"></div>
+const OptBtn: React.FC<{
+    active: boolean;
+    color: string;
+    onClick: () => void;
+    sub?: string;
+    children: React.ReactNode;
+}> = ({ active, color, onClick, sub, children }) => (
+    <button
+        onClick={onClick}
+        className="rounded-xl px-2.5 py-2 text-[10px] font-black leading-tight transition-all hover:scale-[1.03] active:scale-95 text-center"
+        style={{
+            background: active ? `${color}26` : 'rgba(255,255,255,0.03)',
+            border: `1px solid ${active ? `${color}66` : 'rgba(255,255,255,0.06)'}`,
+            color: active ? color : '#b2a283',
+            boxShadow: active ? `0 6px 18px ${color}22` : 'none',
+        }}
+    >
+        {children}
+        {sub && <span className="block text-[8px] font-bold opacity-70 mt-0.5">{sub}</span>}
+    </button>
+);
 
-                {/* Top badge */}
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-xl px-6 py-2 rounded-full border border-white/10 flex items-center gap-3">
-                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.8)]"></span>
-                  <span className="text-white/80 font-black text-xs tracking-wider italic">معاينة الصور — {photoIndex + 1}/{photos.length}</span>
-                </div>
+const SwitchRow: React.FC<{
+    label: string;
+    value: boolean;
+    onChange: () => void;
+    icon: React.ElementType;
+    color?: string;
+}> = ({ label, value, onChange, icon: Icon, color = GOLD }) => (
+    <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-icg-gold/5 border border-icg-gold/10">
+        <span className="flex items-center gap-1.5 text-[9px] font-black text-icg-cream/80">
+            <Icon size={11} style={{ color: value ? color : undefined }} /> {label}
+        </span>
+        <button
+            onClick={onChange}
+            className="w-9 h-5 rounded-full relative transition-colors shrink-0"
+            style={{ background: value ? color : 'rgba(232,190,110,0.15)' }}
+        >
+            <span
+                className="absolute top-1 left-1 w-3 h-3 rounded-full bg-icg-ink transition-transform"
+                style={{ transform: value ? 'translateX(16px)' : 'none' }}
+            />
+        </button>
+    </div>
+);
 
-                {/* Image navigation arrows */}
-                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-between px-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <button onClick={() => setPhotoIndex(p => (p - 1 + photos.length) % photos.length)}
-                    className="w-12 h-12 bg-black/60 backdrop-blur-xl hover:bg-red-600 rounded-full flex items-center justify-center transition-all border border-white/10 shadow-xl active:scale-90">
-                    <ChevronRight size={20} className="text-white" />
-                  </button>
-                  <button onClick={() => setPhotoIndex(p => (p + 1) % photos.length)}
-                    className="w-12 h-12 bg-black/60 backdrop-blur-xl hover:bg-red-600 rounded-full flex items-center justify-center transition-all border border-white/10 shadow-xl active:scale-90">
-                    <ChevronLeft size={20} className="text-white" />
-                  </button>
-                </div>
+const ZoomPad: React.FC<{ cell: number; onChange: (c: number) => void; color?: string; compact?: boolean }> = ({ cell, onChange, color = GOLD, compact = false }) => (
+    <div dir="ltr" className={`grid grid-cols-3 gap-1 shrink-0 ${compact ? 'w-[60px]' : 'w-full max-w-[128px] mx-auto'}`}>
+        {Array.from({ length: 9 }, (_, i) => (
+            <button
+                key={i}
+                type="button"
+                onClick={() => onChange(i)}
+                aria-label={`منطقة الزوم ${i + 1}`}
+                className="aspect-square rounded-md transition-all duration-200 hover:scale-110 active:scale-95"
+                style={{
+                    background: cell === i ? `${color}59` : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${cell === i ? color : 'rgba(255,255,255,0.12)'}`,
+                    boxShadow: cell === i ? `0 0 12px ${color}66` : 'none',
+                }}
+            />
+        ))}
+    </div>
+);
 
-                {/* Bottom info bar */}
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="px-4 py-1.5 bg-red-600/20 backdrop-blur-xl rounded-full border border-red-500/30">
-                        <span className="text-red-400 font-black text-xs tracking-wider italic">الكلمة: {arabicWord || '—'}</span>
-                      </div>
-                    </div>
-                    {photos[photoIndex]?.photographer && (
-                      <div className="text-white/40 text-[10px] font-bold italic">
-                        📷 {photos[photoIndex].photographer}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* Placeholder when no images yet */
-              <div className="w-full max-w-5xl aspect-video rounded-[2.5rem] border-[6px] border-[#16161a] bg-zinc-900/80 flex flex-col items-center justify-center gap-4 shadow-[0_0_60px_rgba(0,0,0,0.8)]">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-red-600 blur-[60px] opacity-20 animate-pulse"></div>
-                  <div className="w-20 h-20 bg-gradient-to-br from-red-600 to-red-900 rounded-[2rem] flex items-center justify-center shadow-2xl border-2 border-white/10 rotate-12">
-                    <ImageIcon size={36} className="text-white drop-shadow-lg" />
-                  </div>
-                </div>
-                <h1 className="text-5xl md:text-6xl font-black text-white italic tracking-tighter uppercase leading-none drop-shadow-[0_12px_36px_rgba(255,255,255,0.1)]">تـخمين الـصورة</h1>
-                <div className="flex items-center justify-center gap-5">
-                  <div className="h-px w-12 bg-gradient-to-l from-transparent via-red-600 to-transparent"></div>
-                  <p className="text-red-500 font-black tracking-[0.6em] text-xs uppercase italic">ARENA GUESS ENGINE</p>
-                  <div className="h-px w-12 bg-gradient-to-r from-transparent via-red-600 to-transparent"></div>
-                </div>
-                <p className="text-white/20 font-black text-sm italic mt-2">اكتب كلمة أو اختر عشوائي لبدء المعاينة</p>
-              </div>
-            )}
-          </div>
-        )}
+const LetterBoard: React.FC<{ word: string; open: boolean; accent: string }> = ({ word, open, accent }) => (
+    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2" dir="rtl">
+        {word.split(' ').map((w, wi) => (
+            <span key={wi} className="flex gap-1">
+                {w.split('').map((ch, ci) => {
+                    const shown = open || (ci === 0 && w.length > 2);
+                    return (
+                        <span
+                            key={ci}
+                            className="w-7 h-9 grid place-items-center rounded-lg border text-base font-black italic"
+                            style={{
+                                borderColor: open ? `${accent}66` : 'rgba(232,190,110,0.16)',
+                                background: open ? `${accent}14` : 'rgba(255,255,255,0.03)',
+                                color: open ? accent : 'rgba(251,236,203,0.45)',
+                            }}
+                        >
+                            {shown ? ch : '؟'}
+                        </span>
+                    );
+                })}
+            </span>
+        ))}
+    </div>
+);
 
-        {/* PLAYING MODE: Image is shown (Blurred) */}
-        {gameState === 'PLAYING' && imageUrl && (
-          <div className="relative w-full h-[90vh] flex flex-col items-center justify-center gap-6 animate-in fade-in slide-in-from-top-10 duration-700 p-4">
-            <div className="relative group w-full max-w-5xl aspect-video rounded-[2.5rem] overflow-hidden border-[10px] border-[#16161a] shadow-[0_0_80px_rgba(0,0,0,0.9)] bg-zinc-900">
-              {isImageLoading && (
-                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-                  <div className="w-10 h-10 border-4 border-red-600/30 border-t-red-600 rounded-full animate-spin mb-4" />
-                  <span className="text-white font-black tracking-widest animate-pulse">جاري تحميل الصورة...</span>
-                </div>
-              )}
-              <img
-                src={imageUrl}
-                className={`w-full h-full object-cover transition-all duration-1000 ${isImageLoading ? 'opacity-0 scale-110' : 'opacity-100 scale-100'}`}
-                style={{ filter: `blur(${blurLevel}px)` }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10"></div>
+export const BlurGuess: React.FC<BlurGuessProps> = ({ channelConnected, onHome, isOBS = false }) => {
+    // ---------- الإعدادات ----------
+    const [phase, setPhase] = useState<Phase>('SETUP');
+    const [catId, setCatId] = useState<CatSel>('random');
+    const [tierSel, setTierSel] = useState<TierSel>(0);
+    const [clearSeconds, setClearSeconds] = useState(45);
+    const [blurMode, setBlurMode] = useState<'auto' | 'fixed'>('auto');
+    const [fixedBlur, setFixedBlur] = useState(70);
+    const [zoomOn, setZoomOn] = useState(false);
+    const [zoomCell, setZoomCell] = useState(4);
+    const [zoomScale, setZoomScale] = useState(3);
+    const [soundOn, setSoundOn] = useState(true);
+    const [autoHint, setAutoHint] = useState(true);
+    const [autoNext, setAutoNext] = useState(false);
+    const [manualAr, setManualAr] = useState('');
+    const [manualEn, setManualEn] = useState('');
 
-              {/* HUD Overlays */}
-              <div className="absolute top-6 inset-x-0 flex justify-center px-6 pointer-events-none z-10">
-                <div className="bg-red-600/90 backdrop-blur-xl text-white px-12 py-3 rounded-[1.5rem] font-black italic text-2xl shadow-[0_18px_36px_rgba(220,38,38,0.5)] border-t-2 border-white/20 animate-bounce tracking-tight">
-                  خـمن الـصـورة!
-                </div>
-              </div>
+    // ---------- الجولة ----------
+    const [entry, setEntry] = useState<BlurEntry | null>(null);
+    const [photos, setPhotos] = useState<any[]>([]);
+    const [photoIndex, setPhotoIndex] = useState(0);
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const [isSourceFallback, setIsSourceFallback] = useState(false);
+    const [imgReady, setImgReady] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [countdown, setCountdown] = useState(0);
+    const [elapsed, setElapsed] = useState(0);
+    const [showHint, setShowHint] = useState(false);
+    const [showPattern, setShowPattern] = useState(false);
+    const [adminReveal, setAdminReveal] = useState(false);
+    const [winner, setWinner] = useState<WinInfo | null>(null);
+    const [recent, setRecent] = useState<GuessRow[]>([]);
+    const [history, setHistory] = useState<RoundRow[]>([]);
+    const [session, setSession] = useState<Record<string, SessionRow>>({});
 
-              {/* Sleek Bottom HUD Bar */}
-              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-6 flex items-end justify-between z-10">
-                <div className="flex gap-4">
-                  <div className="bg-black/40 backdrop-blur-xl border border-white/10 px-5 py-2.5 rounded-[1rem] flex flex-col items-center">
-                    <span className="text-[9px] text-gray-500 font-black uppercase mb-0.5 tracking-wider">الـوقت</span>
-                    <span className="text-2xl font-black text-white font-mono drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">{timer}s</span>
-                  </div>
-                  <div className="bg-black/40 backdrop-blur-xl border border-white/10 px-5 py-2.5 rounded-[1rem] flex flex-col items-center">
-                    <span className="text-[9px] text-gray-500 font-black uppercase mb-0.5 tracking-wider">الـضباب</span>
-                    <span className="text-2xl font-black text-emerald-400 font-mono drop-shadow-[0_0_10px_rgba(52,211,153,0.3)]">{blurLevel}%</span>
-                  </div>
-                </div>
+    const phaseRef = useRef<Phase>('SETUP');
+    const entryRef = useRef<BlurEntry | null>(null);
+    const formsRef = useRef<Set<string>>(new Set());
+    const elapsedRef = useRef(0);
+    const cfgRef = useRef({ catId, tierSel, clearSeconds, autoHint, autoNext });
+    const hintsRef = useRef({ hint: false, pattern: false });
+    const resolvingRef = useRef(false);
+    const soundRef = useRef(soundOn);
+    const audioRef = useRef<AudioContext | null>(null);
 
-                {/* Recent guesses ticker */}
-                {recentMessages.length > 0 && (
-                  <div className="bg-black/40 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-[1rem] max-w-[200px]">
-                    <span className="text-[8px] text-gray-500 font-black uppercase tracking-wider block mb-1">آخر التخمينات</span>
-                    <div className="space-y-0.5">
-                      {recentMessages.slice(0, 3).map((msg, i) => (
-                        <div key={i} className="flex items-center gap-1.5 text-[10px]">
-                          <span className="text-white/80 font-bold truncate max-w-[80px]" style={{color: msg.color || '#fff'}}>{msg.user}</span>
-                          <span className="text-gray-500">:</span>
-                          <span className="text-gray-400 italic truncate max-w-[80px]">{msg.content}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+    useEffect(() => { phaseRef.current = phase; }, [phase]);
+    useEffect(() => { elapsedRef.current = elapsed; }, [elapsed]);
+    useEffect(() => { soundRef.current = soundOn; }, [soundOn]);
+    useEffect(() => { hintsRef.current = { hint: showHint, pattern: showPattern }; }, [showHint, showPattern]);
+    useEffect(() => { cfgRef.current = { catId, tierSel, clearSeconds, autoHint, autoNext }; }, [catId, tierSel, clearSeconds, autoHint, autoNext]);
 
-            {/* Progress bar for blur */}
-            <div className="w-full max-w-5xl h-1 bg-white/5 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-red-600 via-red-500 to-transparent rounded-full transition-all duration-1000"
-                style={{ width: `${100 - blurLevel}%` }}
-              ></div>
-            </div>
-          </div>
-        )}
+    const tone = useCallback((freq: number, dur = 0.14, type: OscillatorType = 'sine', gain = 0.06) => {
+        if (!soundRef.current) return;
+        try {
+            const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+            if (!Ctx) return;
+            if (!audioRef.current) audioRef.current = new Ctx();
+            const ctx = audioRef.current;
+            if (ctx.state === 'suspended') void ctx.resume();
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            g.gain.setValueAtTime(gain, ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+            osc.connect(g);
+            g.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + dur);
+        } catch { /* الصوت اختياري */ }
+    }, []);
 
-        {/* WINNER DISPLAY */}
-        {gameState === 'WINNER' && winner && (
-          <div className="flex flex-col items-center justify-center w-full h-full animate-in zoom-in duration-700 z-10 p-6">
-            {/* Background celebration effects */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              <div className="absolute top-1/3 left-1/4 w-64 h-64 bg-amber-500/20 blur-[100px] rounded-full animate-pulse"></div>
-              <div className="absolute top-1/2 right-1/4 w-48 h-48 bg-red-600/15 blur-[80px] rounded-full animate-pulse" style={{animationDelay:'1s'}}></div>
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="absolute w-1.5 h-1.5 bg-amber-400/60 rounded-full" style={{
-                  left: `${10 + i * 15}%`,
-                  top: `${10 + (i * 7) % 80}%`,
-                  animation: `particle-drift ${4 + i % 3}s ease-in-out infinite`,
-                  animationDelay: `${i * 0.5}s`,
-                  '--dx': `${(i % 2 === 0 ? 1 : -1) * 50}px`,
-                  '--dy': `${-60 - i * 15}px`,
-                  '--r': `${i * 60}deg`,
-                } as React.CSSProperties}></div>
-              ))}
-            </div>
+    const burst = useCallback(() => {
+        try {
+            confetti({ particleCount: 110, spread: 82, origin: { x: 0.5, y: 0.45 }, colors: [GOLD, '#f9e0a4', EMBER, LIVE], zIndex: 60 });
+            setTimeout(() => confetti({ particleCount: 45, angle: 60, spread: 65, origin: { x: 0.08, y: 0.75 }, colors: [GOLD, '#f9e0a4'], zIndex: 60 }), 170);
+            setTimeout(() => confetti({ particleCount: 45, angle: 120, spread: 65, origin: { x: 0.92, y: 0.75 }, colors: [GOLD, '#f9e0a4'], zIndex: 60 }), 320);
+        } catch { /* لا شيء */ }
+    }, []);
 
-            <div className="relative flex flex-col items-center">
-              <div className="absolute inset-0 bg-amber-500 blur-[100px] opacity-15"></div>
-              <Trophy size={120} className="text-[#FFD700] mb-6 animate-bounce drop-shadow-[0_0_60px_rgba(255,215,0,0.7)]" fill="currentColor" />
-            </div>
+    const resetRoundFlags = useCallback(() => {
+        setElapsed(0);
+        setShowHint(false);
+        setShowPattern(false);
+        setAdminReveal(false);
+        setWinner(null);
+        setRecent([]);
+        hintsRef.current = { hint: false, pattern: false };
+        elapsedRef.current = 0;
+        resolvingRef.current = false;
+    }, []);
 
-            {/* The answer word */}
-            <div className="relative mb-6">
-              <div className="absolute inset-0 bg-red-600/20 blur-[60px] rounded-full"></div>
-              <h1 className="relative text-6xl md:text-8xl font-black text-white italic tracking-tighter uppercase drop-shadow-[0_12px_50px_rgba(0,0,0,1)] leading-none animate-in slide-in-from-bottom duration-700">
-                {arabicWord}
-              </h1>
-            </div>
+    const applyEntry = useCallback(async (next: BlurEntry) => {
+        entryRef.current = next;
+        formsRef.current = buildForms(next);
+        setEntry(next);
+        setPhotos([]);
+        setPhotoIndex(0);
+        setImageUrl(null);
+        setImgReady(false);
+        setIsSourceFallback(false);
+        setLoading(true);
+        const list = await fetchPhotos(next.en);
+        if (entryRef.current !== next) return;
+        if (list.length) setPhotos(list);
+        else { setIsSourceFallback(true); setImageUrl(fallbackUrl(next.en)); }
+        setLoading(false);
+    }, []);
 
-            {/* Winner card */}
-            <div className="bg-[#050505]/80 backdrop-blur-3xl px-10 md:px-16 py-8 rounded-[3rem] border-2 border-amber-500/50 shadow-[0_0_90px_rgba(255,215,0,0.2)] relative overflow-hidden group animate-in slide-in-from-bottom duration-700" style={{animationDelay:'200ms'}}>
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-transparent via-amber-500 to-transparent"></div>
-              <div className="absolute -inset-2 bg-gradient-to-r from-transparent via-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity animate-shine-sweep"></div>
-              <div className="text-amber-500 font-black uppercase tracking-[0.8em] text-sm mb-4 italic">الفائز</div>
+    // الصورة الحالية عند تبديل الشريحة
+    useEffect(() => {
+        if (!photos.length) return;
+        const photo = photos[photoIndex];
+        if (!photo) return;
+        setImgReady(false);
+        setImageUrl(photo.src?.large || photo.src?.medium || photo.src?.original || null);
+        if (typeof photo.id === 'number') markUsed(photo.id);
+    }, [photos, photoIndex]);
 
-              <div className="flex items-center gap-6">
-                <ProAvatar
-                  url={winner.avatar}
-                  username={winner.name}
-                  size="w-20 h-20"
-                  className="rounded-[1.5rem] shadow-2xl transition-transform hover:scale-110 ring-2 ring-amber-500/30"
-                />
-                <div className="text-4xl md:text-5xl font-black text-white italic tracking-tighter drop-shadow-lg">{winner.name}</div>
-              </div>
-            </div>
+    const armCountdown = useCallback(() => {
+        resetRoundFlags();
+        setPhase('COUNTDOWN');
+        setCountdown(3);
+    }, [resetRoundFlags]);
 
-            <div className="mt-8 flex gap-5 justify-center animate-in slide-in-from-bottom duration-700" style={{animationDelay:'400ms'}}>
-              <button onClick={resetGame} className="px-10 py-4 bg-gradient-to-r from-amber-600 to-amber-700 text-white font-black text-xl rounded-xl hover:scale-110 active:scale-95 transition-all italic shadow-[0_0_30px_rgba(255,215,0,0.3)] flex items-center gap-2 border-t-2 border-white/20"><RotateCcw size={20} /> جـولة جـديـدة</button>
-              <button onClick={onHome} className="px-10 py-4 bg-white/5 border border-white/10 text-white/70 font-black text-xl rounded-xl hover:bg-white/10 hover:text-white transition-all italic shadow-2xl backdrop-blur-sm">خـروج</button>
-            </div>
-          </div>
-        )}
-      </div>
+    const newRound = useCallback(async (cat?: CatSel, tier?: TierSel) => {
+        const cfg = cfgRef.current;
+        const next = pickBlurEntry(cat ?? cfg.catId, tier ?? cfg.tierSel);
+        setManualAr('');
+        setManualEn('');
+        await applyEntry(next);
+        armCountdown();
+    }, [applyEntry, armCountdown]);
 
-      <style>{`
-        @keyframes glow {
-          0%, 100% { box-shadow: 0 0 50px rgba(220, 38, 38, 0.4); }
-          50% { box-shadow: 0 0 80px rgba(220, 38, 38, 0.6); }
+    // ---------- كلمة حرة من المشرف ----------
+    useEffect(() => {
+        if (phase !== 'SETUP') return;
+        const ar = manualAr.trim();
+        if (ar.length < 2) return;
+        if (entryRef.current && canon(entryRef.current.ar) === canon(ar)) return;
+
+        const hit = findBlurByArabic(ar);
+        if (hit) { void applyEntry(hit); return; }
+
+        const forced = manualEn.trim();
+        if (forced) {
+            void applyEntry({ en: forced, ar, alt: [ar], hint: 'كلمة حرة من المشرف', tier: 2 });
+            return;
         }
-        .animate-glow { animation: glow 2s ease-in-out infinite; }
-      `}</style>
-    </>
-  );
+
+        const id = window.setTimeout(async () => {
+            const en = await translateToEnglish(ar);
+            if (canon(entryRef.current?.ar || '') === canon(ar)) return;
+            void applyEntry({ en, ar, alt: [ar], hint: 'كلمة حرة من المشرف', tier: 2 });
+        }, 700);
+        return () => window.clearTimeout(id);
+    }, [manualAr, manualEn, phase, applyEntry]);
+
+    // ---------- العد التنازلي ----------
+    useEffect(() => {
+        if (phase !== 'COUNTDOWN') return;
+        if (countdown <= 0) { setPhase('PLAYING'); tone(880, 0.22, 'triangle', 0.08); return; }
+        tone(520 + (3 - countdown) * 90, 0.12, 'triangle');
+        const id = window.setTimeout(() => setCountdown(c => c - 1), 750);
+        return () => window.clearTimeout(id);
+    }, [phase, countdown, tone]);
+
+    // ---------- مؤقت الجولة ----------
+    useEffect(() => {
+        if (phase !== 'PLAYING') return;
+        const id = window.setInterval(() => setElapsed(e => e + 1), 1000);
+        return () => window.clearInterval(id);
+    }, [phase]);
+
+    // ---------- تلميح تلقائي ----------
+    useEffect(() => {
+        if (phase !== 'PLAYING' || !cfgRef.current.autoHint) return;
+        if (elapsed >= Math.round(clearSeconds * 0.45)) setShowHint(true);
+        if (elapsed >= Math.round(clearSeconds * 0.75)) setShowPattern(true);
+    }, [elapsed, phase, clearSeconds]);
+
+    // ---------- الشات ----------
+    useEffect(() => {
+        if (!channelConnected) return;
+        const cleanup = chatService.onMessage(async (msg) => {
+            if (phaseRef.current !== 'PLAYING' || resolvingRef.current) return;
+            const current = entryRef.current;
+            if (!current || msg.user.isBot) return;
+
+            setRecent(prev => [{ user: msg.user.username, text: msg.content, color: msg.user.color }, ...prev].slice(0, 8));
+            if (!matchesGuess(msg.content, formsRef.current)) return;
+
+            resolvingRef.current = true;
+            const cfg = cfgRef.current;
+            const seconds = elapsedRef.current;
+            const base = BLUR_TIERS[current.tier].points;
+            const bonus = speedBonus(seconds, cfg.clearSeconds);
+            const penalty = (hintsRef.current.hint ? 60 : 0) + (hintsRef.current.pattern ? 40 : 0);
+            const points = Math.max(50, base + bonus - penalty);
+            const username = msg.user.username;
+            const avatar = msg.user.avatar || '';
+
+            setWinner({ name: username, avatar, color: msg.user.color, seconds, base, bonus, penalty, points });
+            setPhase('WINNER');
+            setShowHint(true);
+            setShowPattern(true);
+            burst();
+            tone(660, 0.16, 'triangle', 0.09);
+            setTimeout(() => tone(880, 0.18, 'triangle', 0.09), 150);
+            setTimeout(() => tone(1180, 0.26, 'triangle', 0.09), 320);
+
+            setSession(prev => {
+                const row = prev[username] || { username, avatar, points: 0, wins: 0 };
+                return { ...prev, [username]: { ...row, avatar: avatar || row.avatar, points: row.points + points, wins: row.wins + 1 } };
+            });
+            setHistory(prev => [{ ar: current.ar, winner: username, seconds, points, tier: current.tier }, ...prev].slice(0, 12));
+
+            awardPoints('BLUR_GUESS', username, avatar, 'round', bonus >= 100 ? 1.5 : bonus >= 50 ? 1 : 0.75);
+            if (!avatar) {
+                void chatService.fetchKickAvatar(username).then(live => {
+                    if (!live) return;
+                    setWinner(w => (w && w.name === username && !w.avatar ? { ...w, avatar: live } : w));
+                    setSession(s => { const row = s[username]; if (!row || row.avatar) return s; return { ...s, [username]: { ...row, avatar: live } }; });
+                });
+            }
+        });
+        return cleanup;
+    }, [channelConnected, burst, tone]);
+
+    // ---------- جولة تالية تلقائياً ----------
+    useEffect(() => {
+        if (phase !== 'WINNER' || !autoNext) return;
+        const id = window.setTimeout(() => { void newRound(); }, 12000);
+        return () => window.clearTimeout(id);
+    }, [phase, autoNext, newRound]);
+
+    const category = useMemo(() => BLUR_CATEGORIES.find(c => c.id === catId) || null, [catId]);
+    const categoryLabel = category ? category.label : 'عشوائي جداً';
+    const accent = category ? category.hex : GOLD;
+    const tierMeta = entry ? BLUR_TIERS[entry.tier] : null;
+    const autoBlur = phase === 'WINNER' || adminReveal ? 0 : phase === 'PLAYING' ? blurFor(elapsed, clearSeconds) : 100;
+    const blur = phase === 'WINNER' || adminReveal ? 0
+        : blurMode === 'fixed' ? (phase === 'PLAYING' ? fixedBlur : 100)
+            : autoBlur;
+    const clarity = Math.max(0, Math.round(100 - blur));
+    const zoomActive = zoomOn && (phase === 'PLAYING' || phase === 'COUNTDOWN') && !!imageUrl;
+    const zoomOrigin = `${((zoomCell % 3) + 0.5) * (100 / 3)}% ${(Math.floor(zoomCell / 3) + 0.5) * (100 / 3)}%`;
+    const sessionRows = useMemo(
+        () => Object.values(session).sort((a, b) => b.points - a.points || b.wins - a.wins),
+        [session],
+    );
+    const lettersCount = entry ? entry.ar.replace(/\s/g, '').length : 0;
+
+    const statusLabel = phase === 'SETUP' ? 'استعداد' : phase === 'COUNTDOWN' ? 'استعد' : phase === 'PLAYING' ? 'جارية' : 'اكشفت';
+    const statusColor = phase === 'SETUP' ? '#b2a283' : phase === 'PLAYING' ? EMBER : phase === 'COUNTDOWN' ? GOLD : LIVE;
+
+    const showImage = (phase === 'PLAYING' || phase === 'WINNER' || phase === 'COUNTDOWN') && !!imageUrl;
+
+    return (
+        <>
+            <SidebarPortal>
+                <div className="rounded-[1.5rem] border border-icg-gold/12 bg-icg-ink/85 backdrop-blur-2xl overflow-hidden shadow-2xl">
+                    <div className="px-3 py-2.5 border-b border-icg-gold/10 bg-icg-gold/5 flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-2 text-[11px] font-black text-icg-cream tracking-widest">
+                            <ImageIcon size={14} className="text-icg-gold" /> لوحة المشرف
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black shrink-0" style={{ background: `${statusColor}1f`, color: statusColor }}>
+                            {statusLabel}
+                        </span>
+                    </div>
+
+                    <div className="p-2.5 space-y-2.5">
+                        {phase === 'SETUP' ? (
+                            <>
+                                <Section title="الفئة" icon={Shuffle} color={accent}>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        <OptBtn active={catId === 'random'} color={GOLD} onClick={() => setCatId('random')} sub={`${BLUR_TOTAL} كلمة`}>عشوائي جداً</OptBtn>
+                                        {BLUR_CATEGORIES.map(c => (
+                                            <OptBtn key={c.id} active={catId === c.id} color={c.hex} onClick={() => setCatId(c.id)} sub={`${c.entries.length} كلمة`}>
+                                                {c.label}
+                                            </OptBtn>
+                                        ))}
+                                    </div>
+                                </Section>
+
+                                <Section title="الصعوبة" icon={Gauge}>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        <OptBtn active={tierSel === 0} color={GOLD} onClick={() => setTierSel(0)} sub="كل المستويات">الكل</OptBtn>
+                                        {([1, 2, 3] as BlurTier[]).map(t => (
+                                            <OptBtn key={t} active={tierSel === t} color={BLUR_TIERS[t].hex} onClick={() => setTierSel(t)} sub={`${BLUR_TIERS[t].points} نقطة`}>
+                                                {BLUR_TIERS[t].label}
+                                            </OptBtn>
+                                        ))}
+                                    </div>
+                                </Section>
+
+                                <Section title="متى تكتمل الصورة" icon={Timer}>
+                                    <div className="grid grid-cols-4 gap-1.5">
+                                        {CLEAR_CHOICES.map(s => (
+                                            <OptBtn key={s} active={clearSeconds === s} color={GOLD} onClick={() => setClearSeconds(s)}>{s} ث</OptBtn>
+                                        ))}
+                                    </div>
+                                </Section>
+
+                                <Section title="الغشاوة والزوم" icon={Eye} color={GOLD}>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        <OptBtn active={blurMode === 'auto'} color={GOLD} onClick={() => setBlurMode('auto')} sub="تتضح تدريجياً">تلقائي</OptBtn>
+                                        <OptBtn active={blurMode === 'fixed'} color={EMBER} onClick={() => setBlurMode('fixed')} sub={`${fixedBlur}% ثابت`}>ثابت</OptBtn>
+                                    </div>
+                                    {blurMode === 'fixed' && (
+                                        <div className="rounded-xl bg-black/40 border border-icg-gold/15 px-3 py-2">
+                                            <div className="flex items-center justify-between text-[10px] font-black">
+                                                <span className="text-icg-muted">درجة التغبيش</span>
+                                                <span className="text-icg-gold tabular-nums">{fixedBlur}%</span>
+                                            </div>
+                                            <input
+                                                type="range" min={5} max={100} step={5} value={fixedBlur}
+                                                onChange={e => setFixedBlur(Number(e.target.value))}
+                                                className="mt-1.5 w-full accent-[#e8be6e]"
+                                            />
+                                        </div>
+                                    )}
+                                    <SwitchRow label="زوم أون — يظهر جزء محدد فقط" value={zoomOn} onChange={() => setZoomOn(v => !v)} icon={ZoomIn} />
+                                    {zoomOn && (
+                                        <div className="space-y-2 rounded-xl border border-icg-gold/12 bg-black/30 p-2">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="text-[9px] font-black text-icg-muted">الجزء الظاهر</span>
+                                                <div className="flex items-center gap-1">
+                                                    {[1.6, 2.2, 3].map(s => (
+                                                        <button
+                                                            key={s}
+                                                            onClick={() => setZoomScale(s)}
+                                                            className="px-2 py-0.5 rounded-lg text-[9px] font-black transition-all"
+                                                            style={{
+                                                                background: zoomScale === s ? `${GOLD}2e` : 'rgba(255,255,255,0.04)',
+                                                                border: `1px solid ${zoomScale === s ? `${GOLD}88` : 'rgba(255,255,255,0.1)'}`,
+                                                                color: zoomScale === s ? GOLD : '#b2a283',
+                                                            }}
+                                                        >
+                                                            {s}×
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <ZoomPad cell={zoomCell} onChange={setZoomCell} />
+                                            <p className="text-[8px] font-bold text-icg-muted/70 leading-relaxed text-center">اضغط مربعاً لتحديد المنطقة التي ستُعرض وحدها مكبَّرة.</p>
+                                        </div>
+                                    )}
+                                </Section>
+
+                                <Section title="خيارات البث" icon={Sparkles}>
+                                    <div className="space-y-1.5">
+                                        <SwitchRow label="أصوات اللعبة" value={soundOn} onChange={() => setSoundOn(v => !v)} icon={Volume2} />
+                                        <SwitchRow label="تلميح تلقائي" value={autoHint} onChange={() => setAutoHint(v => !v)} icon={Lightbulb} color={LIVE} />
+                                        <SwitchRow label="جولة تالية تلقائياً" value={autoNext} onChange={() => setAutoNext(v => !v)} icon={RotateCcw} color={EMBER} />
+                                    </div>
+                                </Section>
+
+                                <Section title="كلمة حرة (اختياري)" icon={Type} color={EMBER}>
+                                    <input
+                                        value={manualAr}
+                                        onChange={e => setManualAr(e.target.value)}
+                                        placeholder="اكتب الكلمة بالعربية..."
+                                        className="w-full rounded-xl bg-black/50 border border-icg-gold/15 px-3 py-2 text-[12px] font-black text-icg-cream outline-none focus:border-icg-gold/50 transition-all"
+                                    />
+                                    <input
+                                        value={manualEn}
+                                        onChange={e => setManualEn(e.target.value)}
+                                        placeholder="مصطلح البحث بالإنجليزي (Pexels إنجليزي فقط)"
+                                        dir="ltr"
+                                        className="w-full rounded-xl bg-black/50 border border-icg-gold/10 px-3 py-2 text-[10px] font-bold text-icg-muted outline-none focus:border-icg-gold/40 transition-all"
+                                    />
+                                    <p className="text-[8px] font-bold text-icg-muted/70 leading-relaxed">
+                                        لو الكلمة موجودة بالبنك تُستخدم إجابته المكتوبة. غير ذلك تُترجم احتياطياً للبحث فقط.
+                                    </p>
+                                </Section>
+
+                                <div className="relative rounded-2xl overflow-hidden border border-icg-gold/12 bg-black/50">
+                                    <div className="absolute top-2 right-2 z-20 px-2 py-0.5 rounded-md bg-icg-ink/85 border border-icg-gold/25 text-[8px] font-black text-icg-gold">للمشرف فقط</div>
+                                    <div className="relative h-32">
+                                        {(loading || (imageUrl && !imgReady)) && (
+                                            <div className="absolute inset-0 z-10 grid place-items-center bg-icg-ink/70 backdrop-blur-sm">
+                                                <div className="w-8 h-8 rounded-full border-2 border-icg-gold/20 border-t-icg-gold animate-spin" />
+                                            </div>
+                                        )}
+                                        {imageUrl ? (
+                                            <img
+                                                src={imageUrl}
+                                                alt=""
+                                                onLoad={() => setImgReady(true)}
+                                                onError={() => { if (!isSourceFallback) { setIsSourceFallback(true); setImageUrl(fallbackUrl(entry?.en || '')); } }}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full grid place-items-center text-[9px] font-black text-icg-muted/50">اختر فئة أو اكتب كلمة</div>
+                                        )}
+                                    </div>
+                                    {photos.length > 1 && (
+                                        <div className="flex items-center justify-between gap-1 px-2 py-1.5 bg-icg-espresso/70 border-t border-icg-gold/10">
+                                            <button onClick={() => setPhotoIndex(p => (p - 1 + photos.length) % photos.length)} className="p-1 rounded-lg bg-white/5 hover:bg-icg-gold/20 transition-colors"><ChevronRight size={13} className="text-icg-cream" /></button>
+                                            <span className="text-[9px] font-black text-icg-muted tabular-nums">{photoIndex + 1} / {photos.length}</span>
+                                            <button onClick={() => setPhotoIndex(p => (p + 1) % photos.length)} className="p-1 rounded-lg bg-white/5 hover:bg-icg-gold/20 transition-colors"><ChevronLeft size={13} className="text-icg-cream" /></button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {entry && (
+                                    <div className="rounded-2xl border border-icg-gold/12 bg-icg-espresso/50 p-2.5 space-y-1.5">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-base font-black italic text-icg-cream">{entry.ar}</span>
+                                            {tierMeta && <span className="px-2 py-0.5 rounded-full text-[9px] font-black" style={{ background: `${tierMeta.hex}1f`, color: tierMeta.hex }}>{tierMeta.label} · {tierMeta.points}</span>}
+                                        </div>
+                                        <p className="text-[9px] font-bold text-icg-muted">{entry.hint}</p>
+                                        <p className="text-[9px] font-black text-icg-gold/70" dir="ltr">Pexels: {entry.en}</p>
+                                    </div>
+                                )}
+
+                                <div className="space-y-1.5">
+                                    <button
+                                        onClick={() => { if (entry && imageUrl) armCountdown(); }}
+                                        disabled={!entry || !imageUrl || loading}
+                                        className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 font-black text-sm text-icg-espresso transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
+                                        style={{ background: `linear-gradient(135deg, #f9e0a4, ${GOLD})`, boxShadow: '0 12px 30px rgba(232,190,110,0.25)' }}
+                                    >
+                                        <Play size={16} fill="currentColor" /> ابدأ التحدي
+                                    </button>
+                                    <button
+                                        onClick={() => { void newRound(); }}
+                                        disabled={loading}
+                                        className="w-full flex items-center justify-center gap-2 rounded-2xl py-2.5 font-black text-[11px] text-icg-cream bg-icg-gold/10 border border-icg-gold/20 hover:bg-icg-gold/20 transition-all active:scale-95"
+                                    >
+                                        <Wand2 size={13} /> سلّمني كلمة عشوائية
+                                    </button>
+                                    {!isOBS && (
+                                        <button onClick={onHome} className="w-full flex items-center justify-center gap-2 rounded-2xl py-2.5 font-black text-[10px] text-icg-muted hover:text-icg-cream hover:bg-white/5 transition-all">
+                                            <Home size={12} /> العودة للرئيسية
+                                        </button>
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <Section title="الإجابة الحالية" icon={Zap} color={accent}
+                                    right={tierMeta ? <span className="text-[9px] font-black" style={{ color: tierMeta.hex }}>{tierMeta.points} نقطة</span> : undefined}>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-base font-black italic text-icg-cream">
+                                            {(phase === 'WINNER' || adminReveal) ? entry?.ar : `${lettersCount} حرفاً`}
+                                        </span>
+                                        <button
+                                            onClick={() => setAdminReveal(v => !v)}
+                                            className="p-1.5 rounded-lg bg-white/5 hover:bg-icg-gold/20 transition-colors"
+                                            title={adminReveal ? 'إخفاء الإجابة' : 'كشف الإجابة'}
+                                        >
+                                            {adminReveal ? <EyeOff size={13} className="text-icg-cream" /> : <Eye size={13} className="text-icg-muted" />}
+                                        </button>
+                                    </div>
+                                    <p className="text-[9px] font-bold text-icg-muted" dir="ltr">{(phase === 'WINNER' || adminReveal) && entry?.en}</p>
+                                    <p className="text-[9px] font-bold text-icg-muted/80">{entry?.hint}</p>
+                                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                                        <span className="px-2 py-0.5 rounded-full text-[8px] font-black" style={{ background: `${accent}1f`, color: accent }}>{categoryLabel}</span>
+                                        <span className="px-2 py-0.5 rounded-full bg-white/5 text-[8px] font-black text-icg-muted tabular-nums">{elapsed} ث</span>
+                                        <span className="px-2 py-0.5 rounded-full bg-white/5 text-[8px] font-black text-icg-muted tabular-nums">وضوح {clarity}%</span>
+                                    </div>
+                                </Section>
+
+                                <Section title="أدوات الجولة" icon={Lightbulb} color={LIVE}>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        <OptBtn active={showHint} color={LIVE} onClick={() => setShowHint(v => !v)}>تلميح <span className="text-[8px] opacity-70">-60</span></OptBtn>
+                                        <OptBtn active={showPattern} color={LIVE} onClick={() => setShowPattern(v => !v)}>الحروف <span className="text-[8px] opacity-70">-40</span></OptBtn>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        <button onClick={() => photos.length > 1 && setPhotoIndex(p => (p + 1) % photos.length)} disabled={photos.length < 2} className="rounded-xl px-2 py-2 text-[10px] font-black text-icg-cream bg-white/5 border border-white/10 hover:bg-icg-gold/15 transition-all active:scale-95 disabled:opacity-30 flex items-center justify-center gap-1.5">
+                                            <Shuffle size={11} /> صورة أخرى
+                                        </button>
+                                        <button onClick={() => { void newRound(); }} className="rounded-xl px-2 py-2 text-[10px] font-black flex items-center justify-center gap-1.5 transition-all active:scale-95" style={{ background: `${EMBER}1f`, border: `1px solid ${EMBER}44`, color: EMBER }}>
+                                            <SkipForward size={11} /> تخطّي
+                                        </button>
+                                    </div>
+                                    <button onClick={() => { resetRoundFlags(); setPhase('SETUP'); setEntry(null); entryRef.current = null; formsRef.current = new Set(); setImageUrl(null); setPhotos([]); }} className="w-full rounded-xl px-2 py-2 text-[10px] font-black text-icg-muted bg-white/5 border border-white/10 hover:text-icg-cream transition-all flex items-center justify-center gap-1.5">
+                                        <RotateCcw size={11} /> إعادة الضبط
+                                    </button>
+                                </Section>
+
+                                {recent.length > 0 && (
+                                    <Section title="آخر التخمينات" icon={Sparkles} color={EMBER}>
+                                        <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
+                                            {recent.map((g, i) => (
+                                                <div key={i} className="flex items-center gap-1.5 text-[10px] rounded-lg bg-black/30 px-2 py-1">
+                                                    <span className="font-black truncate max-w-[70px]" style={{ color: g.color || CREAM }}>{g.user}</span>
+                                                    <span className="text-icg-muted/50">:</span>
+                                                    <span className="text-icg-cream/70 truncate flex-1">{g.text}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </Section>
+                                )}
+
+                                {sessionRows.length > 0 && (
+                                    <Section title="نقاط الجلسة" icon={Award} right={<span className="text-[9px] font-black text-icg-muted tabular-nums">{sessionRows.reduce((s, r) => s + r.points, 0)}</span>}>
+                                        <div className="space-y-1">
+                                            {sessionRows.slice(0, 6).map((r, i) => (
+                                                <div key={r.username} className="flex items-center gap-2 rounded-xl px-1.5 py-1 bg-black/25">
+                                                    <span className="w-4 text-[10px] font-black text-center shrink-0" style={{ color: i === 0 ? GOLD : '#b2a283' }}>{i + 1}</span>
+                                                    <ProAvatar url={r.avatar} username={r.username} size="w-7 h-7" className="shrink-0" />
+                                                    <span className="flex-1 text-[10px] font-black text-icg-cream truncate">{r.username}</span>
+                                                    <span className="text-[9px] font-black text-icg-gold tabular-nums shrink-0">{r.points}</span>
+                                                    <span className="text-[8px] font-bold text-icg-muted tabular-nums shrink-0">×{r.wins}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </Section>
+                                )}
+
+                                {history.length > 0 && (
+                                    <Section title="سجل الجولات" icon={History}>
+                                        <div className="space-y-1 max-h-36 overflow-y-auto custom-scrollbar">
+                                            {history.map((h, i) => (
+                                                <div key={i} className="flex items-center justify-between gap-2 text-[9px] rounded-lg bg-black/25 px-2 py-1">
+                                                    <span className="font-black text-icg-cream truncate">{h.ar}</span>
+                                                    <span className="text-icg-muted truncate max-w-[70px]">{h.winner}</span>
+                                                    <span className="shrink-0 tabular-nums" style={{ color: BLUR_TIERS[h.tier].hex }}>{h.points}</span>
+                                                    <span className="shrink-0 text-icg-muted/60 tabular-nums">{h.seconds}ث</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </Section>
+                                )}
+
+                                {phase === 'WINNER' && (
+                                    <button
+                                        onClick={() => { void newRound(); }}
+                                        className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 font-black text-sm text-icg-espresso transition-all hover:scale-[1.02] active:scale-95"
+                                        style={{ background: `linear-gradient(135deg, #f9e0a4, ${GOLD})`, boxShadow: '0 12px 30px rgba(232,190,110,0.25)' }}
+                                    >
+                                        <Play size={15} fill="currentColor" /> جولة جديدة
+                                    </button>
+                                )}
+                            </>
+                        )}
+                    </div>
+                </div>
+            </SidebarPortal>
+
+            {/* ===================== الشاشة الرئيسية ===================== */}
+            <div className="bl-root relative flex-1 w-full h-full flex flex-col items-center overflow-hidden select-none" dir="rtl">
+                <div className="bl-wash absolute inset-0 pointer-events-none" />
+                <div className="bl-grid absolute inset-0 pointer-events-none" />
+
+                <div className="relative z-10 w-full flex items-center justify-between gap-4 px-5 py-3.5 border-b border-icg-gold/10 bg-icg-ink/70 backdrop-blur-xl shrink-0">
+                    <div className="absolute bottom-0 left-1/4 right-1/4 h-px" style={{ background: `linear-gradient(90deg, transparent, ${GOLD}77, transparent)` }} />
+                    <div className="flex items-center gap-3.5 min-w-0">
+                        {!isOBS && (
+                            <button onClick={onHome} className="shrink-0 p-2.5 rounded-xl bg-icg-gold/10 border border-icg-gold/20 text-icg-cream hover:bg-icg-ember/20 hover:border-icg-ember/40 transition-all active:scale-90">
+                                <Home size={18} />
+                            </button>
+                        )}
+                        <div className="min-w-0">
+                            <h1 className="bl-title text-2xl md:text-3xl font-black italic tracking-tighter leading-none whitespace-nowrap">تخمين الصورة</h1>
+                            <p className="text-[9px] font-black text-icg-muted/70 tracking-[0.45em] mt-1.5 whitespace-nowrap">PICTURE GUESS ARENA</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                        <span className="px-3 py-1.5 rounded-full text-[11px] font-black" style={{ background: `${accent}1a`, color: accent }}>{categoryLabel}</span>
+                        {tierMeta && (
+                            <span className="px-3 py-1.5 rounded-full text-[11px] font-black" style={{ background: `${tierMeta.hex}1a`, color: tierMeta.hex }}>
+                                {tierMeta.label} · {tierMeta.points}
+                            </span>
+                        )}
+                        <span className="px-3 py-1.5 rounded-full bg-icg-gold/10 border border-icg-gold/20 text-[11px] font-black text-icg-cream tabular-nums">{BLUR_TOTAL} كلمة</span>
+                        <button onClick={() => setSoundOn(v => !v)} className={`p-2 rounded-xl border transition-all active:scale-90 ${soundOn ? 'bg-icg-gold/15 border-icg-gold/30 text-icg-gold' : 'bg-white/5 border-white/10 text-icg-muted'}`}>
+                            <Volume2 size={15} />
+                        </button>
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-icg-ember/10 border border-icg-ember/25">
+                            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: statusColor }} />
+                            <span className="text-[10px] font-black" style={{ color: statusColor }}>{statusLabel}</span>
+                        </span>
+                    </div>
+                </div>
+
+                {/* ---------- استعداد ---------- */}
+                {phase === 'SETUP' && (
+                    <div className="relative z-10 flex-1 w-full flex items-center justify-center px-5 py-6 overflow-y-auto custom-scrollbar">
+                        <div className="w-full max-w-4xl space-y-5">
+                            <div className="text-center">
+                                <div className="bl-title text-5xl md:text-7xl font-black italic tracking-tighter leading-none">خَمِّن من الصورة</div>
+                                <p className="mt-3 text-sm font-black text-icg-muted tracking-wider">
+                                    صورة تُكشف ببطء — أول من يكتب الكلمة في الشات يأخذ النقاط
+                                </p>
+                            </div>
+
+                            <div className="rounded-[1.75rem] border border-icg-gold/12 bg-icg-espresso/50 backdrop-blur-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <span className="shrink-0 w-11 h-11 rounded-2xl grid place-items-center bg-icg-gold/10 border border-icg-gold/25">
+                                        <Zap size={20} className="text-icg-gold" />
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-black text-icg-cream leading-none">كيف تلعب؟</p>
+                                        <p className="text-[11px] font-bold text-icg-muted mt-1.5">اكتب الكلمة العربية كاملة في الشات — بدون علامات ترقيم</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-3 py-1.5 rounded-full text-[11px] font-black" style={{ background: `${GOLD}1f`, color: GOLD }}>أول تخمين يفوز</span>
+                                    <span className="px-3 py-1.5 rounded-full text-[11px] font-black" style={{ background: `${LIVE}1a`, color: LIVE }}>كلما بكّرت زادت النقاط</span>
+                                    <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-black text-icg-muted">التلميح يخصم نقاطاً</span>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                                {([
+                                    { k: 'الفئة', v: categoryLabel, c: accent },
+                                    { k: 'الصعوبة', v: tierSel === 0 ? 'كل المستويات' : BLUR_TIERS[tierSel].label, c: tierSel === 0 ? GOLD : BLUR_TIERS[tierSel].hex },
+                                    { k: 'اكتمال الصورة', v: `بعد ${clearSeconds} ثانية`, c: GOLD },
+                                    { k: 'نقاط الأساس', v: tierSel === 0 ? '100 - 300' : String(BLUR_TIERS[tierSel].points), c: EMBER },
+                                ] as const).map(item => (
+                                    <div key={item.k} className="rounded-2xl border bg-icg-espresso/55 px-3.5 py-3" style={{ borderColor: `${item.c}22` }}>
+                                        <p className="text-[9px] font-black text-icg-muted tracking-widest">{item.k}</p>
+                                        <p className="mt-1 text-base font-black italic leading-none" style={{ color: item.c }}>{item.v}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                                {BLUR_CATEGORIES.map(c => (
+                                    <button
+                                        key={c.id}
+                                        onClick={() => { setCatId(c.id); }}
+                                        className="group relative overflow-hidden rounded-2xl px-3 py-3 text-right transition-all hover:scale-[1.04] active:scale-95"
+                                        style={{ background: `${c.hex}0d`, border: `1px solid ${c.hex}2a` }}
+                                    >
+                                        <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: `radial-gradient(70% 90% at 50% 100%, ${c.hex}33, transparent 70%)` }} />
+                                        <p className="relative text-[12px] font-black" style={{ color: c.hex }}>{c.label}</p>
+                                        <p className="relative text-[9px] font-bold text-icg-muted mt-0.5">{c.blurb}</p>
+                                        <p className="relative text-[8px] font-black text-icg-muted/60 mt-1">{c.entries.length} كلمة</p>
+                                    </button>
+                                ))}
+                                <div className="rounded-2xl px-3 py-3 flex flex-col items-center justify-center gap-1" style={{ background: `${GOLD}0d`, border: `1px dashed ${GOLD}44` }}>
+                                    <Wand2 size={16} className="text-icg-gold" />
+                                    <p className="text-[10px] font-black text-icg-cream">كلمة حرة</p>
+                                    <p className="text-[8px] font-bold text-icg-muted">من لوحة المشرف</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-center gap-3 pb-4 flex-wrap">
+                                <button
+                                    onClick={() => { if (entry && imageUrl) armCountdown(); }}
+                                    disabled={!entry || !imageUrl || loading}
+                                    className="flex items-center gap-2 px-7 py-3.5 rounded-2xl font-black text-sm text-icg-espresso transition-all hover:scale-105 active:scale-95 disabled:opacity-30"
+                                    style={{ background: `linear-gradient(135deg, #f9e0a4, ${GOLD})`, boxShadow: '0 14px 36px rgba(232,190,110,0.3)' }}
+                                >
+                                    <Play size={17} fill="currentColor" /> ابدأ من لوحة المشرف
+                                </button>
+                                <button
+                                    onClick={() => { void newRound(); }}
+                                    disabled={loading}
+                                    className="flex items-center gap-2 px-6 py-3.5 rounded-2xl font-black text-sm text-icg-cream bg-icg-gold/10 border border-icg-gold/20 hover:bg-icg-gold/20 transition-all active:scale-95 disabled:opacity-40"
+                                >
+                                    <Sparkles size={16} /> كلمة عشوائية
+                                </button>
+                                {!channelConnected && (
+                                    <span className="px-3 py-2 rounded-full bg-icg-ember/10 border border-icg-ember/25 text-[10px] font-black" style={{ color: EMBER }}>
+                                        الشات غير متصل — لا يمكن احتساب التخمينات
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ---------- الجولة ---------- */}
+                {(phase === 'COUNTDOWN' || phase === 'PLAYING' || phase === 'WINNER') && (
+                    <div className="relative z-10 flex-1 w-full flex flex-col items-center justify-center gap-3.5 px-4 md:px-6 py-4 overflow-hidden">
+                        <div className="w-full max-w-5xl flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="px-3 py-1.5 rounded-full text-[11px] font-black" style={{ background: `${accent}1a`, color: accent }}>{categoryLabel}</span>
+                                {tierMeta && (
+                                    <span className="px-3 py-1.5 rounded-full text-[11px] font-black" style={{ background: `${tierMeta.hex}1a`, color: tierMeta.hex }}>
+                                        {tierMeta.label} · {tierMeta.points} نقطة
+                                    </span>
+                                )}
+                                {isSourceFallback && (
+                                    <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-black text-icg-muted">مصدر صور بديل</span>
+                                )}
+                            </div>
+                            {phase !== 'WINNER' && (
+                                <div className="flex items-center gap-2.5">
+                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-icg-ink/70 border border-icg-gold/15">
+                                        <Timer size={13} className="text-icg-gold" />
+                                        <span className="text-[13px] font-black text-icg-cream tabular-nums leading-none">{elapsed}s</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-icg-ink/70 border border-icg-gold/15">
+                                        <span className="text-[9px] font-black text-icg-muted tracking-widest">وضوح</span>
+                                        <span className="text-[13px] font-black tabular-nums leading-none" style={{ color: clarity > 60 ? LIVE : clarity > 25 ? GOLD : EMBER }}>{clarity}%</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="relative w-full max-w-5xl aspect-video rounded-[2.25rem] overflow-hidden border-4 border-icg-gold/15 bg-icg-espresso shadow-[0_30px_80px_rgba(0,0,0,0.75)]">
+                            {showImage && (
+                                <img
+                                    key={imageUrl || 'none'}
+                                    src={imageUrl || undefined}
+                                    alt=""
+                                    onLoad={() => setImgReady(true)}
+                                    onError={() => { if (!isSourceFallback) { setIsSourceFallback(true); setImageUrl(fallbackUrl(entry?.en || '')); } }}
+                                    className="w-full h-full object-cover"
+                                    style={{
+                                        filter: `blur(${blur}px) saturate(${blur > 60 ? 1.15 : 1})`,
+                                        opacity: imgReady ? 1 : 0.25,
+                                        transform: zoomActive ? `scale(${zoomScale})` : 'scale(1)',
+                                        transformOrigin: zoomOrigin,
+                                        transition: 'filter 1s, opacity 1s, transform .85s cubic-bezier(.2,.8,.2,1)',
+                                    }}
+                                />
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-icg-ink/85 via-transparent to-icg-ink/25 pointer-events-none" />
+
+                            {(!imageUrl || !imgReady) && phase !== 'COUNTDOWN' && (
+                                <div className="absolute inset-0 grid place-items-center bg-icg-ink/80 backdrop-blur-md">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full border-2 border-icg-gold/20 border-t-icg-gold animate-spin" />
+                                        <span className="text-[10px] font-black text-icg-muted tracking-widest">تحميل الصورة...</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* عد تنازلي يغطي الصورة تماماً */}
+                            {phase === 'COUNTDOWN' && (
+                                <div className="absolute inset-0 z-30 grid place-items-center bg-icg-ink/88 backdrop-blur-2xl">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <span className="text-[10px] font-black text-icg-muted tracking-[0.5em]">استعد</span>
+                                        <span key={countdown} className="bl-pop text-8xl md:text-9xl font-black italic leading-none" style={{ color: GOLD, textShadow: `0 0 60px ${GOLD}66` }}>
+                                            {countdown > 0 ? countdown : 'ابدأ'}
+                                        </span>
+                                        <span className="text-[11px] font-black text-icg-cream/70">{lettersCount} حرفاً في الكلمة</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {phase === 'PLAYING' && (
+                                <div className="absolute top-4 inset-x-0 flex justify-center px-4 pointer-events-none z-20">
+                                    <div className="px-6 py-2 rounded-full font-black italic text-sm md:text-base border-t-2 border-white/15" style={{ background: `${EMBER}e6`, color: '#fff', boxShadow: `0 14px 34px ${EMBER}55` }}>
+                                        اكتب الكلمة في الشات
+                                    </div>
+                                </div>
+                            )}
+
+                            {phase === 'PLAYING' && adminReveal && (
+                                <div className="absolute bottom-4 inset-x-0 flex justify-center px-4 z-20 pointer-events-none">
+                                    <span className="px-4 py-1.5 rounded-full bg-icg-ink/85 border border-icg-gold/30 text-[11px] font-black text-icg-gold">{entry?.ar}</span>
+                                </div>
+                            )}
+
+                            {phase === 'PLAYING' && recent.length > 0 && (
+                                <div className="absolute bottom-3 left-3 z-20 hidden md:block max-w-[240px] rounded-2xl bg-icg-ink/70 backdrop-blur-xl border border-icg-gold/12 px-3 py-2">
+                                    <p className="text-[8px] font-black text-icg-muted tracking-widest mb-1">آخر التخمينات</p>
+                                    <div className="space-y-0.5">
+                                        {recent.slice(0, 3).map((g, i) => (
+                                            <p key={i} className="text-[10px] font-bold truncate">
+                                                <span style={{ color: g.color || CREAM }}>{g.user}</span>
+                                                <span className="text-icg-muted/60">: </span>
+                                                <span className="text-icg-cream/70">{g.text}</span>
+                                            </p>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {phase === 'WINNER' && photos[photoIndex]?.photographer && (
+                                <p className="absolute bottom-3 left-3 z-20 text-[9px] font-bold text-icg-muted/70">
+                                    📷 {photos[photoIndex].photographer} · Pexels
+                                </p>
+                            )}
+                        </div>
+
+                        {/* لوحة المشرف الحية: تغبيش ثابت + زوم أون */}
+                        {!isOBS && (phase === 'PLAYING' || phase === 'COUNTDOWN') && (
+                            <div className="w-full max-w-5xl flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-icg-gold/15 bg-icg-ink/80 backdrop-blur-2xl px-3 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45)]">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="flex items-center gap-1 text-[9px] font-black text-icg-muted tracking-widest"><Eye size={11} /> تغبيش</span>
+                                    <div className="flex items-center gap-1">
+                                        {(['auto', 'fixed'] as const).map(m => (
+                                            <button
+                                                key={m}
+                                                onClick={() => setBlurMode(m)}
+                                                className="px-2.5 py-1 rounded-lg text-[9px] font-black transition-all"
+                                                style={{
+                                                    background: blurMode === m ? `${m === 'fixed' ? EMBER : GOLD}26` : 'rgba(255,255,255,0.04)',
+                                                    border: `1px solid ${blurMode === m ? `${m === 'fixed' ? EMBER : GOLD}88` : 'rgba(255,255,255,0.1)'}`,
+                                                    color: blurMode === m ? (m === 'fixed' ? EMBER : GOLD) : '#b2a283',
+                                                }}
+                                            >
+                                                {m === 'auto' ? 'تلقائي' : 'ثابت'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {blurMode === 'fixed' && (
+                                        <div className="flex items-center gap-1.5">
+                                            <input
+                                                type="range" min={5} max={100} step={5} value={fixedBlur}
+                                                onChange={e => setFixedBlur(Number(e.target.value))}
+                                                className="w-24 accent-[#e8be6e]"
+                                            />
+                                            <span className="text-[10px] font-black text-icg-gold tabular-nums w-9">{fixedBlur}%</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setZoomOn(v => !v)}
+                                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-black transition-all"
+                                        style={{
+                                            background: zoomOn ? `${GOLD}2e` : 'rgba(255,255,255,0.04)',
+                                            border: `1px solid ${zoomOn ? `${GOLD}` : 'rgba(255,255,255,0.12)'}`,
+                                            color: zoomOn ? GOLD : '#b2a283',
+                                            boxShadow: zoomOn ? `0 0 16px ${GOLD}44` : 'none',
+                                        }}
+                                    >
+                                        <ZoomIn size={12} /> زوم أون
+                                    </button>
+                                    {zoomOn && (
+                                        <>
+                                            <ZoomPad cell={zoomCell} onChange={setZoomCell} compact />
+                                            <div className="flex items-center gap-1">
+                                                {[1.6, 2.2, 3].map(s => (
+                                                    <button
+                                                        key={s}
+                                                        onClick={() => setZoomScale(s)}
+                                                        className="px-1.5 py-0.5 rounded-lg text-[9px] font-black transition-all"
+                                                        style={{
+                                                            background: zoomScale === s ? `${GOLD}2e` : 'rgba(255,255,255,0.04)',
+                                                            border: `1px solid ${zoomScale === s ? `${GOLD}88` : 'rgba(255,255,255,0.1)'}`,
+                                                            color: zoomScale === s ? GOLD : '#b2a283',
+                                                        }}
+                                                    >
+                                                        {s}×
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* شريط الوضوح */}
+                        <div className="w-full max-w-5xl h-1.5 rounded-full bg-white/5 overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${clarity}%`, background: `linear-gradient(90deg, ${EMBER}, ${GOLD})` }} />
+                        </div>
+
+                        {/* تلميح + حروف */}
+                        {phase === 'PLAYING' && (
+                            <div className="w-full max-w-5xl flex flex-col items-center gap-3">
+                                {showHint && entry && (
+                                    <div className="bl-pop flex items-center gap-2 px-4 py-2 rounded-2xl border" style={{ background: `${LIVE}12`, borderColor: `${LIVE}33` }}>
+                                        <Lightbulb size={15} style={{ color: LIVE }} />
+                                        <span className="text-[12px] font-black" style={{ color: LIVE }}>{entry.hint}</span>
+                                    </div>
+                                )}
+                                {showPattern && entry && <LetterBoard word={entry.ar} open={false} accent={GOLD} />}
+                            </div>
+                        )}
+
+                        {/* ---------- الفائز ---------- */}
+                        {phase === 'WINNER' && winner && entry && (
+                            <div className="w-full max-w-5xl flex flex-col items-center gap-4 bl-pop">
+                                <p className="text-4xl md:text-6xl font-black italic tracking-tighter leading-none bl-title">{entry.ar}</p>
+                                <div className="relative w-full flex flex-col md:flex-row items-center justify-center gap-4">
+                                    <div className="relative rounded-[1.75rem] border px-6 py-4 bg-icg-espresso/70 backdrop-blur-xl flex items-center gap-4" style={{ borderColor: `${GOLD}44`, boxShadow: `0 20px 60px ${GOLD}22` }}>
+                                        <span className="absolute top-0 left-6 right-6 h-px" style={{ background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)` }} />
+                                        <ProAvatar url={winner.avatar} username={winner.name} size="w-16 h-16" className="shrink-0" />
+                                        <div className="min-w-0">
+                                            <p className="text-[9px] font-black tracking-[0.35em]" style={{ color: GOLD }}>الفائز</p>
+                                            <p className="text-2xl md:text-3xl font-black italic text-icg-cream leading-tight truncate">{winner.name}</p>
+                                            <p className="text-[10px] font-bold text-icg-muted mt-0.5">بعد {winner.seconds} ثانية من بداية الجولة</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-wrap justify-center">
+                                        <span className="px-3.5 py-2 rounded-2xl bg-icg-gold/10 border border-icg-gold/25 text-[11px] font-black text-icg-cream tabular-nums">أساس {winner.base}</span>
+                                        <span className="px-3.5 py-2 rounded-2xl border text-[11px] font-black tabular-nums" style={{ background: `${LIVE}14`, borderColor: `${LIVE}33`, color: LIVE }}>سرعة +{winner.bonus}</span>
+                                        {winner.penalty > 0 && (
+                                            <span className="px-3.5 py-2 rounded-2xl border text-[11px] font-black tabular-nums" style={{ background: `${EMBER}14`, borderColor: `${EMBER}33`, color: EMBER }}>تلميح -{winner.penalty}</span>
+                                        )}
+                                        <span className="px-4 py-2 rounded-2xl text-[14px] font-black italic tabular-nums text-icg-espresso" style={{ background: `linear-gradient(135deg, #f9e0a4, ${GOLD})` }}>
+                                            {winner.points} نقطة
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 flex-wrap justify-center">
+                                    <button onClick={() => { void newRound(); }} className="flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm text-icg-espresso transition-all hover:scale-105 active:scale-95" style={{ background: `linear-gradient(135deg, #f9e0a4, ${GOLD})`, boxShadow: '0 12px 34px rgba(232,190,110,0.28)' }}>
+                                        <RotateCcw size={16} /> جولة جديدة
+                                    </button>
+                                    <button onClick={() => { void newRound('random', 0); }} className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-[13px] text-icg-cream bg-icg-gold/10 border border-icg-gold/20 hover:bg-icg-gold/20 transition-all active:scale-95">
+                                        <Shuffle size={15} /> عشوائي تماماً
+                                    </button>
+                                    {!isOBS && (
+                                        <button onClick={onHome} className="flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-[13px] text-icg-muted bg-white/5 border border-white/10 hover:text-icg-cream transition-all active:scale-95">
+                                            <Home size={15} /> خروج
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <style>{BLUR_STYLES}</style>
+            </div>
+        </>
+    );
 };
+
+const BLUR_STYLES = `
+    .bl-root { background: #0a0805; }
+    .bl-wash { background: radial-gradient(58% 46% at 80% 14%, rgba(232,190,110,0.15), transparent 68%), radial-gradient(52% 44% at 10% 90%, rgba(169,122,48,0.15), transparent 70%), linear-gradient(180deg, #0d0a06 0%, #0a0805 58%, #12100a 100%); }
+    .bl-grid { background: linear-gradient(rgba(232,190,110,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(232,190,110,0.045) 1px, transparent 1px); background-size: 52px 52px; -webkit-mask: radial-gradient(72% 72% at 50% 45%, #000, transparent); mask: radial-gradient(72% 72% at 50% 45%, #000, transparent); }
+    .bl-title { background: linear-gradient(180deg, #fff7de 0%, #e8be6e 55%, #a97a30 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+    .bl-pop { animation: bl-pop 0.5s cubic-bezier(0.2, 1.2, 0.3, 1); }
+    @keyframes bl-pop { 0% { transform: scale(0.72); opacity: 0; } 60% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); } }
+    .bl-root .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .bl-root .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .bl-root .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(232,190,110,0.22); border-radius: 10px; }
+    .bl-root .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(232,190,110,0.45); }
+`;

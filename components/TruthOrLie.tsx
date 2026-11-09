@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { chatService } from '../services/chatService';
-import { supabase, leaderboardService } from '../services/supabase';
+import { supabase } from '../services/supabase';
+import { awardPoints } from '../services/points';
 import {
     Timer, Sparkles, Trophy, Play, Home,
     CheckCircle, XCircle, Users, Volume2, VolumeX,
@@ -56,13 +57,14 @@ export const TruthOrLie: React.FC<TruthOrLieProps> = ({ onHome, isOBS = false })
     const [obsCopied, setObsCopied] = useState(false);
 
     const timerInterval = useRef<NodeJS.Timeout | null>(null);
-    const obsUrl = `${window.location.origin}${window.location.pathname}?obs=true&view=TRUTH_OR_LIE`;
+    const rawObsUrl = `${window.location.origin}${window.location.pathname}?obs=true&view=TRUTH_OR_LIE`;
+    const obsUrl = btoa(unescape(encodeURIComponent(rawObsUrl)));
 
 
 
     const handleCopyObs = async () => {
         try {
-            await navigator.clipboard.writeText(obsUrl);
+            await navigator.clipboard.writeText(rawObsUrl);
             setObsCopied(true);
             setShowObsGuide(true);
             setTimeout(() => setObsCopied(false), 2500);
@@ -94,7 +96,7 @@ export const TruthOrLie: React.FC<TruthOrLieProps> = ({ onHome, isOBS = false })
     // --- Sync & Chat ---
     useEffect(() => {
         if (!isOBS) {
-            const kickChannel = 'iabs';
+            const kickChannel = 'icg1';
             chatService.connect(kickChannel);
         }
 
@@ -253,7 +255,7 @@ export const TruthOrLie: React.FC<TruthOrLieProps> = ({ onHome, isOBS = false })
         if (gameState.correctAnswer) {
             const winners = votes.filter(v => v.vote === gameState.correctAnswer);
             winners.forEach(w => {
-                leaderboardService.recordWin(w.username, w.avatar_url || '', 20);
+                awardPoints('TRUTH_OR_LIE', w.username, w.avatar_url || '', 'round');
             });
         }
     };
@@ -443,9 +445,9 @@ export const TruthOrLie: React.FC<TruthOrLieProps> = ({ onHome, isOBS = false })
                             {/* Truth Side */}
                             <div className={`
                                 relative rounded-[2rem] p-5 flex flex-col items-center justify-between border-4 overflow-hidden transition-all duration-700
-                                ${gameState.phase === 'reveal' && gameState.correctAnswer === 'truth' ? 'bg-green-950/90 border-green-400 shadow-[0_0_100px_rgba(34,197,94,0.6)] scale-105 z-10' : ''}
-                                ${gameState.phase === 'reveal' && gameState.correctAnswer === 'lie' ? 'bg-black/60 border-zinc-800 opacity-50 grayscale scale-95' : ''}
-                                ${gameState.phase === 'voting' ? 'bg-gradient-to-b from-green-950/80 to-black/80 border-green-500/30' : ''}
+                                ${gameState.phase === 'reveal' && gameState.correctAnswer === 'truth' ? 'bg-gradient-to-b from-[#f9e0a4]/90 to-[#a97a30]/90 border-[#fbeccb] shadow-[0_0_100px_rgba(232,190,110,0.6)] scale-105 z-10' : ''}
+                                ${gameState.phase === 'reveal' && gameState.correctAnswer === 'lie' ? 'bg-black/60 border-[#2a2015] opacity-50 grayscale scale-95' : ''}
+                                ${gameState.phase === 'voting' ? 'bg-gradient-to-b from-[#e8be6e]/40 to-[#0a0805]/90 border-[#e8be6e]/50' : ''}
                             `}>
                                 {/* Progress Background */}
                                 <div
@@ -482,9 +484,9 @@ export const TruthOrLie: React.FC<TruthOrLieProps> = ({ onHome, isOBS = false })
                             {/* Lie Side */}
                             <div className={`
                                 relative rounded-[2rem] p-5 flex flex-col items-center justify-between border-4 overflow-hidden transition-all duration-700
-                                ${gameState.phase === 'reveal' && gameState.correctAnswer === 'lie' ? 'bg-red-950/90 border-iabs-red shadow-[0_0_100px_rgba(220,38,38,0.6)] scale-105 z-10' : ''}
-                                ${gameState.phase === 'reveal' && gameState.correctAnswer === 'truth' ? 'bg-black/60 border-zinc-800 opacity-50 grayscale scale-95' : ''}
-                                ${gameState.phase === 'voting' ? 'bg-gradient-to-b from-red-950/80 to-black/80 border-red-500/30' : ''}
+                                ${gameState.phase === 'reveal' && gameState.correctAnswer === 'lie' ? 'bg-gradient-to-b from-[#8b4a2b]/90 to-[#3d2415]/90 border-[#d2824a] shadow-[0_0_100px_rgba(210,130,74,0.5)] scale-105 z-10' : ''}
+                                ${gameState.phase === 'reveal' && gameState.correctAnswer === 'truth' ? 'bg-black/60 border-[#2a2015] opacity-50 grayscale scale-95' : ''}
+                                ${gameState.phase === 'voting' ? 'bg-gradient-to-b from-[#7a4a2a]/40 to-[#0a0805]/90 border-[#d2824a]/40' : ''}
                             `}>
                                 {/* Progress Background */}
                                 <div
@@ -527,20 +529,20 @@ export const TruthOrLie: React.FC<TruthOrLieProps> = ({ onHome, isOBS = false })
 
     // --- CONTROLLER VIEW ---
     return (
-        <div className="min-h-screen bg-black text-white font-sans p-4 md:p-5 flex flex-col gap-4 bg-[url('https://i.ibb.co/kWJRhSN/1000126060.png')] bg-cover bg-center bg-fixed bg-no-repeat">
-            <div className="absolute inset-0 bg-black/90 backdrop-blur-sm fixed z-0"></div>
+        <div className="min-h-screen text-white font-sans p-4 md:p-5 flex flex-col gap-4 relative" style={{ background: 'radial-gradient(60% 50% at 72% 26%, rgba(160,100,40,.25), transparent 70%), radial-gradient(50% 40% at 12% 92%, rgba(232,190,110,.09), transparent 70%), #0a0805' }}>
+            <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: 'linear-gradient(rgba(232,190,110,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(232,190,110,.05) 1px, transparent 1px)', backgroundSize: '48px 48px', WebkitMask: 'radial-gradient(70% 70% at 50% 45%, #000, transparent)', mask: 'radial-gradient(70% 70% at 50% 45%, #000, transparent)' }}></div>
 
             {/* Header */}
-            <div className="relative z-10 flex items-center justify-between bg-black/60 backdrop-blur-md p-4 rounded-[1.5rem] border border-white/5 shadow-2xl">
+            <div className="relative z-10 flex items-center justify-between bg-gradient-to-br from-[#1a1408]/95 to-[#0a0805]/95 backdrop-blur-md p-4 rounded-[1.5rem] border border-[#e8be6e]/40 shadow-[0_0_40px_rgba(232,190,110,0.12)]">
                 <div className="flex items-center gap-4">
-                    <button onClick={onHome} className="p-3 bg-zinc-900/80 hover:bg-iabs-red hover:text-black rounded-2xl transition-all duration-300 group shadow-lg border border-white/5">
+                    <button onClick={onHome} className="p-3 bg-[#1a1408]/80 hover:bg-[#e8be6e] hover:text-[#1a1006] rounded-2xl transition-all duration-300 group shadow-lg border border-[#e8be6e]/40">
                         <Home size={16} className="group-hover:scale-110 transition-transform" />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-display font-black text-white tracking-wide drop-shadow-lg">
-                            صادق <span className="text-iabs-red">أم</span> كذاب
+                        <h1 className="text-2xl font-display font-black text-transparent bg-clip-text bg-gradient-to-br from-[#fff7de] via-[#e8be6e] to-[#a97a30] tracking-wide drop-shadow-lg">
+                            صادق <span className="text-[#e8be6e]">أم</span> كذاب
                         </h1>
-                        <p className="text-zinc-400 text-sm font-bold mt-1 flex items-center gap-2">
+                        <p className="text-[#b2a283] text-sm font-bold mt-1 flex items-center gap-2">
                             <MonitorPlay size={14} /> لوحة التحكم بالمشرف
                         </p>
                     </div>
@@ -549,18 +551,20 @@ export const TruthOrLie: React.FC<TruthOrLieProps> = ({ onHome, isOBS = false })
                 <div className="flex gap-3">
                     <button
                         onClick={handleCopyObs}
-                        className="px-3 py-2 rounded-2xl bg-iabs-red text-black font-black border-2 border-iabs-red hover:bg-red-500 hover:border-red-400 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(255,0,0,0.4)]"
+                        className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#f9e0a4] to-[#c08b3a] text-[#1a1006] font-black border border-[#fbeccb]/60 hover:from-[#fff0b8] hover:to-[#d9a441] transition-all flex items-center gap-2 shadow-[0_0_25px_rgba(232,190,110,0.35)] hover:shadow-[0_0_35px_rgba(232,190,110,0.5)] hover:scale-105 active:scale-95"
+                        title="نسخ رابط OBS"
                     >
-                        <Video size={12} /> {obsCopied ? 'تم نسخ الرابط' : 'نسخ رابط OBS'}
+                        <Video size={16} />
+                        {obsCopied ? 'تم النسخ' : 'نسخ رابط OBS'}
                     </button>
                     <button
                         onClick={() => setSoundEnabled(!soundEnabled)}
-                        className={`p-3 rounded-2xl border transition-all duration-300 ${soundEnabled ? 'bg-iabs-red/20 border-iabs-red text-iabs-red shadow-[0_0_15px_rgba(255,0,0,0.2)]' : 'bg-zinc-900 border-zinc-800 text-zinc-500'}`}
+                        className={`p-2.5 rounded-2xl border transition-all duration-300 hover:scale-105 active:scale-95 ${soundEnabled ? 'bg-[#e8be6e]/20 border-[#e8be6e] text-[#e8be6e] shadow-[0_0_15px_rgba(232,190,110,0.2)]' : 'bg-[#1a1408] border-[#e8be6e]/30 text-[#b2a283]'}`}
                     >
-                        {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                        {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
                     </button>
-                    <div className={`px-4 py-1.5 rounded-2xl border flex items-center gap-2 font-bold text-base ${gameState.phase === 'voting' ? 'bg-green-900/30 border-green-500 text-green-400 animate-pulse' : 'bg-zinc-900 border-zinc-800 text-zinc-500'}`}>
-                        <div className={`w-3 h-3 rounded-full shadow-[0_0_10px_currentColor] ${gameState.phase === 'voting' ? 'bg-green-500' : 'bg-zinc-500'}`} />
+                    <div className={`px-5 py-2 rounded-2xl border flex items-center gap-2 font-bold text-base ${gameState.phase === 'voting' ? 'bg-[#e8be6e]/20 border-[#e8be6e] text-[#e8be6e] animate-pulse shadow-[0_0_15px_rgba(232,190,110,0.2)]' : 'bg-[#1a1408] border-[#e8be6e]/30 text-[#b2a283]'}`}>
+                        <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_10px_currentColor] ${gameState.phase === 'voting' ? 'bg-[#e8be6e]' : 'bg-[#b2a283]'}`} />
                         {gameState.phase === 'idle' ? 'واقف' : gameState.phase === 'voting' ? 'تصويت جاري' : 'عرض النتيجة'}
                     </div>
                 </div>
@@ -572,7 +576,7 @@ export const TruthOrLie: React.FC<TruthOrLieProps> = ({ onHome, isOBS = false })
                 <div className="lg:col-span-2 flex flex-col gap-4">
 
                     {/* Image Area */}
-                    <div className="flex-1 relative rounded-[2rem] overflow-hidden border border-white/10 shadow-2xl group bg-black/40 backdrop-blur-sm min-h-[350px]">
+                    <div className="flex-1 relative rounded-[2rem] overflow-hidden border border-[#e8be6e]/40 shadow-[0_0_40px_rgba(232,190,110,0.12)] group bg-gradient-to-br from-[#1a1408]/90 to-[#0a0805]/95 backdrop-blur-sm min-h-[350px]">
                         {gameState.imageUrl ? (
                             <>
                                 <img
@@ -628,9 +632,8 @@ export const TruthOrLie: React.FC<TruthOrLieProps> = ({ onHome, isOBS = false })
                             <button
                                 onClick={handleAutoGenerate}
                                 disabled={isLoadingImage}
-                                className="premium-square-btn w-full h-full rounded-[1.5rem] text-xl font-black flex items-center justify-center gap-4 disabled:opacity-50 group hover:scale-[1.02] transition-all"
+                                className="w-full h-full rounded-[1.5rem] text-xl font-black flex items-center justify-center gap-4 disabled:opacity-50 group hover:scale-[1.02] transition-all bg-gradient-to-r from-[#f9e0a4] to-[#c08b3a] text-[#1a1006] shadow-[0_0_30px_rgba(232,190,110,0.4)] border border-[#fbeccb]/60"
                             >
-                                <span className="shine-layer"></span>
                                 {isLoadingImage ? (
                                     <><RefreshCw className="animate-spin" size={24} /> جاري التحميل...</>
                                 ) : (
@@ -643,7 +646,7 @@ export const TruthOrLie: React.FC<TruthOrLieProps> = ({ onHome, isOBS = false })
                                     <>
                                         <button
                                             onClick={handleStartVoting}
-                                            className="premium-square-btn col-span-1 rounded-[1.5rem] text-lg font-black flex items-center justify-center gap-3 hover:scale-[1.02] transition-all"
+                                            className="col-span-1 rounded-[1.5rem] text-lg font-black flex items-center justify-center gap-3 hover:scale-[1.02] transition-all bg-gradient-to-r from-[#f9e0a4] to-[#c08b3a] text-[#1a1006] shadow-[0_0_30px_rgba(232,190,110,0.4)] border border-[#fbeccb]/60"
                                         >
                                             <span className="shine-layer"></span>
                                             <Play size={20} fill="currentColor" /> ابدأ التصويت
@@ -678,21 +681,21 @@ export const TruthOrLie: React.FC<TruthOrLieProps> = ({ onHome, isOBS = false })
                 {/* Right: Stats (Vertical Layout) */}
                 <div className="flex flex-col gap-4">
                     {/* Timer */}
-                    <div className="glass-card rounded-[1.5rem] p-5 flex flex-col items-center justify-center text-center relative overflow-hidden h-36">
-                        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent"></div>
+                    <div className="rounded-[1.5rem] p-5 flex flex-col items-center justify-center text-center relative overflow-hidden h-36 bg-gradient-to-br from-[#1a1408]/95 to-[#0a0805]/95 border border-[#e8be6e]/40 shadow-[0_0_30px_rgba(232,190,110,0.1)]">
+                        <div className="absolute inset-0 bg-gradient-to-b from-[#e8be6e]/5 to-transparent"></div>
                         <div className="relative z-10">
-                            <Timer className={`mb-2 mx-auto ${gameState.timeLeft <= 5 && gameState.phase === 'voting' ? 'text-iabs-red animate-bounce' : 'text-zinc-500'}`} size={20} />
-                            <div className="text-4xl font-black tabular-nums tracking-tighter text-white font-display drop-shadow-lg">
+                            <Timer className={`mb-2 mx-auto ${gameState.timeLeft <= 5 && gameState.phase === 'voting' ? 'text-[#e8be6e] animate-bounce' : 'text-[#b2a283]'}`} size={22} />
+                            <div className="text-4xl font-black tabular-nums tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-[#fff7de] via-[#e8be6e] to-[#a97a30] font-display drop-shadow-lg">
                                 {gameState.timeLeft}
                             </div>
-                            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-1">ثانية</p>
+                            <p className="text-[#b2a283] text-xs font-bold uppercase tracking-widest mt-1">ثانية</p>
                         </div>
                     </div>
 
                     {/* Stats Card */}
-                    <div className="glass-card rounded-[1.5rem] p-5 flex-1 flex flex-col min-h-0">
-                        <h3 className="text-zinc-400 font-bold mb-4 flex items-center gap-2 text-base border-b border-white/5 pb-3">
-                            <Users size={12} className="text-iabs-red" /> تصويت الجمهور ({realTotalVotes})
+                    <div className="rounded-[1.5rem] p-5 flex-1 flex flex-col min-h-0 bg-gradient-to-br from-[#1a1408]/95 to-[#0a0805]/95 border border-[#e8be6e]/40 shadow-[0_0_30px_rgba(232,190,110,0.1)]">
+                        <h3 className="text-[#e8be6e] font-bold mb-4 flex items-center gap-2 text-base border-b border-[#e8be6e]/20 pb-3">
+                            <Users size={14} /> تصويت الجمهور ({realTotalVotes})
                         </h3>
 
                         <div className="space-y-5 mb-5">
@@ -750,41 +753,51 @@ export const TruthOrLie: React.FC<TruthOrLieProps> = ({ onHome, isOBS = false })
             </div>
 
             {showObsGuide && (
-                <div className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-                    <div className="w-full max-w-xl bg-black/70 border border-white/10 rounded-[1.5rem] shadow-2xl overflow-hidden">
-                        <div className="bg-gradient-to-r from-iabs-red/30 to-transparent p-4 border-b border-white/10 flex items-center gap-3">
-                            <Video size={14} className="text-iabs-red" />
-                            <h3 className="text-lg font-black text-white font-display">دليل ربط اللعبة بـ OBS</h3>
-                        </div>
-                        <div className="p-4 space-y-4">
-                            <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl p-3">
-                                <input readOnly value={obsUrl} className="flex-1 bg-transparent text-white font-mono text-sm outline-none" />
-                                <button onClick={handleCopyObs} className="px-3 py-1.5 rounded-xl bg-iabs-red text-black font-black border-2 border-iabs-red hover:bg-red-500 hover:border-red-400 transition-all flex items-center gap-1.5">
-                                    <Copy size={10} /> {obsCopied ? 'تم النسخ' : 'نسخ'}
-                                </button>
+                <div className="fixed inset-0 z-[1000] bg-black/90 backdrop-blur-lg flex items-center justify-center p-4">
+                    <div className="w-full max-w-lg bg-gradient-to-br from-[#1a1408]/98 to-[#0a0805]/98 border border-[#e8be6e]/50 rounded-[2rem] shadow-[0_0_80px_rgba(232,190,110,0.25)] overflow-hidden">
+                        <div className="bg-gradient-to-r from-[#e8be6e]/30 to-transparent p-6 border-b border-[#e8be6e]/30 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-[#e8be6e]/20 border border-[#e8be6e]/40">
+                                    <Video size={18} className="text-[#e8be6e]" />
+                                </div>
+                                <h3 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-br from-[#fff7de] to-[#e8be6e] font-display">دليل ربط اللعبة بـ OBS</h3>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div className="bg-black/40 border border-white/10 rounded-xl p-3">
-                                    <div className="text-white font-black mb-2">الخطوات</div>
-                                    <ul className="text-zinc-400 text-sm space-y-2">
-                                        <li>افتح OBS وأضف مصدر Browser</li>
-                                        <li>الصق الرابط أعلاه داخل URL</li>
-                                        <li>العرض 1920 والارتفاع 1080</li>
-                                        <li>فعل Refresh cache when scene becomes active</li>
+                            <span className="text-xs text-[#b2a283] font-bold px-2 py-1 rounded-lg bg-[#1a1408]/60 border border-[#e8be6e]/20">مشفر</span>
+                        </div>
+                        <div className="p-6 space-y-5">
+                            <div className="text-center">
+                                <button onClick={handleCopyObs} className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#f9e0a4] to-[#c08b3a] text-[#1a1006] font-black text-lg border border-[#fbeccb]/60 hover:from-[#fff0b8] hover:to-[#d9a441] transition-all flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(232,190,110,0.4)] hover:shadow-[0_0_50px_rgba(232,190,110,0.6)] hover:scale-[1.02] active:scale-95">
+                                    <Copy size={20} />
+                                    {obsCopied ? 'تم نسخ الرابط بنجاح!' : 'نسخ رابط OBS المشفر'}
+                                </button>
+                                <p className="text-xs text-[#b2a283] mt-2">يتم نسخ الرابط تلقائيًا وهو مخفي للحماية</p>
+                            </div>
+                            <div className="grid grid-cols-1 gap-3">
+                                <div className="bg-[#1a1408]/60 border border-[#e8be6e]/30 rounded-2xl p-4">
+                                    <div className="text-[#e8be6e] font-black mb-3 flex items-center gap-2">
+                                        <span className="w-6 h-6 rounded-lg bg-[#e8be6e]/20 flex items-center justify-center text-sm">1</span>
+                                        الخطوات
+                                    </div>
+                                    <ul className="text-[#fbeccb]/80 text-sm space-y-2 mr-4">
+                                        <li>افتح OBS وأضف مصدر Browser Source</li>
+                                        <li>الصق الرابط المنسوخ داخل حقل URL</li>
+                                        <li>العرض: 1920 × الارتفاع: 1080</li>
+                                        <li>فعّل "Refresh cache when scene becomes active"</li>
                                     </ul>
                                 </div>
-                                <div className="bg-black/40 border border-white/10 rounded-xl p-3">
-                                    <div className="text-white font-black mb-2">ملاحظات</div>
-                                    <ul className="text-zinc-400 text-sm space-y-2">
+                                <div className="bg-[#1a1408]/60 border border-[#e8be6e]/30 rounded-2xl p-4">
+                                    <div className="text-[#e8be6e] font-black mb-3 flex items-center gap-2">
+                                        <span className="w-6 h-6 rounded-lg bg-[#e8be6e]/20 flex items-center justify-center text-sm">!</span>
+                                        ملاحظات
+                                    </div>
+                                    <ul className="text-[#fbeccb]/80 text-sm space-y-2 mr-4">
                                         <li>تأكد من عدم وجود مانع إعلانات</li>
-                                        <li>يفضل مشغل المشهد بدقة Full HD</li>
+                                        <li>يفضّل استخدام دقة Full HD لأفضل جودة</li>
                                         <li>الخلفية شفافة تلقائيًا</li>
                                     </ul>
                                 </div>
                             </div>
-                            <div className="flex justify-end">
-                                <button onClick={() => setShowObsGuide(false)} className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-black border border-white/10">إغلاق</button>
-                            </div>
+                            <button onClick={() => setShowObsGuide(false)} className="w-full py-2.5 rounded-xl bg-[#1a1408] hover:bg-[#2a2015] text-[#fbeccb] font-bold border border-[#e8be6e]/30 transition-all">إغلاق</button>
                         </div>
                     </div>
                 </div>

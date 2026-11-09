@@ -1,309 +1,574 @@
-
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { chatService } from '../services/chatService';
 import { Language, ChatMessage } from '../types';
-import { MessageSquare, RefreshCw, AlertCircle, Ban, Clock, Ghost, Crown, Shield, Star, Gift, Gem, Heart } from 'lucide-react';
+import './ChatWidget.css';
 
 interface ChatWidgetProps {
   lang: Language;
 }
 
-const BADGE_DEFS: Record<string, { icon: any; cls: string; title: string }> = {
+// Color palette from شات iCG1 (1).html
+const PALETTE = ['#ff6b6b', '#4dd8ff', '#8aff6b', '#ffd24d', '#ff9a3c', '#c58bff', '#ff7ac6', '#5eead4'];
+
+const fixColor = (color: string | undefined, username: string): string => {
+  let c = color || '';
+  if (!/^#?[0-9a-f]{6}$/i.test(c)) {
+    const sum = [...username].reduce((a, x) => a + x.charCodeAt(0), 0);
+    c = PALETTE[sum % PALETTE.length];
+  }
+  c = c.replace('#', '');
+  let [r, g, b] = [0, 2, 4].map((i) => parseInt(c.substr(i, 2), 16));
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  if (luminance < 0.5) {
+    const k = (0.5 - luminance) * 1.2 + 0.2;
+    [r, g, b] = [r, g, b].map((v) => Math.round(v + (255 - v) * k));
+  }
+  return `rgb(${r}, ${g}, ${b})`;
+};
+
+// Badges definitions from شات iCG1 (1).html
+const BADGES_CONFIG: Record<
+  string,
+  { c: string; f: string; t: string; icon?: string; text?: string }
+> = {
   broadcaster: {
-    icon: Crown,
-    cls: 'bg-gradient-to-br from-amber-300 to-orange-600 text-white border-yellow-200/70 shadow-[0_0_8px_rgba(251,191,36,0.9)]',
-    title: 'مالك القناة',
+    c: 'linear-gradient(160deg,#fff0b8,#d9a441)',
+    f: '#2b1a05',
+    t: 'صاحب القناة',
+    icon: '<path d="M2 18L3.500 7l4.500 4L12 4l4 7 4.500-4L22 18z"/><rect x="3" y="19" width="18" height="2.500" rx="1"/>'
   },
   moderator: {
-    icon: Shield,
-    cls: 'bg-gradient-to-br from-emerald-300 to-green-700 text-white border-emerald-200/70 shadow-[0_0_8px_rgba(16,185,129,0.9)]',
-    title: 'مشرف',
-  },
-  founder: {
-    icon: Gem,
-    cls: 'bg-gradient-to-br from-cyan-300 to-blue-700 text-white border-cyan-200/70 shadow-[0_0_8px_rgba(34,211,238,0.9)]',
-    title: 'مؤسس القناة',
+    c: 'linear-gradient(160deg,#6ee7a0,#16a34a)',
+    f: '#eafff2',
+    t: 'مشرف',
+    icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M8.500 12l2.500 2.500 4.500-5" fill="none" stroke="#06391c" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round"/>'
   },
   vip: {
-    icon: Star,
-    cls: 'bg-gradient-to-br from-fuchsia-400 to-purple-700 text-white border-fuchsia-200/70 shadow-[0_0_8px_rgba(217,70,239,0.9)]',
-    title: 'VIP',
+    c: 'linear-gradient(160deg,#f7b0ff,#c026d3)',
+    f: '#fff',
+    t: 'VIP',
+    icon: '<path d="M6 3h12l4 6-10 12L2 9z"/>'
+  },
+  og: {
+    c: 'linear-gradient(160deg,#ffc27a,#e0731c)',
+    f: '#3a1a04',
+    t: 'OG',
+    text: 'OG'
+  },
+  founder: {
+    c: 'linear-gradient(160deg,#c9a6ff,#7c3aed)',
+    f: '#fff',
+    t: 'مؤسس',
+    icon: '<path d="M12 2l3 7 7 .6-5.300 4.800L18.200 22 12 18.300 5.800 22l1.500-7.600L2 9.600 9 9z"/>'
+  },
+  subscriber: {
+    c: 'linear-gradient(160deg,#ffe29a,#f0a020)',
+    f: '#4a2c00',
+    t: 'مشترك',
+    icon: '<path d="M12 2l3 7 7 .6-5.300 4.800L18.200 22 12 18.300 5.800 22l1.500-7.600L2 9.600 9 9z"/>'
   },
   sub_gifter: {
-    icon: Gift,
-    cls: 'bg-gradient-to-br from-orange-300 to-rose-600 text-white border-orange-200/70 shadow-[0_0_8px_rgba(249,115,22,0.9)]',
-    title: 'مهدي اشتراكات',
+    c: 'linear-gradient(160deg,#ffe29a,#f0a020)',
+    f: '#4a2c00',
+    t: 'مُهدي اشتراكات',
+    icon: '<path d="M12 2l3 7 7 .6-5.300 4.800L18.200 22 12 18.300 5.800 22l1.500-7.600L2 9.600 9 9z"/>'
   },
-};
-
-const parseSubMonths = (text?: string): number => {
-  if (!text) return 0;
-  const m = text.match(/\((\d+)\s*months?\)/i) || text.match(/(\d+)\s*months?/i);
-  return m ? parseInt(m[1], 10) : 0;
-};
-
-const SubBadge = ({ text }: { text?: string }) => {
-  const months = parseSubMonths(text);
-  return (
-    <div
-      title={months > 0 ? `مشترك (${months} شهر)` : 'مشترك'}
-      className="h-4 px-1 rounded-[5px] bg-gradient-to-br from-rose-400 to-red-700 text-white border border-rose-200/70 shadow-[0_0_8px_rgba(244,63,94,0.9)] flex items-center gap-0.5 shrink-0"
-    >
-      <Heart size={8} fill="currentColor" />
-      {months > 0 && <span className="text-[7px] font-black leading-none">{months}ش</span>}
-    </div>
-  );
-};
-
-const RoleBadge = ({ type }: { type: string }) => {
-  const def = BADGE_DEFS[type];
-  if (!def) return null;
-  const Icon = def.icon;
-  return (
-    <div
-      title={def.title}
-      className={`w-4 h-4 rounded-[5px] flex items-center justify-center border shrink-0 ${def.cls}`}
-    >
-      <Icon size={9} strokeWidth={2.5} fill="currentColor" />
-    </div>
-  );
-};
-
-const AVATAR_GRADIENTS = [
-  'from-red-500 to-rose-700',
-  'from-blue-500 to-indigo-700',
-  'from-emerald-500 to-teal-700',
-  'from-amber-500 to-orange-700',
-  'from-fuchsia-500 to-purple-700',
-  'from-cyan-500 to-sky-700',
-];
-
-const hashString = (s: string) => {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h;
-};
-
-const Avatar = ({ user }: { user: ChatMessage['user'] }) => {
-  const [broken, setBroken] = useState(false);
-  const grad = AVATAR_GRADIENTS[hashString(user.username) % AVATAR_GRADIENTS.length];
-
-  if (user.avatar && !broken) {
-    return (
-      <img
-        src={user.avatar}
-        alt=""
-        onError={() => setBroken(true)}
-        className="w-6 h-6 rounded-full object-cover border border-white/15 shrink-0"
-        loading="lazy"
-      />
-    );
+  verified: {
+    c: 'linear-gradient(160deg,#8cc8ff,#2f7de1)',
+    f: '#fff',
+    t: 'موثّق',
+    icon: '<circle cx="12" cy="12" r="10"/><path d="M7.500 12.500l3 3 6-7" fill="none" stroke="#0b3a7a" stroke-width="2.600" stroke-linecap="round" stroke-linejoin="round"/>'
   }
-  return (
-    <div
-      className={`w-6 h-6 rounded-full bg-gradient-to-br ${grad} border border-white/15 flex items-center justify-center text-[9px] font-black text-white shrink-0 shadow-[0_0_6px_rgba(255,255,255,0.15)]`}
-    >
-      {user.username.charAt(0).toUpperCase()}
-    </div>
-  );
 };
 
-export const ChatWidget: React.FC<ChatWidgetProps> = ({ lang }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [status, setStatus] = useState({ connected: false, error: false, details: '' });
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+const BADGE_ORDER = ['broadcaster', 'moderator', 'vip', 'og', 'founder', 'subscriber', 'sub_gifter', 'verified'];
 
-  const connect = () => {
+// Convert Arabic eastern numerals to western
+const normalizeArabicDigits = (s: string) => s.replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
+
+export const ChatWidget: React.FC<ChatWidgetProps> = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [status, setStatus] = useState<{ connected: boolean; error: boolean; details: string }>({
+    connected: false,
+    error: false,
+    details: 'جاري الاتصال…'
+  });
+  const [filter, setFilter] = useState<string>('all');
+  const [fontSize, setFontSize] = useState<number>(15);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [msgRate, setMsgRate] = useState<number>(0);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const timestampsRef = useRef<number[]>([]);
+  const isPausedRef = useRef(isPaused);
+  isPausedRef.current = isPaused;
+
+  const isNearBottom = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }, []);
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    if (listRef.current) {
+      listRef.current.scrollTo({
+        top: listRef.current.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto'
+      });
+      setUnreadCount(0);
+    }
+  }, []);
+
+  const connectToChat = useCallback(() => {
+    setIsRefreshing(true);
     chatService.connect('icg1');
-  };
+    setTimeout(() => setIsRefreshing(false), 800);
+  }, []);
 
   useEffect(() => {
-    connect();
+    connectToChat();
 
     const unbindMsg = chatService.onMessage((msg) => {
-      setMessages(prev => {
-        if (prev.some(m => m.id === msg.id)) return prev;
-        // Limit to 100 messages, then keep last 20
-        if (prev.length >= 100) {
-          return [...prev.slice(-20), msg];
-        }
-        return [...prev, msg];
+      const now = Date.now();
+      timestampsRef.current.push(now);
+
+      const stick = !isPausedRef.current && isNearBottom();
+
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        const next = [...prev, msg];
+        return next.length > 150 ? next.slice(-150) : next;
       });
+
+      if (stick) {
+        requestAnimationFrame(() => scrollToBottom(false));
+      } else {
+        setUnreadCount((prev) => prev + 1);
+      }
     });
 
     const unbindDelete = chatService.onDeleteMessage((msgId) => {
-      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, deleted: true } : m));
+      setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, deleted: true } : m)));
     });
 
     const unbindStatus = chatService.onStatusChange((connected, error, details) => {
-      setStatus({ connected, error, details: details || '' });
+      setStatus({ connected, error: !!error, details: details || (connected ? 'القناة متصلة' : 'جاري الاتصال…') });
     });
+
+    // Rate calculation every 1.5s
+    const rateInterval = setInterval(() => {
+      const cutoff = Date.now() - 60000;
+      timestampsRef.current = timestampsRef.current.filter((t) => t > cutoff);
+      setMsgRate(timestampsRef.current.length);
+    }, 1500);
 
     return () => {
       unbindMsg();
       unbindDelete();
       unbindStatus();
+      clearInterval(rateInterval);
     };
-  }, []);
+  }, [connectToChat, isNearBottom, scrollToBottom]);
 
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
-        behavior: messages.length > 50 ? 'auto' : 'smooth' // performance optimization
-      });
+  const handleScroll = () => {
+    if (isNearBottom() && unreadCount > 0) {
+      setUnreadCount(0);
     }
-  }, [messages]);
+  };
 
-  const renderBadges = useMemo(() => (msg: ChatMessage) => {
-    const badges = msg.badges || [];
-    const seen = new Set<string>();
-    const nodes: React.ReactNode[] = [];
+  const clearChat = () => {
+    setMessages([]);
+    setUnreadCount(0);
+  };
 
-    const types = badges.map(b => b.type);
-    // Ensure priority order for the main role badge
-    const priority = ['broadcaster', 'moderator', 'founder', 'vip', 'sub_gifter', 'subscriber'];
-    const ordered = [...priority.filter(t => types.includes(t)), ...types.filter(t => !priority.includes(t))];
+  const adjustFontSize = (delta: number) => {
+    setFontSize((prev) => Math.max(12, Math.min(24, prev + delta)));
+  };
 
-    for (const type of ordered) {
-      if (seen.has(type)) continue;
-      seen.add(type);
-      const badge = badges.find(b => b.type === type);
-      if (type === 'subscriber') {
-        nodes.push(<SubBadge key={`sub-${nodes.length}`} text={badge?.text} />);
-      } else {
-        nodes.push(<RoleBadge key={`${type}-${nodes.length}`} type={type} />);
+  // Filter messages
+  const filteredMessages = useMemo(() => {
+    if (filter === 'all') return messages;
+    return messages.filter((m) => {
+      const types = (m.badges || []).map((b) => b.type.toLowerCase());
+      if (filter === 'sub') return types.includes('subscriber') || types.includes('founder') || types.includes('sub_gifter');
+      if (filter === 'mod') return types.includes('moderator');
+      if (filter === 'vip') return types.includes('vip');
+      if (filter === 'og') return types.includes('og');
+      return true;
+    });
+  }, [filter, messages]);
+
+  // Render individual badge in luxury style from شات iCG1 (1).html
+  const renderBadge = (badgeType: string, key: string | number) => {
+    if (badgeType === 'bot') {
+      return (
+        <span key={key} className="bot" title="بوت">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 8V4H8" />
+            <rect x="4" y="8" width="16" height="12" rx="2" />
+            <path d="M2 14h2M20 14h2M15 13v2M9 13v2" />
+          </svg>
+          BOT
+        </span>
+      );
+    }
+    const def = BADGES_CONFIG[badgeType];
+    if (!def) return null;
+    return (
+      <span
+        key={key}
+        className="bg"
+        style={{ background: def.c, color: def.f }}
+        title={def.t}
+      >
+        {def.text || (
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" dangerouslySetInnerHTML={{ __html: def.icon || '' }} />
+        )}
+      </span>
+    );
+  };
+
+  // Render message parsed content (Emotes, Numbers, Join, Mentions, Commands, Links)
+  const renderMessageContent = (content: string) => {
+    const text = content.trim();
+    const normalizedDigits = normalizeArabicDigits(text);
+
+    // Join word chip
+    if (text === 'دخول') {
+      return (
+        <span className="chip join">
+          <svg className="w-3.5 h-3.5 inline-block ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          دخول
+        </span>
+      );
+    }
+
+    // Number chip (1 to 3 digits)
+    if (/^\d{1,3}$/.test(normalizedDigits)) {
+      return <span className="chip num">{normalizedDigits}</span>;
+    }
+
+    // Tokenizer regex matching emotes, URLs, mentions, commands
+    const regex = /\[emote:(\d+):([^\]]+)\]|(https?:\/\/[^\s]+)|(@[\w\u0600-\u06FF]+)|(![\w\u0600-\u06FF]+)/g;
+    const parts: React.ReactNode[] = [];
+    let lastIdx = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(content)) !== null) {
+      if (match.index > lastIdx) {
+        parts.push(content.slice(lastIdx, match.index));
       }
-    }
-    return nodes;
-  }, []);
 
-  const t = {
-    title: lang === 'ar' ? 'شات قناة iCG1' : 'iCG1 Live Chat',
-    connecting: lang === 'ar' ? 'جاري الاتصال...' : 'Connecting...',
-    connected: lang === 'ar' ? 'القناة متصلة' : 'Channel connected',
-    error: lang === 'ar' ? 'انقطع الاتصال' : 'Connection Lost',
-    retry: lang === 'ar' ? 'إعادة المحاولة' : 'Retry',
-    deleted: lang === 'ar' ? 'تم حذف هذه الرسالة بواسطة الإدارة' : 'This message was removed by moderator',
-    placeholder: lang === 'ar' ? 'بانتظار رسائل قناة iCG1...' : 'Waiting for iCG1 chat messages...'
+      if (match[1]) {
+        // Kick Emote
+        const emoteId = match[1];
+        const emoteName = match[2];
+        parts.push(
+          <img
+            key={`em-${match.index}`}
+            className="em"
+            alt={emoteName}
+            src={`https://files.kick.com/emotes/${emoteId}/fullsize`}
+            onError={(e) => {
+              const span = document.createElement('span');
+              span.className = 'cmd';
+              span.textContent = `:${emoteName}:`;
+              e.currentTarget.replaceWith(span);
+            }}
+          />
+        );
+      } else if (match[3]) {
+        // Link
+        const urlStr = match[3];
+        let host = 'رابط';
+        try {
+          host = new URL(urlStr).hostname.replace(/^www\./, '');
+        } catch (e) {}
+        parts.push(
+          <a
+            key={`lnk-${match.index}`}
+            href={urlStr}
+            target="_blank"
+            rel="noreferrer"
+            className="lnk"
+          >
+            <svg className="w-3 h-3 inline-block ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" />
+            </svg>
+            {host}
+          </a>
+        );
+      } else if (match[4]) {
+        // Mention
+        parts.push(
+          <span key={`mn-${match.index}`} className="mn">
+            {match[4]}
+          </span>
+        );
+      } else if (match[5]) {
+        // Command
+        parts.push(
+          <span key={`cmd-${match.index}`} className="cmd">
+            {match[5]}
+          </span>
+        );
+      }
+
+      lastIdx = regex.lastIndex;
+    }
+
+    if (lastIdx < content.length) {
+      parts.push(content.slice(lastIdx));
+    }
+
+    return parts.length > 0 ? parts : content;
+  };
+
+  const getStatusType = () => {
+    if (status.connected) return 'connected';
+    if (status.error) return 'offline';
+    return 'connecting';
   };
 
   return (
-    <div className="icg1-chat flex flex-col h-full w-full bg-[#050505]/90 backdrop-blur-2xl relative border-l border-white/5">
-
-      {/* Header */}
-      <div className="icg1-chat-header h-14 shrink-0 bg-gradient-to-r from-red-600/10 to-transparent border-b border-white/5 flex items-center justify-between px-3 z-20">
-        <div className="flex items-center gap-2">
-          <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-500 shadow-lg ${status.connected ? 'bg-gradient-to-br from-red-600 to-rose-800 shadow-[0_0_15px_rgba(255,0,0,0.5)]' : 'bg-zinc-800'}`}>
-            <MessageSquare size={18} className="text-white" />
-          </div>
-          <div className="flex flex-col">
-            <a href="https://kick.com/icg1" target="_blank" rel="noreferrer" className="icg1-chat-title text-white font-black text-[11px] uppercase tracking-tighter italic">{t.title}</a>
-            <div className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full ${status.connected ? 'bg-red-500 animate-pulse shadow-[0_0_5px_red]' : 'bg-zinc-600'}`}></span>
-              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{status.connected ? t.connected : t.connecting}</span>
-            </div>
-          </div>
-        </div>
-        <button onClick={connect} className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-all">
-          <RefreshCw size={16} className={!status.connected && !status.error ? 'animate-spin' : ''} />
-        </button>
+    <div
+      className="icg1-chat-widget"
+      data-st={getStatusType()}
+      style={{ ['--fs' as any]: `${fontSize}px` }}
+    >
+      {/* Background Watermark */}
+      <div className="wm">
+        <img src="/logo-435242.png" alt="" />
       </div>
 
-      {/* Messages Container */}
+      {/* HEADER */}
+      <header className="hd">
+        <div className="hi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            <path d="M8 9h8M8 13h5" />
+          </svg>
+        </div>
+        <div className="tt">
+          <b>شات قناة iCG1</b>
+          <span className="st">
+            <i />
+            <em style={{ fontStyle: 'normal' }}>
+              {status.connected ? 'القناة متصلة' : status.error ? 'غير متصل' : 'جاري الاتصال…'}
+            </em>
+          </span>
+        </div>
+        <button
+          className={`rf ${isRefreshing ? 'spin' : ''}`}
+          onClick={connectToChat}
+          title="إعادة الاتصال"
+          aria-label="إعادة الاتصال"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+        </button>
+      </header>
+
+      {/* FILTERS BAR */}
+      <nav className="fl" aria-label="تصفية الرسائل">
+        <button
+          type="button"
+          className={filter === 'all' ? 'on' : ''}
+          onClick={() => { setFilter('all'); scrollToBottom(); }}
+        >
+          الكل
+        </button>
+        <button
+          type="button"
+          className={filter === 'sub' ? 'on' : ''}
+          onClick={() => { setFilter('sub'); scrollToBottom(); }}
+        >
+          {renderBadge('subscriber', 'sub-btn')}
+          المشتركين
+        </button>
+        <button
+          type="button"
+          className={filter === 'mod' ? 'on' : ''}
+          onClick={() => { setFilter('mod'); scrollToBottom(); }}
+        >
+          {renderBadge('moderator', 'mod-btn')}
+          المشرفين
+        </button>
+        <button
+          type="button"
+          className={filter === 'vip' ? 'on' : ''}
+          onClick={() => { setFilter('vip'); scrollToBottom(); }}
+        >
+          {renderBadge('vip', 'vip-btn')}
+          VIP
+        </button>
+        <button
+          type="button"
+          className={filter === 'og' ? 'on' : ''}
+          onClick={() => { setFilter('og'); scrollToBottom(); }}
+        >
+          {renderBadge('og', 'og-btn')}
+          OG
+        </button>
+      </nav>
+
+      {/* MESSAGES LIST */}
       <div
-        ref={chatContainerRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1 custom-scrollbar"
+        className="list"
+        ref={listRef}
+        onScroll={handleScroll}
+        role="log"
+        aria-live="polite"
       >
-        {messages.length === 0 && status.connected && (
-          <div className="h-full flex flex-col items-center justify-center text-center opacity-20">
-            <Ghost size={40} className="mb-3 text-red-600" />
-            <p className="text-[10px] font-black text-white uppercase tracking-[0.3em]">{t.placeholder}</p>
-          </div>
-        )}
+        {filteredMessages.map((msg) => {
+          const username = msg.user?.username || 'مجهول';
+          const userColor = fixColor(msg.user?.color, username);
+          const rawBadges = (msg.badges || []).map((b) => b.type);
+          const isBot = /^botrix$/i.test(username) || rawBadges.includes('bot');
 
-        {status.error && (
-          <div className="h-full flex flex-col items-center justify-center text-center p-4 space-y-3">
-            <AlertCircle size={24} className="text-red-500" />
-            <p className="text-[10px] font-black text-white uppercase tracking-wider">{t.error}</p>
-            <button onClick={connect} className="px-4 py-2 bg-red-600 text-[9px] font-black italic rounded-lg hover:bg-red-500 transition-all uppercase">{t.retry}</button>
-          </div>
-        )}
+          const badgesList = isBot
+            ? ['bot']
+            : BADGE_ORDER.filter((b) => rawBadges.includes(b));
 
-        {messages.map((msg) => (
-            <div key={msg.id} className="animate-in slide-in-from-right-2 duration-300 group px-1 py-1 rounded-lg hover:bg-white/[0.03] transition-colors">
-              <div className="flex items-start gap-2">
-                <Avatar user={msg.user} />
+          const isBroadcaster = rawBadges.includes('broadcaster');
+          const initial = [...username][0]?.toUpperCase() || '؟';
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1 mb-0.5 flex-wrap">
-                    <span
-                      className="font-black text-[11px] italic tracking-tight truncate drop-shadow-sm max-w-[120px]"
-                      style={{ color: msg.user.color || '#ff0000' }}
-                    >
-                      {msg.user.username}
-                    </span>
-                    <div className="flex items-center gap-0.5">
-                      {renderBadges(msg)}
-                    </div>
-                    <span className="text-[8px] text-gray-700 font-mono items-center gap-1 hidden group-hover:flex">
-                      <Clock size={8} /> {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
+          const timeStr = msg.timestamp
+            ? new Date(msg.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+            : '';
 
-                  {msg.deleted ? (
-                    <div className="flex items-center gap-1.5 text-zinc-600 italic bg-white/[0.02] p-1 rounded-lg border border-white/5">
-                      <Ban size={10} />
-                      <span className="text-[9px] font-bold">{t.deleted}</span>
-                    </div>
-                  ) : (
-                    <div className="text-[11px] text-gray-200 font-bold leading-tight break-words whitespace-pre-wrap -tracking-tight drop-shadow-sm">
-                      {parseMessageContent(msg.content)}
-                    </div>
-                  )}
+          return (
+            <div
+              key={msg.id}
+              className={`msg ${isBroadcaster ? 'cast' : ''} ${isBot ? 'isbot' : ''}`}
+              style={{ ['--uc' as any]: isBot ? '#7cc4ff' : userColor }}
+            >
+              {/* Avatar circle with luxury glow */}
+              <div className="av">
+                {msg.user?.avatar ? (
+                  <img
+                    src={msg.user.avatar}
+                    alt=""
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                ) : null}
+                <span>{initial}</span>
+              </div>
+
+              {/* Message Body */}
+              <div className="bd">
+                <div className="meta">
+                  {badgesList.map((b, idx) => renderBadge(b, `${b}-${idx}`))}
+                  <b className="un">{username}</b>
+                  {timeStr && <time>{timeStr}</time>}
                 </div>
+                {msg.deleted ? (
+                  <div className="text-zinc-500 italic text-xs py-1">
+                    تم حذف هذه الرسالة بواسطة الإدارة
+                  </div>
+                ) : (
+                  <div className="tx">{renderMessageContent(msg.content)}</div>
+                )}
               </div>
             </div>
-        ))}
+          );
+        })}
       </div>
 
+      {/* EMPTY STATE */}
+      {filteredMessages.length === 0 && (
+        <div className="empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 10h.01M15 10h.01M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.500L17 19l3 3V10a8 8 0 0 0-8-8z" />
+          </svg>
+          <span>في انتظار أول تعليق…</span>
+        </div>
+      )}
 
+      {/* FLOATING UNREAD BUTTON */}
+      <button
+        type="button"
+        className={`newb ${unreadCount > 0 ? 'on' : ''}`}
+        onClick={() => scrollToBottom(true)}
+      >
+        <svg className="w-4 h-4 ml-1 inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 5v14M5 12l7 7 7-7" />
+        </svg>
+        رسائل جديدة {unreadCount}
+      </button>
 
-      {/* Bottom Glow */}
-      <div className="h-8 bg-gradient-to-t from-black to-transparent shrink-0"></div>
+      {/* FOOTER CONTROLS */}
+      <footer className="ft">
+        <div className="rate">
+          <svg className="w-3.5 h-3.5 inline-block ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13 2L4 14h7l-1 8 10-12h-7z" />
+          </svg>
+          {msgRate}
+          <small>رسالة/د</small>
+        </div>
+        <span className="sp" />
+
+        <button
+          type="button"
+          className="tb"
+          onClick={() => adjustFontSize(-1)}
+          title="تصغير الخط"
+          aria-label="تصغير الخط"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          className="tb"
+          onClick={() => adjustFontSize(1)}
+          title="تكبير الخط"
+          aria-label="تكبير الخط"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          className={`tb ${isPaused ? 'on' : ''}`}
+          onClick={() => {
+            const next = !isPaused;
+            setIsPaused(next);
+            if (!next) scrollToBottom(true);
+          }}
+          title={isPaused ? 'استئناف التمرير التلقائي' : 'إيقاف التمرير التلقائي'}
+          aria-label="إيقاف التمرير التلقائي"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 5v14M16 5v14" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          className="tb"
+          onClick={clearChat}
+          title="مسح الشات"
+          aria-label="مسح الشات"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+          </svg>
+        </button>
+      </footer>
     </div>
   );
-};
-
-const parseMessageContent = (content: string) => {
-  const emoteRegex = /\[emote:(\d+):([\w\s\-]+)\]/g;
-  const parts = [];
-  let lastIndex = 0;
-  let match;
-
-  while ((match = emoteRegex.exec(content)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(content.substring(lastIndex, match.index));
-    }
-
-    const emoteId = match[1];
-    const emoteName = match[2];
-    parts.push(
-      <img
-        key={`${emoteId}-${match.index}`}
-        src={`https://files.kick.com/emotes/${emoteId}/fullsize`}
-        alt={emoteName}
-        className="inline-block w-6 h-6 align-middle mx-0.5 hover:scale-110 transition-transform"
-        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-      />
-    );
-
-    lastIndex = emoteRegex.lastIndex;
-  }
-
-  if (lastIndex < content.length) {
-    parts.push(content.substring(lastIndex));
-  }
-
-  return parts.length > 0 ? parts : content;
 };

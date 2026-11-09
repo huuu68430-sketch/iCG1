@@ -631,8 +631,9 @@ export const GridHunt: React.FC<GridHuntProps> = ({ channelConnected, onHome, is
 
 
          <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(232, 190, 110, 0.28); border-radius: 99px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(232, 190, 110, 0.5); }
         .red-neon-text { text-shadow: 0 0 20px rgba(239,68,68,0.5), 0 0 40px rgba(239,68,68,0.2); }
         @keyframes spin-slow {
           from { transform: rotate(0deg); }

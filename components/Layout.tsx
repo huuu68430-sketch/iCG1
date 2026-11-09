@@ -18,9 +18,11 @@ interface LayoutProps {
   obsPreviewSlot?: React.ReactNode;
   isAuthorized?: boolean;
   userRole?: 'admin' | 'user';
+  /** الشرح مفتوح — الشريط الجانبي (التحكم + الشات) ينكمش ويرجع بعد ما يقفل */
+  tutorialOpen?: boolean;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeView, onOBSLinks, onToggleOBSPreview, obsPreviewActive, obsPreviewSlot, isAuthorized, userRole }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeView, onOBSLinks, onToggleOBSPreview, obsPreviewActive, obsPreviewSlot, isAuthorized, userRole, tutorialOpen }) => {
   const [chatOpen, setChatOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return true;
     return window.innerWidth >= 1024;
@@ -35,7 +37,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
   };
 
   const viewBg = (view: ViewState) => {
-    const brandedViews = new Set(['HOME', 'ADMIN_LOGIN', 'ADMIN_PANEL', 'USER_DASHBOARD', 'LEADERBOARD', 'ABOUT', 'HOST_LOGIN', 'HOST_GATE']);
+    if (view === 'HOME') return "url('/bg-435242.jpg')";
+    const brandedViews = new Set(['ADMIN_LOGIN', 'ADMIN_PANEL', 'USER_DASHBOARD', 'LEADERBOARD', 'ABOUT', 'HOST_LOGIN', 'HOST_GATE']);
     return brandedViews.has(String(view)) ? "url('/icg1-arena-bg-v2.png')" : "url('/icg1-arena-bg.png')";
   };
 
@@ -50,59 +53,72 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
   const nonGameViews = new Set(['HOME', 'ADMIN_LOGIN', 'ADMIN_PANEL', 'USER_DASHBOARD', 'LEADERBOARD', 'ABOUT', 'HOST_LOGIN', 'HOST_GATE']);
   const isGameView = !nonGameViews.has(String(currentView));
 
+  // واجهات لا يجب أن يظهر فيها الشريط الجانبي (الشات/التحكم) إطلاقاً
+  const noSidebarViews = new Set([
+    'USER_DASHBOARD',
+    'ADMIN_LOGIN',
+    'HOST_GATE',
+    'HOST_LOGIN',
+    'USER_AUTH',
+    'ABOUT',
+    'EMOJI_CODE',
+  ]);
+  const showSidebar = !noSidebarViews.has(String(currentView));
+  const isDashboard = String(currentView) === 'USER_DASHBOARD';
+
   return (
     <div className="icg1-shell app-shell flex bg-black overflow-hidden font-sans" data-game-active={isGameView} dir="rtl">
 
-      {/* Sidebar Container */}
-      {(
+      {/* Sidebar Container (hidden for the dashboard, auth screens and self-contained games) */}
+      {showSidebar && (
         <aside
-          style={{ width: chatOpen ? `${sidebarWidth}px` : '0px' }}
-          className="icg1-sidebar fixed lg:static inset-y-0 right-0 lg:inset-auto z-[200] lg:z-50 h-full transition-all duration-500 ease-in-out border-l border-white/5 flex-shrink-0 flex flex-col bg-[#050505] shadow-[20px_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
+          style={{ width: chatOpen && !tutorialOpen ? `${sidebarWidth}px` : '0px' }}
+          className="icg1-sidebar fixed lg:static inset-y-0 right-0 lg:inset-auto z-[200] lg:z-50 h-full transition-all duration-500 ease-in-out border-l border-[#e8be6e]/30 flex-shrink-0 flex flex-col bg-[#080604] shadow-[-15px_0_50px_rgba(0,0,0,0.85)] relative overflow-hidden"
         >
-          {/* --- MODERN COMMAND BAR (ABOVE CHAT) --- */}
-          <div className="icg1-controlbar h-9 shrink-0 bg-gradient-to-l from-red-600/10 via-black to-black border-b border-white/5 flex items-center justify-between px-2 z-30">
+          {/* --- GOLD LUXURY COMMAND BAR (ABOVE CHAT) --- */}
+          <div className="icg1-controlbar h-9 shrink-0 bg-gradient-to-l from-[#e8be6e]/20 via-[#0e0a05] to-[#080604] border-b border-[#e8be6e]/30 flex items-center justify-between px-2.5 z-30">
             <div className="flex items-center gap-1.5">
-              <div className="p-1 bg-gradient-to-br from-red-600 to-red-900 rounded-md shadow-[0_0_15px_rgba(255,0,0,0.3)] border border-white/20">
-                <LayoutGrid size={10} className="text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" />
+              <div className="p-1 bg-gradient-to-br from-[#f9e0a4] to-[#a97a30] rounded-md shadow-[0_0_12px_rgba(232,190,110,0.4)] border border-[#e8be6e]/50">
+                <LayoutGrid size={11} className="text-[#1a1006]" />
               </div>
               <div className="flex flex-col">
-                <span className="text-[7px] font-black text-white/80 uppercase tracking-[0.2em] italic leading-none">التحكم</span>
-                <span className="text-[5px] font-bold text-red-500/60 uppercase tracking-widest">Control</span>
+                <span className="text-[8px] font-black text-[#fbeccb] uppercase tracking-[0.2em] leading-none">التحكم</span>
+                <span className="text-[6px] font-bold text-[#e8be6e]/70 uppercase tracking-widest">iCG1 Control</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-0.5 bg-white/5 p-0.5 rounded-lg border border-white/10">
+            <div className="flex items-center gap-1 bg-black/40 p-0.5 rounded-lg border border-[#e8be6e]/20">
               <button
                 onClick={() => handleResize(-20)}
                 title="تصغير"
-                className="p-1 hover:bg-white/10 text-gray-400 hover:text-white transition-all rounded active:scale-90"
+                className="p-1 hover:bg-[#e8be6e]/15 text-[#a89878] hover:text-[#fbeccb] transition-all rounded active:scale-90"
               >
-                <Minimize2 size={8} />
+                <Minimize2 size={9} />
               </button>
-              <div className="w-px h-2.5 bg-white/10"></div>
+              <div className="w-px h-2.5 bg-[#e8be6e]/20"></div>
               <button
                 onClick={() => handleResize(20)}
                 title="تكبير"
-                className="p-1 hover:bg-white/10 text-gray-400 hover:text-white transition-all rounded active:scale-90"
+                className="p-1 hover:bg-[#e8be6e]/15 text-[#a89878] hover:text-[#fbeccb] transition-all rounded active:scale-90"
               >
-                <Maximize2 size={8} />
+                <Maximize2 size={9} />
               </button>
-              <div className="w-px h-2.5 bg-white/10"></div>
+              <div className="w-px h-2.5 bg-[#e8be6e]/20"></div>
               <button
                 onClick={() => toggleChat(false)}
-                title="إخفاء"
-                className="p-1 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white transition-all rounded active:scale-90"
+                title="إخفاء الشات"
+                className="p-1 bg-[#e8be6e]/15 hover:bg-[#e8be6e] text-[#e8be6e] hover:text-[#1a1006] transition-all rounded active:scale-90"
               >
-                <PanelRightClose size={8} className="rotate-180" />
+                <PanelRightClose size={9} className="rotate-180" />
               </button>
             </div>
 
             {isAuthorized && (
-              <div className="flex items-center gap-0.5">
+              <div className="flex items-center gap-1">
                 {userRole === 'user' && (
                   <button
                     onClick={() => onChangeView('USER_DASHBOARD' as any)}
-                    className="p-1 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all rounded border border-white/10 active:scale-95"
+                    className="p-1 bg-white/5 hover:bg-[#e8be6e]/20 text-[#a89878] hover:text-[#fbeccb] transition-all rounded border border-[#e8be6e]/20 active:scale-95"
                     title="ملفي الشخصي"
                   >
                     <User size={10} />
@@ -110,7 +126,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
                 )}
                 <button
                   onClick={() => onChangeView(userRole === 'user' ? 'USER_DASHBOARD' as any : 'HOME')}
-                  className="p-1 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white transition-all rounded border border-red-600/30 active:scale-95"
+                  className="p-1 bg-gradient-to-br from-[#f9e0a4] to-[#a97a30] text-[#1a1006] hover:brightness-110 transition-all rounded border border-[#e8be6e]/40 active:scale-95 shadow-[0_0_8px_rgba(232,190,110,0.3)]"
                   title={userRole === 'user' ? "لوحة القيادة" : "الرئيسية"}
                 >
                   <Home size={10} />
@@ -144,7 +160,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
           )}
 
           {/* Bottom Section: Game Controls */}
-          {!isHome && !nonGameViews.has(String(currentView)) && currentView !== 'MAHMAH_GAME' && (
+          {!isHome && !nonGameViews.has(String(currentView)) && currentView !== 'MAHMAH_GAME' && currentView !== 'EMOJI_CODE' && (
             <div className="flex-[1.6] min-h-0 border-t border-white/5 bg-gradient-to-b from-black/70 via-red-950/5 to-black/80 backdrop-blur-3xl flex flex-col relative overflow-hidden">
               {/* Top glow line */}
               <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-red-500/40 to-transparent"></div>
@@ -184,40 +200,23 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
       )}
 
       {/* Mobile drawer backdrop */}
-      {chatOpen && (
+      {showSidebar && chatOpen && !tutorialOpen && (
         <div className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm lg:hidden" onClick={() => toggleChat(false)} />
       )}
 
       {/* Main Game Area */}
       <main className="icg1-main flex-1 relative flex flex-col h-full overflow-hidden bg-black">
-        {/* Global Background Layer */}
-        <div
-          className="absolute inset-0 z-0 pointer-events-none opacity-60 transition-all duration-1000 bg-center bg-contain"
-          style={{
-            backgroundImage: viewBg(currentView),
-            backgroundSize: 'cover'
-          }}
-        ></div>
-
-        {/* Streamer Facecam Frame - Only for Admin/Streamer, NOT for regular users */}
-        {isAuthorized && userRole === 'admin' && currentView !== 'ABOUT' && (
-          <div className="absolute top-8 left-8 w-[400px] h-[225px] pointer-events-none z-[100] hidden lg:block">
-            {/* Bottom Line (fades to left) */}
-            <div className="absolute bottom-0 left-0 w-full h-[3px] bg-gradient-to-l from-red-500 via-red-600 to-transparent shadow-[0_0_20px_rgba(239,68,68,0.6)]"></div>
-            {/* Right Line (fades to top) */}
-            <div className="absolute bottom-0 right-0 w-[3px] h-full bg-gradient-to-t from-red-500 via-red-600 to-transparent shadow-[0_0_20px_rgba(239,68,68,0.6)]"></div>
-            
-            {/* Corner Glow Accent (bottom-right) */}
-            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.9)] animate-pulse"></div>
-            <div className="absolute -bottom-4 -right-4 w-10 h-10 bg-red-500/20 blur-xl rounded-full"></div>
-            
-            {/* Label */}
-            <div className="absolute bottom-4 right-4 flex items-center gap-2 opacity-50">
-              <span className="text-white font-black text-[9px] tracking-[0.3em] uppercase italic">Facecam</span>
-              <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_5px_red]"></div>
-            </div>
-          </div>
+        {/* Global Background Layer — الداشبورد له خلفيته الكاملة الخاصة */}
+        {!isDashboard && (
+          <div
+            className={`absolute inset-0 z-0 pointer-events-none transition-all duration-1000 bg-center bg-cover ${currentView === 'HOME' ? 'opacity-100' : currentView === 'ABOUT' ? 'opacity-0' : 'opacity-60'}`}
+            style={{
+              backgroundImage: viewBg(currentView),
+            }}
+          ></div>
         )}
+
+
 
         {/* Content Container */}
         {/* Added pr-[350px] padding for top area to prevent overlap if elements try to align right */}
@@ -227,14 +226,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
       </main>
 
       {/* Re-Open Chat Button (Visible only when chat is closed) */}
-      {!chatOpen && (
+      {showSidebar && !chatOpen && (
         <button
           onClick={() => toggleChat(true)}
-          className="fixed bottom-20 right-3 z-[100] p-2.5 bg-red-600 text-white rounded-xl shadow-[0_0_30px_rgba(255,0,0,0.5)] hover:scale-110 active:scale-95 transition-all border border-white/20 animate-in slide-in-from-left-20 duration-500"
-          aria-label="فتح دردشة iCG1"
-          title="دردشة iCG1"
+          className="fixed bottom-20 right-3 z-[100] p-3 bg-gradient-to-br from-[#f9e0a4] to-[#b88a3e] text-[#1a1006] rounded-2xl shadow-[0_0_25px_rgba(232,190,110,0.5)] hover:scale-110 active:scale-95 transition-all border border-[#e8be6e]/60 animate-in slide-in-from-left-20 duration-500"
+          aria-label="فتح شات iCG1"
+          title="شات iCG1"
         >
-          <MessageSquare size={16} strokeWidth={2.5} className="drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
+          <MessageSquare size={18} strokeWidth={2.5} className="drop-shadow-[0_0_4px_rgba(0,0,0,0.5)]" />
         </button>
       )}
     </div>

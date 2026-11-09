@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { chatService } from '../services/chatService';
-import { leaderboardService } from '../services/supabase';
+import { awardPoints } from '../services/points';
 import { TYPING_WORDS } from '../constants';
 import { Keyboard as KeyboardIcon, Play, RotateCcw, Trophy, Zap, Timer, LogOut, Home, History, User } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -123,7 +123,7 @@ export const TypingRace: React.FC<TypingRaceProps> = ({ channelConnected, onHome
                }
             });
 
-            await leaderboardService.recordWin(userWinner.name, userWinner.avatar || '', 50);
+            awardPoints('TYPING_RACE', userWinner.name, userWinner.avatar || '', 'round');
          }
       });
       return cleanup;
@@ -152,15 +152,15 @@ export const TypingRace: React.FC<TypingRaceProps> = ({ channelConnected, onHome
    return (
       <>
          <SidebarPortal>
-             <div className="bg-black/40 p-4 rounded-[1.5rem] border border-white/5 space-y-4 animate-in slide-in-from-right duration-500 shadow-2xl backdrop-blur-md">
-               <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                  <h4 className="text-[12px] font-black text-red-500 uppercase tracking-widest flex items-center gap-3">
+             <div className="bg-gradient-to-br from-[#1a1408]/90 to-[#0a0805]/95 p-4 rounded-[1.5rem] border border-[#e8be6e]/40 space-y-4 animate-in slide-in-from-right duration-500 shadow-[0_0_40px_rgba(232,190,110,0.12)] backdrop-blur-md">
+               <div className="flex items-center justify-between border-b border-[#e8be6e]/20 pb-4">
+                  <h4 className="text-[12px] font-black text-[#e8be6e] uppercase tracking-widest flex items-center gap-3">
                      <KeyboardIcon size={16} /> لوحة التحكم
                   </h4>
-                  <button onClick={onHome} className="p-2 bg-red-600/10 hover:bg-red-600/20 text-red-500 rounded-xl transition-all border border-red-500/20"><LogOut size={14} /></button>
+                  <button onClick={onHome} className="p-2 bg-[#e8be6e]/10 hover:bg-[#e8be6e]/20 text-[#e8be6e] rounded-xl transition-all border border-[#e8be6e]/30"><LogOut size={14} /></button>
                </div>
 
-               <button onClick={startRound} disabled={isGenerating} className="w-full bg-gradient-to-r from-red-600 to-red-800 text-white font-black py-3 rounded-[1rem] text-xs shadow-[0_10px_30px_rgba(220,38,38,0.4)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 border-t border-white/20 uppercase tracking-widest group disabled:opacity-50 disabled:cursor-not-allowed">
+               <button onClick={startRound} disabled={isGenerating} className="w-full bg-gradient-to-r from-[#f9e0a4] to-[#c08b3a] text-[#1a1006] font-black py-3 rounded-[1rem] text-xs shadow-[0_10px_30px_rgba(232,190,110,0.4)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 border-t border-[#fbeccb]/60 uppercase tracking-widest group disabled:opacity-50 disabled:cursor-not-allowed">
                   {isGenerating ? (
                      <>
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -201,24 +201,24 @@ export const TypingRace: React.FC<TypingRaceProps> = ({ channelConnected, onHome
             </div>
          </SidebarPortal>
 
-         <div className="w-full h-full flex flex-col items-center justify-center p-8 relative overflow-hidden bg-transparent select-none">
+         <div className="w-full h-full flex flex-col items-center justify-center p-8 relative overflow-hidden select-none" style={{ background: 'radial-gradient(60% 50% at 72% 26%, rgba(160,100,40,.25), transparent 70%), radial-gradient(50% 40% at 12% 92%, rgba(232,190,110,.09), transparent 70%), #0a0805' }}>
 
             <div className="absolute inset-0 pointer-events-none">
-               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-[radial-gradient(circle,rgba(255,0,0,0.03)_0%,transparent_70%)]"></div>
-               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
+               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-[radial-gradient(circle,rgba(232,190,110,0.06)_0%,transparent_70%)]"></div>
+               <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(rgba(232,190,110,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(232,190,110,.05) 1px, transparent 1px)', backgroundSize: '48px 48px', WebkitMask: 'radial-gradient(70% 70% at 50% 45%, #000, transparent)', mask: 'radial-gradient(70% 70% at 50% 45%, #000, transparent)', opacity: 0.5 }}></div>
             </div>
 
             {!currentWord && !winner && (
-               <div className="text-center opacity-40 animate-in zoom-in duration-1000">
+               <div className="text-center opacity-60 animate-in zoom-in duration-1000">
                   <div className="relative inline-block mb-8">
-                     <div className="absolute inset-0 bg-red-600/30 blur-[60px] animate-pulse rounded-full"></div>
-                      <KeyboardIcon size={80} className="relative z-10 text-gray-500" />
+                     <div className="absolute inset-0 bg-[#e8be6e]/30 blur-[60px] animate-pulse rounded-full"></div>
+                      <KeyboardIcon size={80} className="relative z-10 text-[#b2a283]" />
                   </div>
                    <h2 className="text-[3.5rem] font-black text-white italic tracking-tighter uppercase leading-none drop-shadow-2xl">
-                     سباق <span className="text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-red-800">الكتابة</span>
+                     سباق <span className="text-transparent bg-clip-text bg-gradient-to-b from-[#fff7de] to-[#e8be6e]">الكتابة</span>
                   </h2>
-                   <p className="text-xl text-red-600/80 font-bold uppercase tracking-[0.8em] mt-4 animate-pulse">
-                     iABS Speed Engine
+                   <p className="text-xl text-[#e8be6e]/80 font-bold uppercase tracking-[0.8em] mt-4 animate-pulse">
+                     iCG1 Speed Engine
                   </p>
                </div>
             )}
@@ -226,15 +226,15 @@ export const TypingRace: React.FC<TypingRaceProps> = ({ channelConnected, onHome
             {currentWord && (
                <div className="flex flex-col items-center justify-center w-full max-w-4xl animate-in fade-in zoom-in duration-300 z-10">
 
-                   <div className="flex items-center justify-center gap-3 mb-10 bg-black/40 backdrop-blur-md px-6 py-3 rounded-full border border-white/10 shadow-2xl">
-                      <Timer size={24} className={`text-red-500 ${elapsed > 10000 ? 'animate-spin-fast' : 'animate-spin-slow'}`} />
+                   <div className="flex items-center justify-center gap-3 mb-10 bg-[#1a1408]/60 backdrop-blur-md px-6 py-3 rounded-full border border-[#e8be6e]/40 shadow-2xl">
+                      <Timer size={24} className={`text-[#e8be6e] ${elapsed > 10000 ? 'animate-spin-fast' : 'animate-spin-slow'}`} />
                       <span className="font-mono text-3xl font-black text-white tabular-nums tracking-widest">
-                         {(elapsed / 1000).toFixed(2)}<span className="text-xl text-gray-500 ml-1">s</span>
+                         {(elapsed / 1000).toFixed(2)}<span className="text-xl text-[#b2a283] ml-1">s</span>
                      </span>
                   </div>
 
                   <div className="relative group w-full text-center">
-                     <div className="absolute inset-[-50px] bg-gradient-to-r from-red-600/20 via-purple-600/10 to-red-600/20 blur-[100px] rounded-full opacity-60 group-hover:opacity-100 transition-all duration-1000 animate-pulse"></div>
+                     <div className="absolute inset-[-50px] bg-gradient-to-r from-[#e8be6e]/15 via-[#c08b3a]/10 to-[#e8be6e]/15 blur-[100px] rounded-full opacity-60 group-hover:opacity-100 transition-all duration-1000 animate-pulse"></div>
 
                      <div className="relative transform transition-transform duration-200 hover:scale-105">
                          <div className="text-[80px] font-black text-white leading-none italic tracking-tighter drop-shadow-[0_6px_0px_rgba(0,0,0,0.5)]">
@@ -256,10 +256,10 @@ export const TypingRace: React.FC<TypingRaceProps> = ({ channelConnected, onHome
                <div className="text-center animate-in slide-in-from-bottom-12 duration-700 z-20">
                    <Trophy size={90} className="text-[#FFD700] mx-auto mb-6 animate-bounce drop-shadow-[0_0_80px_rgba(255,215,0,0.6)]" fill="currentColor" />
 
-                   <div className="bg-black/80 border border-white/10 p-10 rounded-[2.5rem] shadow-[0_50px_100px_rgba(0,0,0,0.8)] relative overflow-hidden backdrop-blur-3xl min-w-[420px]">
-                     <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-600 via-yellow-500 to-red-600 animate-gradient-x"></div>
+                   <div className="bg-gradient-to-br from-[#1a1408]/95 to-[#0a0805]/95 border border-[#e8be6e]/50 p-10 rounded-[2.5rem] shadow-[0_50px_100px_rgba(232,190,110,0.2)] relative overflow-hidden backdrop-blur-3xl min-w-[420px]">
+                     <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#e8be6e] via-[#fbeccb] to-[#e8be6e] animate-gradient-x"></div>
 
-                      <div className="text-green-500 font-black uppercase tracking-[0.4em] text-[10px] mb-6 italic flex items-center justify-center gap-2">
+                      <div className="text-[#e8be6e] font-black uppercase tracking-[0.4em] text-[10px] mb-6 italic flex items-center justify-center gap-2">
                         <Zap size={16} /> Fastest Fingers <Zap size={16} />
                      </div>
 
@@ -273,7 +273,7 @@ export const TypingRace: React.FC<TypingRaceProps> = ({ channelConnected, onHome
                         />
                         <div>
                             <div className="text-5xl font-black text-white italic tracking-tighter uppercase drop-shadow-xl">{winner.name}</div>
-                            <div className="text-2xl font-mono font-black text-red-500 mt-2">{winner.time.toFixed(3)}s</div>
+                            <div className="text-2xl font-mono font-black text-[#e8be6e] mt-2">{winner.time.toFixed(3)}s</div>
                         </div>
                      </div>
 

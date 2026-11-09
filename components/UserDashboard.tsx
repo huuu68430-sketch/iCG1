@@ -1,14 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    User, Trophy, Settings, Layout, ShoppingBag,
-    Star, Wallet, Shield, Zap, Sparkles, ChevronRight,
-    Search, Filter, CheckCircle, Lock, Gem, Crown,
-    ArrowRight, Box, Palette, Image as ImageIcon, LogOut,
-    Menu, X, ChevronLeft, Trash2, Ban, ShieldAlert
+    Home, ShoppingBag, Box, Trophy, Settings, Gem, Crown, Medal, Gift,
+    Zap, Wallet, User, Shield, LogOut, Check, Lock,
+    X as XIcon, Target, Star, Ban, ShieldAlert, Loader2, Save,
+    Clock, Volume2, Wand2, ShoppingCart,
+    Bell, Flag, LifeBuoy, Send, Megaphone, TriangleAlert, Tag, Gavel
 } from 'lucide-react';
-import { supabase } from '../services/supabase';
-import { getAssetUrl, getFrameUrl } from '../utils/assets';
-import { ProAvatar } from './ProAvatar';
+import { supabase, leaderboardService } from '../services/supabase';
+import { adminApi } from '../services/adminCenter';
+import { useTiers, rankIndexOf } from '../services/tiers';
+import {
+    memberApi, type MemberReport, type MemberSanction, type MemberTicket,
+    type MemberNotification, type MemberAnnouncement, type MemberTournament
+} from '../services/memberApi';
+import { chatService } from '../services/chatService';
+import { getAssetUrl } from '../utils/assets';
+import { FrameArt } from './FrameArt';
+import {
+    FRAMES, FREE_FRAME_IDS, RARITY, FrameDef, FrameRarity, frameById, isFrameId
+} from '../data/frames';
+import './MemberDashboard.css';
 
 interface UserDashboardProps {
     userData: {
@@ -21,1098 +32,1802 @@ interface UserDashboardProps {
     onLogout?: () => void;
 }
 
-type DashboardView = 'OVERVIEW' | 'STORE' | 'LOCKER' | 'RANKINGS' | 'SETTINGS';
+type DashView = 'home' | 'store' | 'locker' | 'rank' | 'settings';
+type Filter = 'all' | 'free' | FrameRarity;
+
+const NAV: { id: DashView; label: string; icon: React.ElementType }[] = [
+    { id: 'home', label: 'الرئيسية', icon: Home },
+    { id: 'store', label: 'المتجر', icon: ShoppingBag },
+    { id: 'locker', label: 'الخزانة', icon: Box },
+    { id: 'rank', label: 'الصدارة', icon: Trophy },
+    { id: 'settings', label: 'الإعدادات', icon: Settings },
+];
+
+const DAILY_REWARDS = [20, 30, 40, 60, 80, 100, 250];
+
+/* القوائم نفسها التي يقبلها السيرفر (api/user/reports.ts و api/user/tickets.ts) */
+const REPORT_KINDS = ['سلوك مخالف', 'تعليق مسيء', 'غش في لعبة', 'انتحال حساب', 'محتوى غير لائق', 'إساءة لمستخدم', 'أخرى'];
+const TICKET_CATS = ['مشكلة حساب', 'مشكلة مشتريات', 'مشكلة رصيد', 'مشكلة لعبة', 'بلاغ', 'اقتراح', 'مشكلة تقنية'];
+const TICKET_PRIS = ['منخفضة', 'متوسطة', 'عالية'];
+
+const fmt = (n: number) => Math.round(Number(n) || 0).toLocaleString('en-US');
+
+/** تاريخ مختصر (dd/mm/yyyy) — نفس أسلوب اللوحة، ويحمي من قيمة غير صالحة */
+const shortDate = (iso?: string | null) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-GB');
+};
+
+/** لون حالة بلاغ/تذكرة/بطولة */
+const pillClass = (status?: string) => {
+    const s = String(status || '');
+    if (['resolved', 'accepted', 'completed', 'مكتملة', 'تم الحل', 'مقبول'].includes(s)) return 'good';
+    if (['rejected', 'closed', 'مرفوض', 'مغلقة', 'مغلق'].includes(s)) return 'mute';
+    if (['new', 'reviewing', 'جديد', 'قيد المراجعة'].includes(s)) return 'wait';
+    return 'open';
+};
+
+/** شارة الحالة قصيرة: مفتوحة/جارية/مغلقة بدل «التسجيل مفتوح» التي تكسر الصف */
+const tourLabel = (t: { status?: string; status_ar?: string }) =>
+    ({ open: 'مفتوحة', running: 'جارية', closed: 'مغلقة' } as Record<string, string>)[String(t.status)] || String(t.status_ar || t.status || '');
+
+const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/** غرفة مباشرة ما زالت حيّة: آخر تحديث خلال هذه المدة */
+const LIVE_ROOM_TTL = 30 * 60 * 1000;
+
+/** مقارنة اسم لاعب بحساب كيك بدون تشكيل ولا فرق حالة */
+const sameUser = (a: any, b: string) => {
+    const n = (x: any) => String(x ?? '').trim().toLowerCase()
+        .replace(new RegExp('[\\u064B-\\u065F\\u0640]', 'g'), '')
+        .replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي');
+    const x = n(a), y = n(b);
+    return !!x && !!y && x === y;
+};
+
+const rarityOf = (v: any): FrameRarity =>
+    v === 'r' || v === 'e' || v === 'l' ? v : 'c';
+
+/* جلب صورة Kick مرة واحدة لكل اسم ومشاركتها بين كل الصور */
+const frameLookups: Record<string, Promise<string | null>> = {};
+const frameFor = (name: string): Promise<string | null> => {
+    const key = String(name || '').toLowerCase().trim().replace(/^@+/, '');
+    if (!key) return Promise.resolve(null);
+    if (!frameLookups[key]) {
+        frameLookups[key] = (async () => {
+            try {
+                const u = await supabase
+                    .from('users')
+                    .select('id')
+                    .in('kick_username', nameVariants(key))
+                    .limit(1);
+                const uid = u.data?.[0]?.id;
+                if (!uid) return null;
+                const f = await supabase
+                    .from('user_frames')
+                    .select('frame_id')
+                    .eq('user_id', uid)
+                    .eq('is_equipped', true)
+                    .limit(1);
+                const id = f.data?.[0]?.frame_id;
+                return id && isFrameId(id) ? id : null;
+            } catch {
+                return null;
+            }
+        })();
+    }
+    return frameLookups[key];
+};
+
+const kickLookups: Record<string, Promise<string>> = {};
+const kickAvatarFor = (name: string): Promise<string> => {
+    const key = String(name || '').toLowerCase().trim().replace(/^@+/, '');
+    if (!key) return Promise.resolve('');
+    if (!kickLookups[key]) {
+        kickLookups[key] = chatService.fetchKickAvatar(key)
+            .catch(() => '')
+            .then(url => {
+                // لا نخزّن فشلاً دائماً حتى تُعاد المحاولة لاحقاً
+                if (!url) delete kickLookups[key];
+                return url;
+            });
+    }
+    return kickLookups[key];
+};
+
+/** أشكال اسم الحساب المحتملة (حساسية الأحرف في قاعدة البيانات) */
+const nameVariants = (name: string): string[] => {
+    const n = String(name || '').trim();
+    if (!n) return [];
+    return Array.from(new Set([
+        n,
+        n.toLowerCase(),
+        n.charAt(0).toUpperCase() + n.slice(1).toLowerCase(),
+    ]));
+};
+
+/* غلاف صورة عضو: صورة Kick تلقائياً، ثم الإطار الجديد إن وُجد */
+const MemberAvatar: React.FC<{
+    name: string;
+    /** اسم حساب Kick الحقيقي إن كان الاسم المعروض مختلفاً */
+    kickName?: string;
+    src?: string;
+    frameId?: string | null;
+    boxClass?: string;
+    className?: string;
+}> = ({ name, kickName, src, frameId, boxClass = 'md-avbox-sm', className = '' }) => {
+    const [autoFrame, setAutoFrame] = useState<string | undefined>(undefined);
+    const lookupName = kickName || name;
+    const [photo, setPhoto] = useState<string | undefined>(() => {
+        if (src) return src;
+        try {
+            const key = String(lookupName || '').toLowerCase().trim().replace(/^@+/, '');
+            return localStorage.getItem(`kick_av_${key}`) || undefined;
+        } catch {
+            return undefined;
+        }
+    });
+
+    // إذا لم يصل إطار اللاعب ضمن بيانات الصدارة، اجلبه مباشرة باسم الحساب
+    useEffect(() => {
+        setAutoFrame(undefined);
+        if (frameId || !lookupName) return;
+        let alive = true;
+        frameFor(lookupName).then(id => {
+            if (alive && id) setAutoFrame(id);
+        });
+        return () => { alive = false; };
+    }, [frameId, lookupName]);
+
+    useEffect(() => {
+        if (src) {
+            setPhoto(src);
+            try {
+                const key = String(lookupName || '').toLowerCase().trim().replace(/^@+/, '');
+                if (src) localStorage.setItem(`kick_av_${key}`, src);
+            } catch {}
+        }
+        if (!lookupName) return;
+        // جلب صورة Kick دائماً لجميع الحسابات
+        let alive = true;
+        // جلب فورياً
+        kickAvatarFor(lookupName).then(url => {
+            if (alive && url) {
+                setPhoto(url);
+                try {
+                    const key = String(lookupName || '').toLowerCase().trim().replace(/^@+/, '');
+                    localStorage.setItem(`kick_av_${key}`, url);
+                } catch {}
+            }
+        });
+        // إعادة المحاولة بعد فترة قصيرة لضمان الظهور بعد hard refresh
+        const t1 = setTimeout(() => {
+            if (!alive) return;
+            kickAvatarFor(lookupName).then(url => {
+                if (alive && url) {
+                    setPhoto(prev => prev || url);
+                    try {
+                        const key = String(lookupName || '').toLowerCase().trim().replace(/^@+/, '');
+                        localStorage.setItem(`kick_av_${key}`, url);
+                    } catch {}
+                }
+            });
+        }, 500);
+        const t2 = setTimeout(() => {
+            if (!alive) return;
+            kickAvatarFor(lookupName).then(url => {
+                if (alive && url) {
+                    setPhoto(url);
+                    try {
+                        const key = String(lookupName || '').toLowerCase().trim().replace(/^@+/, '');
+                        localStorage.setItem(`kick_av_${key}`, url);
+                    } catch {}
+                }
+            });
+        }, 1500);
+        return () => { alive = false; clearTimeout(t1); clearTimeout(t2); };
+    }, [src, lookupName, kickName]);
+
+    const valid = frameId && isFrameId(frameId)
+        ? frameId
+        : (autoFrame && isFrameId(autoFrame) ? autoFrame : null);
+
+    const recoverPhoto = () => {
+        if (!lookupName) return;
+        kickAvatarFor(lookupName).then(url => {
+            if (url && url !== photo) {
+                setPhoto(url);
+                try {
+                    const key = String(lookupName || '').toLowerCase().trim().replace(/^@+/, '');
+                    localStorage.setItem(`kick_av_${key}`, url);
+                } catch {}
+            }
+        });
+    };
+
+    const inner = valid ? (
+        <FrameArt frameId={valid} src={photo} initial={name} title={name} onAvatarError={recoverPhoto} />
+    ) : (
+        <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-blue-900 border border-white/25 grid place-items-center">
+            {photo ? (
+                <img
+                    src={photo}
+                    alt={name}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                    onError={recoverPhoto}
+                />
+            ) : (
+                <span className="text-white font-black text-sm uppercase">{(name || '?').slice(0, 2)}</span>
+            )}
+        </div>
+    );
+
+    return <div className={`md-avbox ${boxClass} ${className}`}>{inner}</div>;
+};
+
+const Spark: React.FC<{ seed?: number }> = ({ seed = 3 }) => {
+    let y = 34;
+    let d = 'M0 36';
+    for (let i = 1; i <= 10; i++) {
+        y = Math.max(8, Math.min(38, y + ((((seed * (i + 3) * 37) % 19) - 9))));
+        d += ` L${i * 30} ${y}`;
+    }
+    return <svg className="sp" viewBox="0 0 300 44" preserveAspectRatio="none"><path d={d} /></svg>;
+};
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout }) => {
-    const [activeView, setActiveView] = useState<DashboardView>('OVERVIEW');
-    const [points, setPoints] = useState(userData.points || 0);
-    const [activeFrame, setActiveFrame] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [isBanned, setIsBanned] = useState(false);
-    const [banReason, setBanReason] = useState('');
-    const [isAdmin, setIsAdmin] = useState(false);
+    const username = String(userData.kick_username || (userData as any).kickUsername || '').toLowerCase();
+    const userId = userData.id;
 
-    useEffect(() => {
+    const [view, setView] = useState<DashView>('home');
+    const [points, setPoints] = useState(Number(userData.points) || 0);
+    const [displayName, setDisplayName] = useState(userData.display_name || username);
+    const [nameDraft, setNameDraft] = useState(userData.display_name || username);
+    const [avatarSrc, setAvatarSrc] = useState<string | undefined>(userData.avatar || undefined);
+    const [activeFrameId, setActiveFrameId] = useState<string | undefined>(undefined);
+    const [board, setBoard] = useState<any[]>([]);
+    const [ownedFrames, setOwnedFrames] = useState<string[]>([...FREE_FRAME_IDS]);
+    const [frames, setFrames] = useState<FrameDef[]>(FRAMES);
+    const [history, setHistory] = useState<any[]>([]);
+    const [daily, setDaily] = useState({ streak: 0, claimed: false });
+    const [filter, setFilter] = useState<Filter>('all');
+    const [loading, setLoading] = useState(true);
+    const [busy, setBusy] = useState<string | null>(null);
+    const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'bad' } | null>(null);
+    const [confirm, setConfirm] = useState<{ title: string; body: string; ok: string; danger?: boolean; onOk: () => void } | null>(null);
+    const [ban, setBan] = useState<{ active: boolean; reason: string }>({ active: false, reason: '' });
+    const [isAdmin, setIsAdmin] = useState(false);
+    // العضوية الممنوحة من مركز التحكم (VIP…) — تُقرأ من profiles وتُعرض بدل الرتبة عند فعاليتها
+    const [membership, setMembership] = useState<{ id: string | null; expires: string | null }>({ id: null, expires: null });
+
+    /* ----- بيانات العضو من /api/user/* (كتابة مشروطة بجلسة موقّعة على السيرفر) ----- */
+    const [memberReady, setMemberReady] = useState(false);
+    const [notifs, setNotifs] = useState<MemberNotification[]>([]);
+    const [unread, setUnread] = useState(0);
+    const [bellOpen, setBellOpen] = useState(false);
+    const [annos, setAnnos] = useState<MemberAnnouncement[]>([]);
+    const [tours, setTours] = useState<MemberTournament[]>([]);
+    const [reports, setReports] = useState<MemberReport[]>([]);
+    const [sanctions, setSanctions] = useState<MemberSanction[]>([]);
+    const [tickets, setTickets] = useState<MemberTicket[]>([]);
+    const [redemptions, setRedemptions] = useState<any[]>([]);
+    const [vipStore, setVipStore] = useState<{ vip: boolean; discount_pct: number }>({ vip: false, discount_pct: 0 });
+    const [support, setSupport] = useState<{ tab: 'report' | 'ticket' | 'sanction' | 'promo'; busy: string }>({ tab: 'report', busy: '' });
+    const [reportDraft, setReportDraft] = useState({ kind: REPORT_KINDS[0], target: '', reason: '' });
+    const [ticketDraft, setTicketDraft] = useState({ subject: '', category: TICKET_CATS[0], priority: TICKET_PRIS[1], body: '' });
+    const [appealDraft, setAppealDraft] = useState({ sanctionId: '', reason: '' });
+    const [promoDraft, setPromoDraft] = useState('');
+    const [prefs, setPrefs] = useState<{ sound: boolean; calm: boolean }>(() => {
         try {
-            const adminAuth = localStorage.getItem('admin_access_granted');
-            if (adminAuth) {
-                const parsed = JSON.parse(adminAuth);
-                if (parsed.valid) setIsAdmin(true);
-            }
-        } catch (e) {}
+            const raw = localStorage.getItem('icg1_dash_prefs');
+            return raw ? { sound: true, calm: false, ...JSON.parse(raw) } : { sound: true, calm: false };
+        } catch {
+            return { sound: true, calm: false };
+        }
+    });
+
+    const toastTimer = useRef<number | null>(null);
+
+    const notify = useCallback((msg: string, type: 'ok' | 'bad' = 'ok') => {
+        setToast({ msg, type });
+        if (toastTimer.current) window.clearTimeout(toastTimer.current);
+        toastTimer.current = window.setTimeout(() => setToast(null), 3200);
     }, []);
 
-    const handleReturnToAdmin = () => {
-        const adminAuth = localStorage.getItem('admin_access_granted');
-        if (adminAuth) {
-            localStorage.setItem('site_access_granted', adminAuth);
-            localStorage.removeItem('iabs_user');
-            window.location.reload();
-        }
-    };
+    /* ===== دخول الألعاب المباشرة: يتحقق من آخر غرفة ومن أن العضو ليدر فيها ===== */
+    const [live, setLive] = useState<{ checking: boolean; cn: string; mafia: string }>({ checking: false, cn: '', mafia: '' });
 
-    // Sidebar items
-    const navItems = [
-        { id: 'OVERVIEW', label: 'نظرة عامة', icon: Layout, subtitle: 'Dashboard' },
-        { id: 'STORE', label: 'المتجر', icon: ShoppingBag, subtitle: 'Store' },
-        { id: 'LOCKER', label: 'خزانة الأغراض', icon: Box, subtitle: 'Locker' },
-        { id: 'RANKINGS', label: 'لوحة الصدارة', icon: Crown, subtitle: 'Rankings' },
-        { id: 'SETTINGS', label: 'الإعدادات', icon: Settings, subtitle: 'Settings' },
-    ];
+    const checkLive = useCallback(async () => {
+        setLive(s => ({ ...s, checking: true }));
+        const alive = (iso?: string | null) => !!iso && Date.now() - new Date(iso).getTime() < LIVE_ROOM_TTL;
+        let cn = '', mafia = '';
+        try {
+            const { data } = await supabase
+                .from('cn_rooms')
+                .select('room_code,state,updated_at')
+                .order('updated_at', { ascending: false })
+                .limit(1);
+            const row: any = data?.[0];
+            const st: any = row?.state ?? {};
+            const isLeader = [st.leaders?.red, st.leaders?.blue].some(x => sameUser(x, username));
+            if (row && isLeader && !st.over && alive(row.updated_at)) cn = String(row.room_code).toUpperCase();
+        } catch { /* الشبكة مقطوعة — يبقى الدخول مقفلاً */ }
+        try {
+            const { data } = await supabase
+                .from('mafia_rooms')
+                .select('code,state,updated_at')
+                .order('updated_at', { ascending: false })
+                .limit(1);
+            const row: any = data?.[0];
+            const st: any = row?.state ?? {};
+            if (row && !st.res && !st.win && alive(row.updated_at)) mafia = String(row.code).toUpperCase();
+        } catch { /* الشبكة مقطوعة */ }
+        const next = { checking: false, cn, mafia };
+        setLive(next);
+        return next;
+    }, [username]);
 
     useEffect(() => {
-        const fetchUserData = async () => {
-            const username = (userData.kick_username || (userData as any).kickUsername)?.toLowerCase();
-            if (!username) return;
+        if (view === 'home' && username) checkLive();
+    }, [view, username, checkLive]);
 
-            // 1. Fetch points (use limit(1) to avoid maybeSingle crashing on duplicates)
-            const { data: lbData } = await supabase
-                .from('leaderboard')
-                .select('score')
-                .ilike('username', username)
-                .order('score', { ascending: false })
-                .limit(1);
-
-            if (lbData && lbData.length > 0) setPoints(lbData[0].score || 0);
-            else setPoints(0);
-
-            // 2. Fetch active frame and ban status
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('active_frame_url, is_banned')
-                .ilike('username', username)
-                .limit(1);
-
-            if (profile && profile.length > 0) {
-                setActiveFrame(profile[0].active_frame_url);
-                if (profile[0].is_banned) {
-                    setIsBanned(true);
-                    const { data: banData } = await supabase.from('bans').select('reason').ilike('username', username).limit(1);
-                    if (banData && banData.length > 0) {
-                        setBanReason(banData[0].reason);
-                    } else {
-                        setBanReason('مخالفة قوانين المنصة');
-                    }
-                }
-            }
-        };
-        fetchUserData();
-    }, [userData]);
-
-    const handleNavClick = (id: DashboardView) => {
-        setActiveView(id);
-        setMobileMenuOpen(false);
+    const enterLive = async (kind: 'cn' | 'mafia') => {
+        const cur = (live.cn || live.mafia) ? live : await checkLive();
+        const code = kind === 'cn' ? cur.cn : cur.mafia;
+        if (code) {
+            window.location.assign(`${window.location.origin}/${kind === 'cn' ? 'cn' : 'm'}=${code}`);
+            return;
+        }
+        notify(
+            kind === 'cn'
+                ? 'ما أنت ليدر في آخر غرفة كود نيمز، أو أن اللعبة انتهت'
+                : 'لا توجد غرفة مافيا نشطة الآن',
+            'bad'
+        );
     };
 
-    const renderView = () => {
-        switch (activeView) {
-            case 'OVERVIEW': return <Overview userData={{ ...userData, points }} />;
-            case 'STORE': return <Store userId={userData.id} kickUsername={userData.kick_username || (userData as any).kickUsername} points={points} onPurchase={(newPoints) => setPoints(newPoints)} />;
-            case 'LOCKER': return <Locker userId={userData.id} kickUsername={userData.kick_username || (userData as any).kickUsername} onEquipChanged={(frame: string | null) => setActiveFrame(frame)} />;
-            case 'RANKINGS': return <Rankings />;
-            case 'SETTINGS': return <SettingsSection userData={userData} onLogout={onLogout} />;
-            default: return <Overview userData={{ ...userData, points }} />;
+    useEffect(() => {
+        // صفة المدير تُقرأ من السيرفر (جلسة حقيقية) — لا مخزون محلي يمنح صلاحيات
+        let alive = true;
+        if (sessionStorage.getItem('icg1_admin_session') === '1') setIsAdmin(true);
+        else adminApi.me().then(r => {
+            if (!alive || !r.ok) return;
+            sessionStorage.setItem('icg1_admin_session', '1');
+            setIsAdmin(true);
+        }).catch(() => { /* لا شيء */ });
+        return () => {
+            alive = false;
+            if (toastTimer.current) window.clearTimeout(toastTimer.current);
+        };
+    }, []);
+
+    /* ===== بيانات العضو: جلسة موقّعة على السيرفر، ثم كل الأقسام ===== */
+    const refreshMember = useCallback(async () => {
+        const [n, a, r, t, st, tu, pr] = await Promise.all([
+            memberApi.notifications(), memberApi.announcements(), memberApi.reports(),
+            memberApi.tickets(), memberApi.store(), memberApi.tournaments(), memberApi.promoHistory(),
+        ]);
+        if (n.ok) { setNotifs(n.notifications || []); setUnread(Number(n.unread) || 0); }
+        if (a.ok) setAnnos(a.announcements || []);
+        if (r.ok) { setReports(r.reports || []); setSanctions(r.sanctions || []); }
+        if (t.ok) setTickets(t.tickets || []);
+        if (pr.ok) setRedemptions(pr.redemptions || []);
+        if (st.ok) {
+            setVipStore({ vip: !!st.vip, discount_pct: Number(st.discount_pct) || 0 });
+            const ids = (st.owned || []).map((o: any) => String(o.frame_id)).filter((x: string) => isFrameId(x));
+            if (ids.length) setOwnedFrames((prev: string[]) => Array.from(new Set([...prev, ...ids])));
+        }
+        if (tu.ok) setTours(tu.tournaments || []);
+    }, []);
+
+    const ensureMember = useCallback(async (): Promise<boolean> => {
+        if (memberReady) return true;
+        const p = await memberApi.profile();
+        if (p.ok && String(p.username || '').toLowerCase() === username) { setMemberReady(true); return true; }
+        const s = await memberApi.start(username);
+        if (!s.ok) return false;
+        setMemberReady(true);
+        return true;
+    }, [memberReady, username]);
+
+    useEffect(() => {
+        if (!username) return;
+        (async () => {
+            if (await ensureMember()) await refreshMember();
+        })().catch(() => { /* الجلسة اختيارية — الأقسام تبقى فارغة بلا خطأ */ });
+    }, [username, ensureMember, refreshMember]);
+
+    // الإشعارات تُجلب من السيرفر فقط (ممنوع قراءتها من المتصفح)، فأقرب بديل للنشر اللحظي دورة هادئة
+    useEffect(() => {
+        if (!memberReady) return;
+        const id = window.setInterval(() => {
+            memberApi.notifications().then(r => {
+                if (r.ok) { setNotifs(r.notifications || []); setUnread(Number(r.unread) || 0); }
+            });
+        }, 60000);
+        return () => window.clearInterval(id);
+    }, [memberReady]);
+
+    const didLoad = useRef(false);
+
+    const load = useCallback(async () => {
+        if (!username) { setLoading(false); return; }
+        setLoading(true);
+        try {
+            // صورة Kick تُجلب دائماً باسم الحساب الصحيح (لا باسم العرض)
+            chatService.fetchKickAvatar(username)
+                .then(url => { if (url) { setAvatarSrc(url); try { localStorage.setItem(`kick_av_${username}`, url); } catch {} } })
+                .catch(() => { /* ignore */ });
+            // محاولة إضافية مباشرة
+            setTimeout(() => {
+                chatService.fetchKickAvatar(username)
+                    .then(url => { if (url) setAvatarSrc(url); })
+                    .catch(() => { /* ignore */ });
+            }, 800);
+
+            const empty = Promise.resolve({ data: [], error: null } as any);
+            const base: any[] = await Promise.all([
+                supabase.from('leaderboard').select('username, score, wins').order('score', { ascending: false }).limit(60),
+                supabase.from('users').select('id, kick_username, display_name, avatar').in('kick_username', nameVariants(username)),
+                supabase.from('profiles').select('id, username, active_frame_id, daily_streak, last_daily_claim').in('username', nameVariants(username)),
+                userId ? supabase.from('user_frames').select('frame_id, is_equipped').eq('user_id', userId) : empty,
+                supabase.from('frames').select('id, name, description, rarity, price, sort_order, is_active').eq('is_active', true).order('sort_order', { ascending: true }),
+                userId ? supabase.from('transactions').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(6) : empty,
+            ] as any[]);
+            const [lb, meRes, profRes, inv, fr, tx] = base;
+
+            /* تحميل المكافأة اليومية من profiles */
+            const t = todayISO();
+            let claimedToday = false;
+            let currentStreak = 0;
+            try {
+                const k = `icg1_daily_${username}_${t}`;
+                if (localStorage.getItem(k) === '1') claimedToday = true;
+            } catch {}
+            const profRow = (profRes.data || [])[0];
+            if (profRow) {
+                const streak = Number(profRow.daily_streak) || 0;
+                const last = profRow.last_daily_claim ? String(profRow.last_daily_claim).slice(0, 10) : '';
+                currentStreak = streak;
+                if (last === t) {
+                    claimedToday = true;
+                } else if (last) {
+                    const d = new Date(t + 'T00:00:00');
+                    d.setDate(d.getDate() - 1);
+                    const y = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    if (last === y) {
+                        currentStreak = streak;
+                    } else {
+                        currentStreak = 0;
+                    }
+                } else {
+                    currentStreak = 0;
+                }
+                if (profRow.active_frame_id && isFrameId(profRow.active_frame_id) && !activeFrameId) {
+                    setActiveFrameId(profRow.active_frame_id);
+                }
+            } else {
+                try {
+                    const k = `icg1_daily_${username}_${t}`;
+                    if (localStorage.getItem(k) === '1') claimedToday = true;
+                } catch {}
+            }
+            setDaily({ streak: currentStreak, claimed: claimedToday });
+
+            /* العضوية الممنوحة من اللوحة: استعلام منفصل — أعمدتها تُضاف مع SQL، فغيّرها لا يعطّل بقية التحميل */
+            Promise.resolve(
+                supabase
+                    .from('profiles')
+                    .select('membership, membership_expires_at')
+                    .in('username', nameVariants(username))
+            )
+                .then(({ data, error }: any) => {
+                    if (error) return;
+                    const r = (data || [])[0];
+                    if (r) setMembership({ id: r.membership || null, expires: r.membership_expires_at || null });
+                })
+                .catch(() => { /* قبل تنفيذ SQL تبقى بدون عضوية، وهذا صحيح */ });
+
+            /* 1) الترتيب والنقاط */
+            const rows: any[] = lb.data || [];
+            const me = rows.find(r => String(r.username || '').toLowerCase() === username);
+            if (me) setPoints(Number(me.score) || 0);
+            else setPoints(Number(userData.points) || 0);
+
+            /* 2) صورة العضو من جدول users (بديل احتياطي) */
+            const meUser = (meRes.data || [])[0];
+            if (meUser?.avatar) setAvatarSrc(prev => prev || meUser.avatar);
+
+            /* 3) الملكية */
+            if (!inv.error && inv.data) {
+                const ids = inv.data.map((r: any) => r.frame_id).filter((id: string) => isFrameId(id));
+                setOwnedFrames(Array.from(new Set([...FREE_FRAME_IDS, ...ids])));
+                const equipped = inv.data.find((r: any) => r.is_equipped);
+                if (equipped?.frame_id && isFrameId(equipped.frame_id)) setActiveFrameId(equipped.frame_id);
+            }
+
+            /* 4) كتالوج الإطارات (قاعدة البيانات أولاً ثم الاحتياط المحلي) */
+            if (!fr.error && fr.data && fr.data.length) {
+                const local = new Map(FRAMES.map(f => [f.id, f]));
+                const merged: FrameDef[] = fr.data
+                    .filter((r: any) => local.has(r.id))
+                    .map((r: any) => ({
+                        ...(local.get(r.id) as FrameDef),
+                        name: r.name || local.get(r.id)!.name,
+                        description: r.description || local.get(r.id)!.description,
+                        rarity: rarityOf(r.rarity),
+                        price: Number.isFinite(Number(r.price)) ? Number(r.price) : local.get(r.id)!.price,
+                        sortOrder: Number(r.sort_order) || local.get(r.id)!.sortOrder,
+                    }))
+                    .sort((a, b) => a.sortOrder - b.sortOrder);
+                if (merged.length) setFrames(merged);
+            }
+
+            /* 5) آخر النشاطات */
+            setHistory(tx?.data || []);
+
+            /* 6) صور وإطارات كل المتصدرين (users + user_frames) */
+            const names = Array.from(new Set(rows.map(r => String(r.username || '')).filter(Boolean)));
+            const usersById: Record<string, any> = {};
+            const usersByName: Record<string, any> = {};
+            if (names.length) {
+                const variants = Array.from(new Set(names.flatMap(nameVariants)));
+                const ur = await supabase
+                    .from('users')
+                    .select('id, kick_username, display_name, avatar')
+                    .in('kick_username', variants);
+                (ur.data || []).forEach((u: any) => {
+                    usersById[String(u.id)] = u;
+                    usersByName[String(u.kick_username || '').toLowerCase()] = u;
+                });
+            }
+            const equippedByUser: Record<string, string> = {};
+            const userIds = Object.keys(usersById);
+            if (userIds.length) {
+                const uf = await supabase
+                    .from('user_frames')
+                    .select('user_id, frame_id, is_equipped')
+                    .in('user_id', userIds)
+                    .eq('is_equipped', true);
+                (uf.data || []).forEach((r: any) => {
+                    if (isFrameId(r.frame_id)) equippedByUser[String(r.user_id)] = r.frame_id;
+                });
+            }
+            setBoard(rows.map(r => {
+                const u = usersByName[String(r.username || '').toLowerCase()] || {};
+                return {
+                    ...r,
+                    avatar_url: u.avatar || r.avatar_url || '',
+                    active_frame_id: u.id ? (equippedByUser[String(u.id)] || null) : null,
+                };
+            }));
+        } catch (e) {
+            console.warn('[Dashboard] load failed', e);
+        } finally {
+            setLoading(false);
+        }
+    }, [username, userId, userData.points]);
+
+    useEffect(() => {
+        if (didLoad.current) return;
+        didLoad.current = true;
+        load();
+    }, [load]);
+
+    useEffect(() => {
+        try { localStorage.setItem('icg1_dash_prefs', JSON.stringify(prefs)); } catch { /* ignore */ }
+    }, [prefs]);
+
+    /* ---------- الحسابات ---------- */
+    const tiers = useTiers();
+    const RANKS = tiers.ranks;
+
+    const myRank = useMemo(() => {
+        const i = board.findIndex(r => String(r.username || '').toLowerCase() === username);
+        return i >= 0 ? i + 1 : 0;
+    }, [board, username]);
+
+    const rankIdx = rankIndexOf(RANKS, points);
+    const nextRank = RANKS[rankIdx + 1];
+    const progress = nextRank
+        ? Math.min(100, Math.max(2, ((points - RANKS[rankIdx][0]) / Math.max(1, nextRank[0] - RANKS[rankIdx][0])) * 100))
+        : 100;
+
+    const activeMembership = useMemo(() => {
+        const exp = membership.expires ? new Date(membership.expires).getTime() : 0;
+        if (!membership.id || (exp && exp < Date.now())) return null;
+        const label = tiers.membershipLabel(membership.id);
+        return label ? { id: String(membership.id), label, expires: membership.expires } : null;
+    }, [membership, tiers]);
+
+    const ownedList = useMemo(
+        () => frames.filter(f => ownedFrames.includes(f.id)),
+        [frames, ownedFrames]
+    );
+
+    const storeList = useMemo(() => {
+        if (filter === 'all') return frames;
+        if (filter === 'free') return frames.filter(f => f.price === 0);
+        return frames.filter(f => f.rarity === filter);
+    }, [frames, filter]);
+
+    const nextReward = DAILY_REWARDS[Math.min(daily.streak, 6) % 7];
+
+    const recoverAvatar = useCallback(() => {
+        if (!username) return;
+        chatService.fetchKickAvatar(username)
+            .then(url => { if (url) setAvatarSrc(url); })
+            .catch(() => { /* ignore */ });
+    }, [username]);
+
+    /* ---------- الإجراءات ---------- */
+    /** السعر بعد خصم العضوية — للعرض فقط، والخصم يُحسب فعلياً داخل القاعدة */
+    const priceOf = useCallback(
+        (frame: FrameDef) => (vipStore.vip ? Math.max(0, Math.round(frame.price * (100 - vipStore.discount_pct) / 100)) : frame.price),
+        [vipStore]
+    );
+
+    /** الرصيد مرجعه قاعدة النقاط دائماً — لا يُحسب من حالة المتصفح */
+    const refreshPoints = useCallback(async () => {
+        const { data } = await supabase.from('leaderboard').select('score').ilike('username', username).limit(1);
+        const s = Number((data || [])[0]?.score);
+        if (Number.isFinite(s)) setPoints(s);
+    }, [username]);
+
+    const reloadHistory = useCallback(async () => {
+        if (!userId) return;
+        const { data } = await supabase
+            .from('transactions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(6);
+        setHistory(data || []);
+    }, [userId]);
+
+    const doBuy = async (frame: FrameDef) => {
+        if (busy) return;
+        if (ownedFrames.includes(frame.id)) return;
+        const cost = priceOf(frame);
+        if (points < cost) return notify(`نقاطك لا تكفي — ينقصك ${fmt(cost - points)} نقطة`, 'bad');
+        setBusy(frame.id);
+        try {
+            if (!(await ensureMember())) return notify('تعذّر فتح جلسة العضو — جرّب بعد قليل', 'bad');
+            const r = await memberApi.buyFrame(frame.id);
+            if (!r.ok) return notify(r.error || 'تعذّر إتمام الشراء، حاول مرة أخرى', 'bad');
+            const left = Number(r.points_left);
+            if (Number.isFinite(left)) setPoints(left);
+            setOwnedFrames(prev => Array.from(new Set([...prev, frame.id])));
+            const discount = Number(r.discount) || 0;
+            notify(
+                frame.price === 0
+                    ? `تم تفعيل ${frame.name} — جهّزه من الخزانة`
+                    : discount > 0
+                        ? `تم شراء ${frame.name} بـ ${fmt(Number(r.paid) || 0)} بعد خصم ${discount}%`
+                        : `تم شراء ${frame.name} — جهّزه من الخزانة`,
+                'ok'
+            );
+            reloadHistory();
+        } finally {
+            setBusy(null);
         }
     };
 
-    if (isBanned) {
+    const buy = (frame: FrameDef) => {
+        const cost = priceOf(frame);
+        setConfirm({
+            title: 'تأكيد الشراء',
+            body: frame.price === 0
+                ? `تفعيل «${frame.name}» المجاني بدون نقاط؟`
+                : cost < frame.price
+                    ? `شراء «${frame.name}» مقابل ${fmt(cost)} نقطة بعد خصم العضوية (سعره ${fmt(frame.price)})؟`
+                    : `شراء «${frame.name}» مقابل ${fmt(cost)} نقطة؟`,
+            ok: frame.price === 0 ? 'فعّله الآن' : 'اشترِ الآن',
+            onOk: () => doBuy(frame),
+        });
+    };
+
+    const equip = async (frame: FrameDef) => {
+        if (busy) return;
+        setBusy(frame.id);
+        try {
+            if (!(await ensureMember())) return notify('تعذّر فتح جلسة العضو — جرّب بعد قليل', 'bad');
+            let r = await memberApi.equipFrame(frame.id);
+            // المجاني ملكيته في الواجهة فقط: الشراء بسعر ٠ يمنحه صفاً في القاعدة ثم يُجهَّز
+            if (!r.ok && frame.price === 0) {
+                const grant = await memberApi.buyFrame(frame.id);
+                if (grant.ok || /تمتلك/.test(String(grant.error))) r = await memberApi.equipFrame(frame.id);
+            }
+            if (!r.ok) return notify(r.error || 'حدث خطأ أثناء تجهيز الإطار', 'bad');
+            setOwnedFrames(prev => Array.from(new Set([...prev, frame.id])));
+            setActiveFrameId(frame.id);
+            notify(`تم تجهيز ${frame.name} — سيظهر في كل الألعاب`, 'ok');
+        } finally {
+            setBusy(null);
+        }
+    };
+
+        const claimDaily = async () => {
+        const today = todayISO();
+        try {
+            const k = `icg1_daily_${username}_${today}`;
+            if (localStorage.getItem(k) === '1') {
+                setDaily(d => ({ ...d, claimed: true }));
+                return notify('استلمت مكافأة اليوم — عد غداً', 'bad');
+            }
+        } catch {}
+        if (daily.claimed) return notify('استلمت مكافأة اليوم — عد غداً', 'bad');
+        if (busy) return;
+        setBusy('daily');
+        try {
+            const newStreak = Math.min((daily.streak || 0) + 1, 7);
+            const reward = DAILY_REWARDS[(newStreak - 1) % 7] || DAILY_REWARDS[0];
+            try { await supabase.from('profiles').update({ daily_streak: newStreak, last_daily_claim: today }).in('username', nameVariants(username)); } catch {}
+            try { await supabase.from('profiles').update({ daily_streak: newStreak, last_daily_claim: today }).ilike('username', username); } catch {}
+            // يُضاف فوق الرصيد الحالي في السيرفر — الكتابة من حالة محلية قديمة كانت تمحو نقاط الألعاب
+            try { await leaderboardService.addScore(username, '', reward, false); } catch {}
+            const { data: scored } = await supabase.from('leaderboard').select('score').ilike('username', username).limit(1);
+            const serverScore = Number(scored?.[0]?.score);
+            const newPoints = Number.isFinite(serverScore) && serverScore > 0 ? serverScore : points + reward;
+            if (userId) {
+                try { await supabase.from('users').update({ points: newPoints }).eq('id', userId); } catch {}
+                try { await supabase.from('transactions').insert({ user_id: userId, amount: reward, type: 'DAILY', description: 'مكافأة يومية' }); } catch {}
+            }
+            try { localStorage.setItem(`icg1_daily_${username}_${today}`, '1'); } catch {}
+            setPoints(newPoints);
+            setDaily({ streak: newStreak, claimed: true });
+            notify(`حصلت على +${reward} نقطة`, 'ok');
+        } catch (e) {
+            console.error('[Dashboard] claim failed', e);
+            notify('تعذّر استلام المكافأة', 'bad');
+        } finally {
+            setBusy(null);
+        }
+    };;
+
+    const saveName = async () => {
+        const name = nameDraft.trim();
+        if (name.length < 2) return notify('الاسم قصير جداً', 'bad');
+        setDisplayName(name);
+        if (userId) {
+            await supabase.from('users').update({ display_name: name }).eq('id', userId);
+        }
+        notify('تم حفظ التعديلات', 'ok');
+    };
+
+    const go = (v: DashView) => {
+        setView(v);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    /* ---------- البلاغات والدعم والبطولات ---------- */
+    const setSupBusy = (k: string) => setSupport(s => ({ ...s, busy: k }));
+
+    const failNote = (r: { ok: boolean; error?: string }, fallback: string) => {
+        notify(r.error && r.error !== 'سجّل دخولك أولاً' ? r.error : fallback, 'bad');
+    };
+
+    const sendReport = async () => {
+        const target = reportDraft.target.trim().toLowerCase();
+        if (!target) return notify('اكتب اسم المخالف', 'bad');
+        if (reportDraft.reason.trim().length < 5) return notify('اشرح البلاغ في سطر على الأقل', 'bad');
+        setSupBusy('report');
+        try {
+            if (!(await ensureMember())) return notify('تعذّر إرسال البلاغ الآن — أعد المحاولة', 'bad');
+            const r = await memberApi.submitReport({ kind: reportDraft.kind, target_username: target, reason: reportDraft.reason });
+            if (!r.ok) return failNote(r, 'تعذّر إرسال البلاغ');
+            setReportDraft(d => ({ ...d, target: '', reason: '' }));
+            notify('وصل بلاغك — تحت المراجعة', 'ok');
+            const list = await memberApi.reports();
+            if (list.ok) { setReports(list.reports || []); setSanctions(list.sanctions || []); }
+        } finally { setSupBusy(''); }
+    };
+
+    const sendTicket = async () => {
+        if (ticketDraft.subject.trim().length < 4) return notify('اكتب موضوعاً واضحاً', 'bad');
+        if (ticketDraft.body.trim().length < 10) return notify('اشرح التفاصيل (١٠ أحرف على الأقل)', 'bad');
+        setSupBusy('ticket');
+        try {
+            if (!(await ensureMember())) return notify('تعذّر فتح التذكرة الآن — أعد المحاولة', 'bad');
+            const r = await memberApi.openTicket(ticketDraft);
+            if (!r.ok) return failNote(r, 'تعذّر فتح التذكرة');
+            setTicketDraft({ subject: '', category: TICKET_CATS[0], priority: TICKET_PRIS[1], body: '' });
+            notify('تم فتح تذكرة الدعم — تجد ردّها هنا', 'ok');
+            const list = await memberApi.tickets();
+            if (list.ok) setTickets(list.tickets || []);
+        } finally { setSupBusy(''); }
+    };
+
+    const sendAppeal = async () => {
+        if (!appealDraft.sanctionId) return notify('اختر العقوبة التي تعترض عليها', 'bad');
+        if (appealDraft.reason.trim().length < 5) return notify('اكتب سبب الاعتراض', 'bad');
+        setSupBusy('appeal');
+        try {
+            if (!(await ensureMember())) return notify('تعذّر إرسال الاعتراض الآن — أعد المحاولة', 'bad');
+            const r = await memberApi.submitAppeal({ sanction_id: appealDraft.sanctionId, reason: appealDraft.reason });
+            if (!r.ok) return failNote(r, 'تعذّر إرسال الاعتراض');
+            setAppealDraft({ sanctionId: '', reason: '' });
+            notify('تم إرسال اعتراضك', 'ok');
+            const list = await memberApi.reports();
+            if (list.ok) setReports(list.reports || []);
+        } finally { setSupBusy(''); }
+    };
+
+    const usePromo = async () => {
+        const code = promoDraft.trim().toUpperCase();
+        if (code.length < 3) return notify('اكتب الكود كاملاً', 'bad');
+        setSupBusy('promo');
+        try {
+            if (!(await ensureMember())) return notify('تعذّر استخدام الكود الآن — أعد المحاولة', 'bad');
+            const r = await memberApi.redeemPromo(code);
+            if (!r.ok) return failNote(r, 'تعذّر استخدام الكود');
+            setPromoDraft('');
+            notify(`أُضيف ${fmt(Number(r.amount) || 0)} نقطة لرصيدك`, 'ok');
+            refreshPoints();
+            const his = await memberApi.promoHistory();
+            if (his.ok) setRedemptions(his.redemptions || []);
+        } finally { setSupBusy(''); }
+    };
+
+    const toggleBell = async () => {
+        const next = !bellOpen;
+        setBellOpen(next);
+        if (!next) return;
+        if (!(await ensureMember())) return;
+        const r = await memberApi.notifications();
+        if (r.ok) { setNotifs(r.notifications || []); setUnread(Number(r.unread) || 0); }
+    };
+
+    const markRead = async (id: string, already: boolean) => {
+        if (already) return;
+        setNotifs(prev => prev.map(n => (String(n.id) === id ? { ...n, read: true } : n)));
+        setUnread(u => Math.max(0, u - 1));
+        const r = await memberApi.readNotification(id);
+        if (!r.ok) setNotifs(prev => prev.map(n => (String(n.id) === id ? { ...n, read: false } : n)));
+    };
+
+    const markAllRead = async () => {
+        setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+        setUnread(0);
+        await memberApi.readAllNotifications();
+    };
+
+    const dismissAnno = async (id: string) => {
+        setAnnos(prev => prev.filter(a => String(a.id) !== id));
+        await memberApi.dismissAnnouncement(id);
+    };
+
+    const toggleTour = async (t: MemberTournament) => {
+        setSupBusy(`tour-${t.id}`);
+        try {
+            if (!(await ensureMember())) return notify('تعذّر التسجيل الآن — أعد المحاولة', 'bad');
+            const r = t.mine ? await memberApi.leaveTournament(t.id) : await memberApi.joinTournament(t.id);
+            if (!r.ok) return failNote(r, t.mine ? 'تعذّر الانسحاب' : 'تعذّر التسجيل');
+            notify(t.mine ? 'تم الانسحاب من البطولة' : `تم تسجيلك في ${t.name}`, 'ok');
+            const list = await memberApi.tournaments();
+            if (list.ok) setTours(list.tournaments || []);
+        } finally { setSupBusy(''); }
+    };
+
+    /* ---------- المحتوى ---------- */
+    const HomeView = () => {
+        const top3 = board.slice(0, 3);
+        const myFrame = activeFrameId;
+        const achievements = [
+            { t: 'أول عملية شراء', icon: ShoppingBag, ok: history.some(h => h.type === 'PURCHASE') || ownedList.length > 3 },
+            { t: '1,000 نقطة', icon: Gem, ok: points >= 1000 },
+            { t: 'نخبة المتصدرين', icon: Trophy, ok: myRank > 0 && myRank <= 5 },
+            { t: 'ملك الإطارات', icon: Crown, ok: ownedList.some(f => f.rarity === 'l') },
+            { t: '7 إطارات', icon: Star, ok: ownedList.length >= 7 },
+            { t: 'عضو منذ البداية', icon: Shield, ok: true },
+        ];
+
         return (
-            <div className="icg1-user-dashboard fixed inset-0 z-[10000] bg-[#050505] flex flex-col items-center justify-center p-6 font-sans overflow-hidden" dir="rtl">
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 pointer-events-none"></div>
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-600/10 animate-pulse rounded-full blur-[150px] pointer-events-none"></div>
-                
-                <div className="relative z-10 max-w-2xl w-full glass-card bg-black/80 backdrop-blur-3xl border border-red-500/30 rounded-[3rem] p-10 md:p-14 text-center shadow-[0_20px_80px_rgba(255,0,0,0.2)] overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-900 via-red-500 to-red-900"></div>
-                    
-                    <div className="w-24 h-24 mx-auto bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mb-8 relative">
-                        <div className="absolute inset-0 bg-red-500 blur-xl opacity-40 animate-pulse rounded-full"></div>
-                        <Ban size={48} className="text-red-500 relative z-10 drop-shadow-[0_0_15px_red]" />
-                    </div>
-
-                    <h1 className="text-4xl md:text-5xl font-black text-white italic tracking-tight mb-3 drop-shadow-[0_5px_15px_rgba(255,0,0,0.5)]">تم حظر حسابك نهائياً</h1>
-                    <p className="text-sm md:text-base text-red-500 font-black mb-10 italic tracking-[0.2em] uppercase">System Access Denied</p>
-
-                    <div className="bg-red-500/5 border border-red-500/20 rounded-3xl p-6 md:p-8 mb-10 relative overflow-hidden group hover:bg-red-500/10 transition-all text-center">
-                        <div className="absolute right-0 top-0 w-1 h-full bg-red-500 shadow-[0_0_15px_red]"></div>
-                        <div className="text-xs font-black text-red-500/80 uppercase tracking-wider mb-4 flex items-center justify-center gap-2">
-                            <ShieldAlert size={16} /> سبب الحظر
+            <div className="md-pg">
+                <section className="md-card md-hero md-s8" style={{ ['--i' as any]: 0 }}>
+                    <MemberAvatar name={displayName} kickName={username} src={avatarSrc} frameId={myFrame} boxClass="md-avbox-lg" />
+                    <div className="md-hero-tx">
+                        <div className="md-eyb">MEMBER DASHBOARD</div>
+                        <h1 className="md-ttl">أهلاً بك، {displayName}</h1>
+                        <div className="md-rk">
+                            {activeMembership
+                                ? <><Crown size={14} /> {activeMembership.label}{activeMembership.expires ? ` · حتى ${new Date(activeMembership.expires).toLocaleDateString('en-GB')}` : ''}</>
+                                : <><Medal size={14} /> الرتبة: {RANKS[rankIdx][1]}</>}
                         </div>
-                        <p className="text-xl md:text-2xl font-bold text-white leading-relaxed break-words whitespace-pre-wrap">{banReason}</p>
+                        <div className="md-xp"><i style={{ width: `${progress}%` }} /></div>
+                        <div className="md-xpl">
+                            <span>{fmt(points)} نقطة</span>
+                            <span>{nextRank ? `الرتبة القادمة: ${nextRank[1]} (${fmt(nextRank[0])})` : 'أعلى رتبة'}</span>
+                        </div>
+                        <div className="md-acts">
+                            <button className="md-btn md-gold" onClick={() => go('store')}><ShoppingBag size={17} /> تصفّح المتجر</button>
+                            <button className="md-btn md-ghost" onClick={() => go('rank')}><Trophy size={17} /> لوحة الصدارة</button>
+                        </div>
+                    </div>
+                </section>
+
+                {annos.length > 0 && (
+                    <section className="md-card md-anno md-s12" style={{ ['--i' as any]: 1 }}>
+                        <h2><Megaphone size={18} /> إعلانات الموقع</h2>
+                        <div className="md-lst">
+                            {annos.map(a => (
+                                <div className="md-row" key={a.id}>
+                                    <div className="md-ico"><Megaphone size={17} /></div>
+                                    <div className="md-row-tx">
+                                        <b>{a.title}</b>
+                                        <small>{a.body}</small>
+                                    </div>
+                                    <span className="md-st open">{a.kind}</span>
+                                    <button className="md-btn md-ghost md-xs" onClick={() => dismissAnno(a.id)}>
+                                        <Check size={15} /> فهمت
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                <section className="md-card md-s4" style={{ ['--i' as any]: 2 }}>
+                    <h2><Target size={18} /> دخول الألعاب المباشرة</h2>
+                    <div className="md-lst">
+                        <div className="md-row">
+                            <div className="md-ico"><Target size={17} /></div>
+                            <div className="md-row-tx">
+                                <b>كود نيمز</b>
+                                <small>{live.cn ? `أنت ليدر في الغرفة ${live.cn}` : live.checking ? 'جارٍ التحقق…' : 'ما لك غرفة كود نيمز نشطة'}</small>
+                            </div>
+                            <button className="md-btn md-gold" onClick={() => enterLive('cn')} disabled={live.checking}>دخول</button>
+                        </div>
+                        <div className="md-row">
+                            <div className="md-ico"><Shield size={17} /></div>
+                            <div className="md-row-tx">
+                                <b>المافيا</b>
+                                <small>{live.mafia ? `الغرفة النشطة ${live.mafia}` : live.checking ? 'جارٍ التحقق…' : 'لا توجد غرفة مافيا نشطة'}</small>
+                            </div>
+                            <button className="md-btn md-gold" onClick={() => enterLive('mafia')} disabled={live.checking}>دخول</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="md-card md-s4" style={{ ['--i' as any]: 1 }}>
+                    <h2><Gift size={18} /> المكافأة اليومية</h2>
+                    <div className="md-days">
+                        {DAILY_REWARDS.map((v, i) => (
+                            <div
+                                key={i}
+                                className={`md-day ${i < daily.streak ? 'done' : i === daily.streak && !daily.claimed ? 'now' : ''} ${i === 6 ? 'big' : ''}`}
+                            >
+                                {i < daily.streak ? <Check size={14} /> : v}
+                            </div>
+                        ))}
+                    </div>
+                    <button
+                        className="md-btn md-gold w-full"
+                        style={{ width: '100%' }}
+                        onClick={claimDaily}
+                        disabled={daily.claimed || busy === 'daily'}
+                    >
+                        {busy === 'daily'
+                            ? <Loader2 size={17} className="animate-spin" />
+                            : daily.claimed ? 'تم الاستلام — عد غداً' : `استلم +${nextReward} نقطة`}
+                    </button>
+                </section>
+
+                <section className="md-card md-s4" style={{ ['--i' as any]: 3 }}>
+                    <h2><Trophy size={18} /> البطولات</h2>
+                    <div className="md-lst">
+                        {tours.length === 0 ? (
+                            <div className="md-row">
+                                <div className="md-ico"><Trophy size={17} /></div>
+                                <div className="md-row-tx"><b>لا توجد بطولات الآن</b><small>أول ما تُفتح بطولة توصل هنا تلقائياً</small></div>
+                            </div>
+                        ) : tours.map(t => (
+                            <div className="md-row" key={t.id}>
+                                <div className="md-ico"><Trophy size={17} /></div>
+                                <div className="md-row-tx">
+                                    <b>{t.name}</b>
+                                    <small>{t.game || 'بطولة عامة'} · {shortDate(t.starts_at)}</small>
+                                    <small>الجائزة {fmt(t.prize)} نقطة · {t.max > 0 ? `${fmt(t.registered)}/${fmt(t.max)}` : `${fmt(t.registered)} مسجّل`}</small>
+                                    {t.note ? <small className="md-res">{t.note}</small> : null}
+                                </div>
+                                <span className={`md-st ${pillClass(t.status)}`}>{tourLabel(t)}</span>
+                                <button
+                                    className={`md-btn md-xs ${t.mine ? 'md-ghost' : 'md-gold'}`}
+                                    onClick={() => toggleTour(t)}
+                                    disabled={support.busy === `tour-${t.id}` || (t.mine ? false : t.status !== 'open')}
+                                >
+                                    {support.busy === `tour-${t.id}`
+                                        ? <Loader2 size={15} className="animate-spin" />
+                                        : t.mine ? 'انسحاب' : 'سجّل'}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                <div className="md-card md-stat md-s4" style={{ ['--i' as any]: 2 }}>
+                    <div className="md-top">
+                        <div className="md-ico"><Wallet size={22} /></div>
+                        <div><span className="md-mut">إجمالي النقاط</span><br /><b>{fmt(points)}</b></div>
+                    </div>
+                    <Spark seed={points % 7 + 2} />
+                    <span className="md-up"><Zap size={12} /> رصيدك الحالي</span>
+                </div>
+
+                <div className="md-card md-stat md-s4" style={{ ['--i' as any]: 3 }}>
+                    <div className="md-top">
+                        <div className="md-ico"><Trophy size={22} /></div>
+                        <div><span className="md-mut">المرتبة الحالية</span><br /><b>{myRank ? `#${myRank}` : '—'}</b></div>
+                    </div>
+                    <Spark seed={5} />
+                    <span className="md-up"><Crown size={12} /> بين {fmt(board.length)} عضواً</span>
+                </div>
+
+                <div className="md-card md-stat md-s4" style={{ ['--i' as any]: 4 }}>
+                    <div className="md-top">
+                        <div className="md-ico"><Box size={22} /></div>
+                        <div><span className="md-mut">إطاراتك</span><br /><b>{ownedList.length}</b></div>
+                    </div>
+                    <Spark seed={9} />
+                    <span className="md-up"><Gem size={12} /> من أصل {frames.length} إطاراً</span>
+                </div>
+
+                <section className="md-card md-s8" style={{ ['--i' as any]: 5 }}>
+                    <h2><Zap size={18} /> آخر النشاطات</h2>
+                    <div className="md-lst">
+                        {history.length === 0 ? (
+                            <div className="md-row"><div className="md-ico"><Clock size={17} /></div><div className="md-row-tx"><b>لا يوجد نشاط بعد</b><small>ستظهر مشترياتك ومكافآتك هنا</small></div></div>
+                        ) : history.map((h, i) => {
+                            const amount = Number(h.amount) || 0;
+                            return (
+                                <div className="md-row" key={h.id || i}>
+                                    <div className="md-ico">{amount < 0 ? <ShoppingBag size={17} /> : <Gift size={17} />}</div>
+                                    <div className="md-row-tx">
+                                        <b>{h.description || (amount < 0 ? 'عملية شراء' : 'مكافأة')}</b>
+                                        <small>{h.type === 'PURCHASE' ? 'مشتريات' : h.type || 'نشاط'}</small>
+                                    </div>
+                                    <em className={amount < 0 ? 'md-neg' : 'md-pos'}>{amount > 0 ? `+${fmt(amount)}` : fmt(amount)}</em>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
+
+                <section className="md-card md-s5" style={{ ['--i' as any]: 6 }}>
+                    <h2><Crown size={18} /> أفضل 3 الآن</h2>
+                    <div className="md-lst">
+                        {top3.length === 0 ? (
+                            <div className="md-row"><div className="md-row-tx"><b>لا يوجد متصدرون بعد</b><small>كن أول من يجمع النقاط</small></div></div>
+                        ) : top3.map((u, i) => (
+                            <div className="md-row md-top3" key={u.username || i}>
+                                <span className={`md-medal m${i + 1}`}>{i + 1}</span>
+                                <MemberAvatar
+                                    name={u.username}
+                                    kickName={u.username}
+                                    src={u.avatar_url}
+                                    frameId={u.active_frame_id}
+                                    boxClass="md-avbox-sm"
+                                />
+                                <div className="md-row-tx">
+                                    <b>{u.username}{i === 0 ? <Crown size={13} className="md-crown" /> : null}</b>
+                                    <small>{fmt(u.score)} نقطة</small>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <button className="md-btn md-ghost" style={{ width: '100%', marginTop: 12 }} onClick={() => go('rank')}>عرض الكل</button>
+                </section>
+
+                <section className="md-card md-s7" style={{ ['--i' as any]: 7 }}>
+                    <h2><Medal size={18} /> الإنجازات</h2>
+                    <div className="md-ach">
+                        {achievements.map((a, i) => {
+                            const Icon = a.icon;
+                            return (
+                                <div className={`md-bd ${a.ok ? '' : 'lk'}`} key={i}>
+                                    <div className="md-ico"><Icon size={18} /></div>
+                                    <b>{a.t}</b>
+                                    <small>{a.ok ? 'مفتوح' : 'مقفل'}</small>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
+            </div>
+        );
+    };
+
+    const StoreView = () => (
+        <div className="md-pg">
+            <div className="md-head">
+                <div>
+                    <h1 className="md-ttl">المتجر الحصري</h1>
+                    <div className="md-eyb">PREMIUM FRAMES & ITEMS</div>
+                </div>
+                <div className="md-bal">
+                    <div className="md-ico"><Gem size={22} /></div>
+                    <div><small>رصيدك الحالي</small><b>{fmt(points)}</b></div>
+                </div>
+            </div>
+
+            <div className="md-flt">
+                {([['all', 'الكل'], ['free', 'مجاني'], ['r', 'نادر'], ['e', 'ملحمي'], ['l', 'أسطوري']] as [Filter, string][]).map(([k, label]) => (
+                    <button key={k} className={`md-fc ${filter === k ? 'on' : ''}`} onClick={() => setFilter(k)}>{label}</button>
+                ))}
+            </div>
+
+            {vipStore.vip && vipStore.discount_pct > 0 && (
+                <div className="md-vip">
+                    <Crown size={16} /> خصم العضوية {vipStore.discount_pct}% يُحسب تلقائياً عند الدفع — الأسعار المعروضة بعد الخصم
+                </div>
+            )}
+
+            <div className="md-grid">
+                {storeList.map((f, i) => {
+                    const owned = ownedFrames.includes(f.id);
+                    const equipped = activeFrameId === f.id;
+                    const rar = RARITY[f.rarity];
+                    const cost = priceOf(f);
+                    const canAfford = points >= cost;
+                    return (
+                        <div className="md-card md-it" key={f.id} style={{ ['--rc' as any]: rar.color, ['--i' as any]: i }}>
+                            <span className="md-rar">{rar.label}</span>
+                            <div className="md-avbox md-avbox-md">
+                                <FrameArt frameId={f.id} src={avatarSrc} initial={displayName} title={f.name} onAvatarError={recoverAvatar} />
+                            </div>
+                            <h3>{f.name}</h3>
+                            <p>{f.description}</p>
+                            {equipped ? (
+                                <button className="md-buy eq"><Check size={16} /> مجهّز</button>
+                            ) : owned ? (
+                                <button className="md-buy own" onClick={() => equip(f)} disabled={busy === f.id}>
+                                    {busy === f.id ? <Loader2 size={16} className="animate-spin" /> : <><User size={16} /> تجهيز</>}
+                                </button>
+                            ) : (
+                                <button
+                                    className={`md-buy ${canAfford ? '' : 'dim'}`}
+                                    onClick={() => buy(f)}
+                                    disabled={!canAfford || busy === f.id}
+                                >
+                                    {busy === f.id
+                                        ? <Loader2 size={16} className="animate-spin" />
+                                        : <>
+                                            {canAfford ? <ShoppingCart size={16} /> : <Lock size={16} />}
+                                            {f.price === 0 ? 'مجاني' : `${fmt(cost)} نقطة`}
+                                            {vipStore.vip && cost < f.price && <s>{fmt(f.price)}</s>}
+                                        </>}
+                                </button>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+
+    const LockerView = () => (
+        <div className="md-pg">
+            <div className="md-head">
+                <div>
+                    <h1 className="md-ttl">الخزانة الخاصة</h1>
+                    <div className="md-eyb">MY COLLECTION / INVENTORY</div>
+                </div>
+                <div className="md-bal">
+                    <div className="md-ico"><Box size={22} /></div>
+                    <div><small>مجموعتك</small><b>{ownedList.length}/{frames.length}</b></div>
+                </div>
+            </div>
+
+            {ownedList.length === 0 ? (
+                <div className="md-empty">
+                    <div className="md-ico"><Box size={32} /></div>
+                    <h2>خزانتك فارغة</h2>
+                    <p className="md-mut" style={{ margin: '6px 0 16px' }}>توجه إلى المتجر للحصول على الإطارات الحصرية.</p>
+                    <button className="md-btn md-gold" onClick={() => go('store')}><ShoppingBag size={17} /> إلى المتجر</button>
+                </div>
+            ) : (
+                <div className="md-grid">
+                    {ownedList.map((f, i) => {
+                        const equipped = activeFrameId === f.id;
+                        const rar = RARITY[f.rarity];
+                        return (
+                            <div className="md-card md-it" key={f.id} style={{ ['--rc' as any]: rar.color, ['--i' as any]: i }}>
+                                <span className="md-rar">{rar.label}</span>
+                                <div className="md-avbox md-avbox-md">
+                                    <FrameArt frameId={f.id} src={avatarSrc} initial={displayName} title={f.name} onAvatarError={recoverAvatar} />
+                                </div>
+                                <h3>{f.name}</h3>
+                                <p>{f.description}</p>
+                                {equipped ? (
+                                    <button className="md-buy eq"><Check size={16} /> مجهّز</button>
+                                ) : (
+                                    <button className="md-buy own" onClick={() => equip(f)} disabled={busy === f.id}>
+                                        {busy === f.id ? <Loader2 size={16} className="animate-spin" /> : <><User size={16} /> تجهيز</>}
+                                    </button>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+
+    const RankView = () => {
+        const podium = [board[1], board[0], board[2]];
+        const max = Number(board[0]?.score) || 1;
+        return (
+            <div className="md-pg">
+                <div className="md-head">
+                    <div>
+                        <h1 className="md-ttl">لوحة الصدارة</h1>
+                        <div className="md-eyb">GLOBAL MEMBER RANKINGS</div>
+                    </div>
+                    <div className="md-bal">
+                        <div className="md-ico"><Trophy size={22} /></div>
+                        <div><small>مرتبتك</small><b>{myRank ? `#${myRank}` : '—'}</b></div>
+                    </div>
+                </div>
+
+                {loading ? (
+                    <div className="md-card md-s12" style={{ textAlign: 'center', padding: 40 }}>
+                        <Loader2 size={28} className="animate-spin" style={{ color: 'var(--g1)', margin: '0 auto' }} />
+                    </div>
+                ) : board.length === 0 ? (
+                    <div className="md-empty">
+                        <div className="md-ico"><Trophy size={32} /></div>
+                        <h2>لا توجد نتائج بعد</h2>
+                        <p className="md-mut">العب أول لعبة لتظهر في الصدارة.</p>
+                    </div>
+                ) : (
+                    <>
+                        <div className={`md-pod md-pod-${Math.min(board.length, 3)}`}>
+                            {podium.map((u, i) => {
+                                if (!u) return <div key={i} />;
+                                const n = [2, 1, 3][i];
+                                return (
+                                    <div className={`md-pd p${n}`} key={u.username || i} style={{ ['--i' as any]: n }}>
+                                        {n === 1 && <div className="md-cr"><Crown size={30} /></div>}
+                                        <span className="md-n">{n}</span>
+                                        <MemberAvatar
+                                            name={u.username}
+                                            kickName={u.username}
+                                            src={u.avatar_url}
+                                            frameId={u.active_frame_id}
+                                            boxClass="md-pod-av"
+                                        />
+                                        <b>{u.username}</b>
+                                        <em>{fmt(u.score)}</em>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="md-rl">
+                            {board.slice(3).map((u, i) => {
+                                const isMe = String(u.username || '').toLowerCase() === username;
+                                return (
+                                    <div className={`md-rr ${isMe ? 'me' : ''}`} key={u.username || i} style={{ animation: 'md-up .5s var(--ease) both', animationDelay: `${i * 35}ms` }}>
+                                        <span className="md-no">{i + 4}</span>
+                                        <MemberAvatar name={u.username} kickName={u.username} src={u.avatar_url} frameId={u.active_frame_id} boxClass="md-avbox-sm" />
+                                        <b>{u.username}{isMe ? ' (أنت)' : ''}</b>
+                                        <div className="md-pw"><i style={{ width: `${Math.max(3, (Number(u.score) / max) * 100)}%` }} /></div>
+                                        <em>{fmt(u.score)}</em>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
+                )}
+            </div>
+        );
+    };
+
+    const SUP_TABS: { id: 'report' | 'ticket' | 'sanction' | 'promo'; label: string; icon: React.ElementType }[] = [
+        { id: 'report', label: 'بلاغ', icon: Flag },
+        { id: 'ticket', label: 'تذاكر الدعم', icon: LifeBuoy },
+        { id: 'sanction', label: 'عقوباتي', icon: ShieldAlert },
+        { id: 'promo', label: 'كود ترويجي', icon: Gift },
+    ];
+
+    const SupportPanel = () => (
+        <section className="md-card md-s12" style={{ ['--i' as any]: 3 }}>
+            <h2><LifeBuoy size={18} /> البلاغات والدعم</h2>
+            <div className="md-sub">
+                {SUP_TABS.map(t => {
+                    const Icon = t.icon;
+                    return (
+                        <button key={t.id} className={support.tab === t.id ? 'on' : ''} onClick={() => setSupport(s => ({ ...s, tab: t.id }))}>
+                            <Icon size={15} /> {t.label}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {support.tab === 'report' && (
+                <div className="md-pane">
+                    <div className="md-form">
+                        <label className="md-fld">
+                            <span>نوع البلاغ</span>
+                            <div className="md-inp">
+                                <Flag size={18} />
+                                <select value={reportDraft.kind} onChange={e => setReportDraft(d => ({ ...d, kind: e.target.value }))}>
+                                    {REPORT_KINDS.map(k => <option key={k} value={k}>{k}</option>)}
+                                </select>
+                            </div>
+                        </label>
+                        <label className="md-fld">
+                            <span>اسم الحساب المخالف</span>
+                            <div className="md-inp">
+                                <User size={18} />
+                                <input
+                                    value={reportDraft.target}
+                                    maxLength={40}
+                                    dir="ltr"
+                                    placeholder="kick username"
+                                    onChange={e => setReportDraft(d => ({ ...d, target: e.target.value }))}
+                                />
+                            </div>
+                        </label>
+                    </div>
+                    <label className="md-fld">
+                        <span>التفاصيل</span>
+                        <textarea
+                            className="md-txa"
+                            rows={3}
+                            maxLength={600}
+                            placeholder="وش صار، وفين، وبأي لعبة؟"
+                            value={reportDraft.reason}
+                            onChange={e => setReportDraft(d => ({ ...d, reason: e.target.value }))}
+                        />
+                    </label>
+                    <button className="md-btn md-gold" onClick={sendReport} disabled={support.busy === 'report'}>
+                        {support.busy === 'report' ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />} إرسال البلاغ
+                    </button>
+
+                    <div className="md-lst md-mt">
+                        {reports.filter(r => r.record_type !== 'appeal').length === 0 ? (
+                            <div className="md-row"><div className="md-ico"><Flag size={17} /></div><div className="md-row-tx"><b>ما لك بلاغات سابقة</b><small>كل بلاغ يُرسل مرة واحدة للفريق المعني</small></div></div>
+                        ) : reports.filter(r => r.record_type !== 'appeal').map((r, i) => (
+                            <div className="md-row" key={r.id || i}>
+                                <div className="md-ico"><Flag size={17} /></div>
+                                <div className="md-row-tx">
+                                    <b>{r.kind} — {r.target_username}</b>
+                                    <small>{r.reason}</small>
+                                    {r.resolution ? <small className="md-res">النتيجة: {r.resolution}</small> : null}
+                                </div>
+                                <span className={`md-st ${pillClass(r.status)}`}>{r.status_ar}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {support.tab === 'ticket' && (
+                <div className="md-pane">
+                    <div className="md-form">
+                        <label className="md-fld" style={{ flex: 2, minWidth: 220 }}>
+                            <span>الموضوع</span>
+                            <div className="md-inp">
+                                <LifeBuoy size={18} />
+                                <input
+                                    value={ticketDraft.subject}
+                                    maxLength={120}
+                                    placeholder="مثال: نقاطي ما ظهرت بعد لعبة كود نيمز"
+                                    onChange={e => setTicketDraft(d => ({ ...d, subject: e.target.value }))}
+                                />
+                            </div>
+                        </label>
+                        <label className="md-fld">
+                            <span>التصنيف</span>
+                            <div className="md-inp">
+                                <Tag size={18} />
+                                <select value={ticketDraft.category} onChange={e => setTicketDraft(d => ({ ...d, category: e.target.value }))}>
+                                    {TICKET_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                        </label>
+                        <label className="md-fld">
+                            <span>الأولوية</span>
+                            <div className="md-inp">
+                                <Zap size={18} />
+                                <select value={ticketDraft.priority} onChange={e => setTicketDraft(d => ({ ...d, priority: e.target.value }))}>
+                                    {TICKET_PRIS.map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                            </div>
+                        </label>
+                    </div>
+                    <label className="md-fld">
+                        <span>التفاصيل</span>
+                        <textarea
+                            className="md-txa"
+                            rows={3}
+                            maxLength={1500}
+                            placeholder="اشرح المشكلة بالتفصيل مع اللقطة والوقت"
+                            value={ticketDraft.body}
+                            onChange={e => setTicketDraft(d => ({ ...d, body: e.target.value }))}
+                        />
+                    </label>
+                    <button className="md-btn md-gold" onClick={sendTicket} disabled={support.busy === 'ticket'}>
+                        {support.busy === 'ticket' ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />} فتح تذكرة
+                    </button>
+
+                    <div className="md-lst md-mt">
+                        {tickets.length === 0 ? (
+                            <div className="md-row"><div className="md-ico"><LifeBuoy size={17} /></div><div className="md-row-tx"><b>لا توجد تذاكر</b><small>الرد يظهر هنا داخل التذكرة نفسها</small></div></div>
+                        ) : tickets.map((t, i) => (
+                            <div className="md-row" key={t.id || i}>
+                                <div className="md-ico"><LifeBuoy size={17} /></div>
+                                <div className="md-row-tx">
+                                    <b>{t.subject}</b>
+                                    <small>{t.category} · {shortDate(t.created_at)}</small>
+                                    {t.reply ? <small className="md-res">رد الدعم: {t.reply}</small> : null}
+                                </div>
+                                <span className={`md-st ${pillClass(t.status)}`}>{t.status_ar}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {support.tab === 'sanction' && (
+                <div className="md-pane">
+                    {sanctions.length === 0 ? (
+                        <div className="md-sess"><i /> سجلّك نظيف — لا توجد عقوبات نشطة على حسابك</div>
+                    ) : (
+                        <div className="md-lst">
+                            {sanctions.map((s, i) => (
+                                <div className="md-row" key={s.id || i}>
+                                    <div className="md-ico"><TriangleAlert size={17} /></div>
+                                    <div className="md-row-tx">
+                                        <b>{s.type || 'حظر'}</b>
+                                        <small>{s.reason || 'بدون سبب مذكور'} · {shortDate(s.created_at)}{s.ends_at ? ` · ينتهي ${shortDate(s.ends_at)}` : ''}</small>
+                                    </div>
+                                    <button
+                                        className="md-btn md-ghost"
+                                        style={{ height: 38, padding: '0 14px' }}
+                                        onClick={() => setAppealDraft(a => ({ ...a, sanctionId: s.id }))}
+                                    >
+                                        <Gavel size={15} /> اعتراض
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="md-form md-mt">
+                        <label className="md-fld">
+                            <span>العقوبة المعترض عليها</span>
+                            <div className="md-inp">
+                                <Gavel size={18} />
+                                <select
+                                    value={appealDraft.sanctionId}
+                                    onChange={e => setAppealDraft(a => ({ ...a, sanctionId: e.target.value }))}
+                                >
+                                    <option value="">اختر عقوبة…</option>
+                                    {sanctions.map(s => <option key={s.id} value={s.id}>{s.type || 'حظر'} — {shortDate(s.created_at)}</option>)}
+                                </select>
+                            </div>
+                        </label>
+                        <label className="md-fld" style={{ flex: 2, minWidth: 240 }}>
+                            <span>سبب الاعتراض</span>
+                            <div className="md-inp">
+                                <Send size={18} />
+                                <input
+                                    value={appealDraft.reason}
+                                    maxLength={600}
+                                    placeholder="ليش ترى العقوبة غير مناسبة؟"
+                                    onChange={e => setAppealDraft(a => ({ ...a, reason: e.target.value }))}
+                                />
+                            </div>
+                        </label>
+                        <button className="md-btn md-gold" onClick={sendAppeal} disabled={support.busy === 'appeal'} style={{ alignSelf: 'flex-end' }}>
+                            {support.busy === 'appeal' ? <Loader2 size={17} className="animate-spin" /> : <Gavel size={17} />} إرسال الاعتراض
+                        </button>
                     </div>
 
-                    <button onClick={onLogout} className="px-10 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-black italic transition-all flex items-center justify-center gap-3 mx-auto hover:scale-105 active:scale-95 shadow-lg">
-                        <LogOut size={20} /> تسجيل الخروج
+                    {reports.some(r => r.record_type === 'appeal') && (
+                        <div className="md-lst md-mt">
+                            {reports.filter(r => r.record_type === 'appeal').map((r, i) => (
+                                <div className="md-row" key={r.id || i}>
+                                    <div className="md-ico"><Gavel size={17} /></div>
+                                    <div className="md-row-tx">
+                                        <b>اعتراض {shortDate(r.created_at)}</b>
+                                        <small>{r.reason}</small>
+                                        {r.resolution ? <small className="md-res">النتيجة: {r.resolution}</small> : null}
+                                    </div>
+                                    <span className={`md-st ${pillClass(r.status)}`}>{r.status_ar}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {support.tab === 'promo' && (
+                <div className="md-pane">
+                    <div className="md-form">
+                        <label className="md-fld" style={{ flex: 2, minWidth: 240 }}>
+                            <span>الكود الترويجي</span>
+                            <div className="md-inp">
+                                <Gift size={18} />
+                                <input
+                                    value={promoDraft}
+                                    maxLength={40}
+                                    dir="ltr"
+                                    placeholder="ICG1-XXXX"
+                                    onChange={e => setPromoDraft(e.target.value.toUpperCase())}
+                                />
+                            </div>
+                        </label>
+                        <button className="md-btn md-gold" onClick={usePromo} disabled={support.busy === 'promo'} style={{ alignSelf: 'flex-end' }}>
+                            {support.busy === 'promo' ? <Loader2 size={17} className="animate-spin" /> : <Zap size={17} />} استخدم الكود
+                        </button>
+                    </div>
+                    <p className="md-mut">الكود يُضاف مرة واحدة لكل عضو، والنقاط توصل لرصيدك مباشرة.</p>
+
+                    <div className="md-lst md-mt">
+                        {redemptions.length === 0 ? (
+                            <div className="md-row"><div className="md-ico"><Gift size={17} /></div><div className="md-row-tx"><b>ما استلمت أكواد</b><small>ستظهر أكوادك المستخدمة هنا</small></div></div>
+                        ) : redemptions.map((p, i) => (
+                            <div className="md-row" key={`${p.promo_id}-${i}`}>
+                                <div className="md-ico"><Gift size={17} /></div>
+                                <div className="md-row-tx">
+                                    <b>كود مُستخدم</b>
+                                    <small>{p.via || 'site'} · {shortDate(p.redeemed_at)}</small>
+                                </div>
+                                <em className="md-pos">+{fmt(Number(p.amount) || 0)}</em>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </section>
+    );
+
+    const SettingsView = () => (
+        <div className="md-pg">
+            <div className="md-head">
+                <div>
+                    <h1 className="md-ttl">إعدادات الحساب</h1>
+                    <div className="md-eyb">PROFILE & SECURITY SETTINGS</div>
+                </div>
+            </div>
+
+            {isAdmin && (
+                <div className="md-card md-s12" style={{ ['--i' as any]: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div className="md-ico"><ShieldAlert size={20} /></div>
+                    <div style={{ flex: 1 }}>
+                        <b style={{ fontSize: 14 }}>أنت مسجّل أيضاً كمدير</b>
+                        <div className="md-mut">يمكنك الرجوع إلى لوحة الإدارة في أي وقت.</div>
+                    </div>
+                    <button
+                        className="md-btn md-ghost"
+                        onClick={() => { window.location.href = '/admin-panel'; }}
+                    >
+                        الرجوع للإدارة
                     </button>
+                </div>
+            )}
+
+            <section className="md-card md-s7" style={{ ['--i' as any]: 1 }}>
+                <h2><User size={18} /> المعلومات الشخصية</h2>
+                <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 18 }}>
+                    <MemberAvatar name={displayName} kickName={username} src={avatarSrc} frameId={activeFrameId} boxClass="md-avbox-md" />
+                    <div>
+                        <b style={{ fontSize: 19 }}>{displayName}</b>
+                        <div className="md-mut">إطارك المجهّز يظهر في كل الألعاب والصدارة.</div>
+                    </div>
+                </div>
+                <label className="md-fld">
+                    <span>الاسم المعروض</span>
+                    <div className="md-inp">
+                        <User size={18} />
+                        <input value={nameDraft} maxLength={16} onChange={e => setNameDraft(e.target.value)} />
+                    </div>
+                </label>
+                <label className="md-fld">
+                    <span>حساب Kick (لا يمكن تغييره)</span>
+                    <div className="md-inp lkd">
+                        <Lock size={18} />
+                        <input value={username} disabled dir="ltr" />
+                    </div>
+                </label>
+                <button className="md-btn md-gold" style={{ width: '100%' }} onClick={saveName}>
+                    <Save size={17} /> حفظ التعديلات
+                </button>
+            </section>
+
+            <section className="md-card md-s5" style={{ ['--i' as any]: 2 }}>
+                <h2><Shield size={18} /> الأمان والمصادقة</h2>
+                <div className="md-sess"><i /> ACTIVE SESSION — جلسة نشطة</div>
+                <p className="md-mut" style={{ marginBottom: 14 }}>
+                    حسابك محمي بنظام iCG1 للمصادقة المتقدمة. تم ربط جهازك بنجاح.
+                </p>
+                <div className="md-acts" style={{ margin: 0 }}>
+                    <button className="md-btn md-ghost" style={{ flex: 1 }} onClick={() => onLogout?.()}>
+                        <LogOut size={17} /> تسجيل خروج
+                    </button>
+                </div>
+            </section>
+
+            {SupportPanel()}
+
+            <section className="md-card md-s12" style={{ ['--i' as any]: 4 }}>
+                <h2><Settings size={18} /> التفضيلات</h2>
+                <div className="md-tg">
+                    <div className="md-ico"><Volume2 size={18} /></div>
+                    <div className="md-tg-tx"><b>المؤثرات الصوتية</b><small>أصوات عند الشراء والمكافآت</small></div>
+                    <button
+                        className={`md-sw ${prefs.sound ? 'on' : ''}`}
+                        aria-label="المؤثرات الصوتية"
+                        onClick={() => setPrefs(p => ({ ...p, sound: !p.sound }))}
+                    />
+                </div>
+                <div className="md-tg">
+                    <div className="md-ico"><Wand2 size={18} /></div>
+                    <div className="md-tg-tx"><b>تقليل الحركة</b><small>إيقاف الأنيميشن والتأثيرات</small></div>
+                    <button
+                        className={`md-sw ${prefs.calm ? 'on' : ''}`}
+                        aria-label="تقليل الحركة"
+                        onClick={() => setPrefs(p => ({ ...p, calm: !p.calm }))}
+                    />
+                </div>
+            </section>
+        </div>
+    );
+
+    /* ---------- الحظر ---------- */
+    if (ban.active) {
+        return (
+            <div className="mdash" dir="rtl">
+                <div className="md-aur"><i /><i /><i /></div>
+                <div className="md-main" style={{ maxWidth: 680 }}>
+                    <div className="md-card" style={{ marginTop: 60, textAlign: 'center', padding: 40, borderColor: 'rgba(255,93,77,.35)' }}>
+                        <div className="md-ico" style={{ width: 76, height: 76, margin: '0 auto 16px', color: 'var(--bad)' }}>
+                            <Ban size={38} />
+                        </div>
+                        <h1 className="md-ttl" style={{ fontSize: 40 }}>تم حظر حسابك نهائياً</h1>
+                        <div className="md-eyb" style={{ marginBottom: 20 }}>SYSTEM ACCESS DENIED</div>
+                        <div className="md-card" style={{ background: 'rgba(255,93,77,.07)', borderColor: 'rgba(255,93,77,.25)', marginBottom: 20 }}>
+                            <div className="md-mut" style={{ marginBottom: 6 }}>سبب الحظر</div>
+                            <b style={{ fontSize: 18 }}>{ban.reason}</b>
+                        </div>
+                        <button className="md-btn md-danger" onClick={() => onLogout?.()}>
+                            <LogOut size={17} /> تسجيل الخروج
+                        </button>
+                    </div>
                 </div>
             </div>
         );
     }
 
-    // Shared sidebar content used in both desktop and mobile
-    const SidebarContent = () => (
-        <>
-            {isAdmin && (
-                <button
-                    onClick={handleReturnToAdmin}
-                    className="mb-4 w-full relative group py-3 px-4 bg-gradient-to-r from-blue-600/20 to-blue-800/10 hover:from-blue-500/30 hover:to-blue-700/20 rounded-[1rem] border border-blue-500/30 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(59,130,246,0.15)] hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] active:scale-95"
-                >
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-blue-400/10 to-blue-400/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 skew-x-[-20deg]" />
-                    <ShieldAlert size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
-                    <span className="text-blue-300 font-black text-sm tracking-tight drop-shadow-md">الرجوع للإدارة</span>
-                </button>
-            )}
+    return (
+        <div
+            className={`mdash ${prefs.calm ? 'calm' : ''}`}
+            dir="rtl"
+            onMouseMove={e => {
+                const card = (e.target as HTMLElement).closest?.('.md-card') as HTMLElement | null;
+                if (!card) return;
+                const r = card.getBoundingClientRect();
+                card.style.setProperty('--mx', `${e.clientX - r.left}px`);
+                card.style.setProperty('--my', `${e.clientY - r.top}px`);
+            }}
+        >
+            <div className="md-aur"><i /><i /><i /></div>
+            <div className="md-grid-lines" />
 
-            {/* Profile Card */}
-            <div className="relative p-5 rounded-[1.5rem] bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 overflow-hidden group">
-                {/* Animated glow behind avatar */}
-                <div className="absolute top-2 right-4 w-20 h-20 bg-red-600/20 blur-[40px] rounded-full animate-pulse" />
-                <div className="absolute bottom-0 left-0 w-32 h-16 bg-yellow-500/5 blur-[30px] rounded-full" />
-
-                <div className="relative z-10 flex items-center gap-4">
-                    <div className="relative">
-                        {/* Spinning ring around avatar */}
-                        <div className="absolute -inset-1 rounded-full border-2 border-transparent border-t-red-500 border-r-red-500/50 animate-spin" style={{ animationDuration: '3s' }} />
-                        <ProAvatar url={userData.avatar} username={userData.kick_username || (userData as any).kickUsername} size="w-14 h-14" frameUrl={activeFrame || undefined} className="overflow-visible" />
-                    </div>
-                    <div className="overflow-hidden flex-1">
-                        <div className="text-white font-black text-sm truncate mb-0.5 drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">{userData.display_name}</div>
-                        <div className="flex items-center gap-1.5">
-                            <div className="flex items-center gap-1 bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded-lg">
-                                <Gem size={10} className="text-yellow-500" />
-                                <span className="text-yellow-500 text-[10px] font-black">{points.toLocaleString()}</span>
-                            </div>
-                        </div>
-                    </div>
+            <header className="md-dock">
+                <div className="md-brand">
+                    <img src={getAssetUrl('logo-435242.png') || ''} alt="iCG1" />
+                    <span>ICG1</span>
                 </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex flex-col gap-1 mt-2">
-                {navItems.map((item, idx) => {
-                    const isActive = activeView === item.id;
-                    return (
-                        <button
-                            key={item.id}
-                            onClick={() => handleNavClick(item.id as DashboardView)}
-                            className={`relative flex items-center gap-3 px-4 py-3.5 rounded-2xl font-black text-xs transition-all duration-400 overflow-hidden group/nav
-                                ${isActive
-                                    ? 'text-white shadow-[0_4px_20px_rgba(220,38,38,0.3)]'
-                                    : 'text-gray-500 hover:text-white hover:bg-white/[0.04]'
-                                }`}
-                            style={{ animationDelay: `${idx * 60}ms` }}
-                        >
-                            {/* Active background gradient */}
-                            {isActive && (
-                                <div className="absolute inset-0 bg-gradient-to-l from-red-600 via-red-700 to-red-900 rounded-2xl" />
-                            )}
-                            {/* Shine effect on active */}
-                            {isActive && (
-                                <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent rounded-2xl opacity-60" />
-                            )}
-                            {/* Left accent bar */}
-                            {isActive && (
-                                <div className="absolute right-0 top-2 bottom-2 w-1 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.6)]" />
-                            )}
-
-                            <div className={`relative z-10 w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300
-                                ${isActive ? 'bg-white/20 shadow-inner' : 'bg-white/[0.04] group-hover/nav:bg-white/[0.08]'}`}>
-                                <item.icon size={15} className={isActive ? 'drop-shadow-[0_0_6px_rgba(255,255,255,0.5)]' : ''} />
-                            </div>
-                            <div className="relative z-10 flex flex-col items-start">
-                                <span className="leading-tight">{item.label}</span>
-                                <span className={`text-[8px] font-bold uppercase tracking-widest ${isActive ? 'text-white/50' : 'text-gray-700'}`}>{item.subtitle}</span>
-                            </div>
-                            {isActive && (
-                                <div className="relative z-10 mr-auto">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
+                <nav className="md-nav">
+                    {NAV.map(n => {
+                        const Icon = n.icon;
+                        return (
+                            <button key={n.id} className={view === n.id ? 'on' : ''} onClick={() => go(n.id)}>
+                                <Icon size={17} /> {n.label}
+                            </button>
+                        );
+                    })}
+                </nav>
+                <div className="md-chips">
+                    <div className="md-bellwrap">
+                        <button className="md-chip md-bell" onClick={toggleBell} aria-label="الإشعارات" aria-expanded={bellOpen}>
+                            <Bell size={18} />
+                            {unread > 0 && <span className="md-badge">{unread > 9 ? '9+' : unread}</span>}
+                        </button>
+                        {bellOpen && (
+                            <>
+                                <div className="md-bellscrim" onClick={() => setBellOpen(false)} />
+                                <div className="md-bellpanel" role="dialog" aria-label="الإشعارات">
+                                    <div className="md-bellhead">
+                                        <b>إشعاراتك</b>
+                                        <button onClick={markAllRead} disabled={unread === 0}>تعليم الكل كمقروء</button>
+                                    </div>
+                                    <div className="md-bellbody">
+                                        {notifs.length === 0 ? (
+                                            <div className="md-bellone">
+                                                <Bell size={20} />
+                                                <span>لا إشعارات لك الآن</span>
+                                            </div>
+                                        ) : notifs.map(n => (
+                                            <button
+                                                key={n.id}
+                                                className={`md-br ${n.read ? '' : 'un'}`}
+                                                onClick={() => markRead(String(n.id), !!n.read)}
+                                            >
+                                                <b>{n.title}</b>
+                                                <small>{n.body}</small>
+                                                <em>{shortDate(n.sent_at)}</em>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                            )}
+                            </>
+                        )}
+                    </div>
+                    <button className="md-chip" onClick={() => go('store')} aria-label="رصيد النقاط">
+                        <Gem size={18} /> <span>{fmt(points)}</span>
+                    </button>
+                    <button className="md-chip md-mini" onClick={() => go('settings')} aria-label="الحساب">
+                        <span className="md-mini-av">
+                            <MemberAvatar name={displayName} kickName={username} src={avatarSrc} frameId={activeFrameId} boxClass="md-avbox-xs" />
+                        </span>
+                    </button>
+                </div>
+            </header>
+
+            {/* دوال عرض لا مكوّنات: لو نُودّيت <HomeView/> لتكرّر تركيب الصفحة مع كل ضغطة حرف وطار التركيز */}
+            <main className="md-main">
+                {view === 'home' && HomeView()}
+                {view === 'store' && StoreView()}
+                {view === 'locker' && LockerView()}
+                {view === 'rank' && RankView()}
+                {view === 'settings' && SettingsView()}
+            </main>
+
+            <nav className="md-tabs">
+                {NAV.map(n => {
+                    const Icon = n.icon;
+                    return (
+                        <button key={n.id} className={view === n.id ? 'on' : ''} onClick={() => go(n.id)}>
+                            <Icon size={21} /> {n.label}
                         </button>
                     );
                 })}
             </nav>
 
-            {/* VIP Banner */}
-            <div className="mt-auto pt-4 border-t border-white/5">
-                <div className="relative bg-gradient-to-br from-red-950/60 via-red-900/20 to-black/40 p-5 rounded-[1.5rem] border border-red-500/15 overflow-hidden group cursor-pointer hover:border-red-500/30 transition-all">
-                    {/* Animated particles */}
-                    <div className="absolute top-2 left-4 w-1 h-1 bg-red-500/40 rounded-full animate-ping" style={{ animationDuration: '2s' }} />
-                    <div className="absolute bottom-4 right-8 w-1 h-1 bg-yellow-500/30 rounded-full animate-ping" style={{ animationDuration: '3s', animationDelay: '1s' }} />
-                    <div className="absolute top-6 right-3 w-0.5 h-0.5 bg-white/20 rounded-full animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }} />
-
-                    <Sparkles size={50} className="absolute -bottom-3 -right-3 text-red-600/10 group-hover:text-red-600/20 group-hover:scale-125 transition-all duration-700" />
-                    <Crown size={20} className="absolute top-3 left-3 text-yellow-500/10 group-hover:text-yellow-500/20 transition-all" />
-
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className="bg-gradient-to-r from-red-600 to-red-500 px-2 py-0.5 rounded-md">
-                                <span className="text-[9px] font-black text-white uppercase tracking-widest">VIP</span>
-                            </div>
-                            <span className="text-[10px] font-black text-red-500/80 uppercase tracking-wider">iCG1</span>
-                        </div>
-                        <div className="text-white/70 font-bold text-[11px] leading-relaxed">ارفع مستواك للحصول على خصومات حصرية في المتجر!</div>
-                    </div>
+            {toast && (
+                <div className={`md-toast show ${toast.type}`} role="status">
+                    {toast.type === 'bad' ? <XIcon size={17} /> : <Check size={17} />} {toast.msg}
                 </div>
-            </div>
-        </>
-    );
-
-    return (
-        <div className="icg1-user-dashboard flex flex-col md:flex-row w-full h-full min-h-[500px] bg-gradient-to-br from-black/60 via-zinc-950/50 to-black/60 backdrop-blur-3xl rounded-[1.5rem] border border-white/[0.06] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5),0_0_100px_rgba(220,38,38,0.03)] animate-in zoom-in duration-500" dir="rtl">
-
-            {/* ===== MOBILE TOP BAR ===== */}
-            <div className="flex md:hidden items-center justify-between px-4 py-3 bg-gradient-to-l from-red-950/30 via-zinc-950/80 to-zinc-950/80 border-b border-white/5">
-                <div className="flex items-center gap-3">
-                    <div className="relative">
-                        <div className="absolute -inset-0.5 rounded-full border border-transparent border-t-red-500/50 animate-spin" style={{ animationDuration: '3s' }} />
-                        <ProAvatar url={userData.avatar} username={userData.kick_username || (userData as any).kickUsername} size="w-9 h-9" frameUrl={activeFrame || undefined} className="overflow-visible" />
-                    </div>
-                    <div>
-                        <div className="text-white font-black text-xs">{userData.display_name}</div>
-                        <div className="flex items-center gap-1">
-                            <Gem size={8} className="text-yellow-500" />
-                            <span className="text-yellow-500 text-[9px] font-black">{points.toLocaleString()}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <button
-                    onClick={() => setMobileMenuOpen(true)}
-                    className="relative p-2.5 bg-white/5 hover:bg-red-600/20 rounded-xl border border-white/10 hover:border-red-500/30 transition-all active:scale-90"
-                >
-                    <Menu size={18} className="text-white" />
-                    <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_4px_rgba(220,38,38,0.8)]" />
-                </button>
-            </div>
-
-            {/* ===== MOBILE DRAWER OVERLAY ===== */}
-            {mobileMenuOpen && (
-                <div
-                    className="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-sm md:hidden animate-in fade-in duration-300"
-                    onClick={() => setMobileMenuOpen(false)}
-                />
             )}
 
-            {/* ===== MOBILE DRAWER ===== */}
-            <div className={`fixed inset-y-0 right-0 z-[9999] w-[280px] md:hidden flex flex-col
-                bg-gradient-to-b from-zinc-950 via-zinc-950/98 to-black
-                border-l border-white/[0.06]
-                shadow-[-20px_0_60px_rgba(0,0,0,0.8),0_0_40px_rgba(220,38,38,0.05)]
-                transition-transform duration-500 ease-out
-                ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}
-            >
-                {/* Drawer header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-gradient-to-l from-red-600/10 to-transparent">
-                    <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_6px_rgba(220,38,38,0.8)]" />
-                        <span className="text-white font-black text-sm italic tracking-tight">حسابي</span>
-                        <span className="text-red-500/40 font-bold text-[8px] uppercase tracking-widest">MY ACCOUNT</span>
-                    </div>
-                    <button
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="p-2 bg-white/5 hover:bg-red-600 rounded-xl border border-white/10 hover:border-red-500/30 transition-all active:scale-90 text-gray-400 hover:text-white"
-                    >
-                        <X size={14} />
-                    </button>
-                </div>
-
-                {/* Drawer content */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-3">
-                    {/* Decorative glow */}
-                    <div className="absolute top-20 right-0 w-40 h-40 bg-red-600/5 blur-[80px] rounded-full pointer-events-none" />
-
-                    <SidebarContent />
-                </div>
-            </div>
-
-            {/* ===== DESKTOP SIDEBAR ===== */}
-            <aside className="hidden md:flex w-64 bg-gradient-to-b from-zinc-950/80 via-zinc-950/60 to-black/80 border-l border-white/[0.06] p-4 flex-col gap-3 relative overflow-hidden">
-                {/* Subtle background glows */}
-                <div className="absolute top-0 right-0 w-40 h-40 bg-red-600/5 blur-[60px] rounded-full pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-600/3 blur-[50px] rounded-full pointer-events-none" />
-
-                <SidebarContent />
-            </aside>
-
-            {/* ===== MAIN CONTENT ===== */}
-            <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 bg-gradient-to-br from-transparent via-black/10 to-red-950/[0.03] relative">
-                {/* Subtle corner glow */}
-                <div className="absolute top-0 left-0 w-60 h-60 bg-red-600/[0.03] blur-[80px] rounded-full pointer-events-none" />
-                <div className="relative z-10">
-                    {renderView()}
-                </div>
-            </main>
-        </div>
-    );
-};
-
-// --- SUB-COMPONENTS ---
-
-const Overview = ({ userData }: any) => {
-    const [history, setHistory] = useState<any[]>([]);
-    const [stats, setStats] = useState({ purchases: 0, rank: '...' });
-
-    useEffect(() => {
-        const fetchOverviewData = async () => {
-            const username = (userData.kick_username || (userData as any).kickUsername)?.toLowerCase();
-            if (!username) return;
-
-            // 1. Fetch transactions
-            const { data: transData } = await supabase
-                .from('transactions')
-                .select('*')
-                .eq('user_id', userData.id)
-                .order('created_at', { ascending: false })
-                .limit(5);
-            if (transData) setHistory(transData);
-
-            // 2. Fetch inventory count
-            const { count } = await supabase
-                .from('user_inventory')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', userData.id);
-
-            // 3. Fetch rank (simple implementation based on score)
-            const { data: rankData } = await supabase
-                .from('leaderboard')
-                .select('username, score')
-                .order('score', { ascending: false });
-
-            let userRank = 'N/A';
-            if (rankData) {
-                const index = rankData.findIndex(r => r.username.toLowerCase() === username);
-                if (index !== -1) userRank = `#${index + 1}`;
-            }
-
-            setStats({ purchases: count || 0, rank: userRank });
-        };
-        fetchOverviewData();
-    }, [userData.id, userData.kick_username, (userData as any).kickUsername]);
-
-    return (
-        <div className="space-y-4 animate-in slide-in-from-bottom-10 duration-700">
-            <header className="relative py-4 md:py-6 bg-gradient-to-l from-red-600/20 to-transparent rounded-[2rem] border border-red-500/10 px-6 md:px-8 overflow-hidden mb-4">
-                <Sparkles className="absolute top-3 right-3 text-red-600/20" size={60} />
-                <h1 className="text-2xl md:text-3xl font-black italic text-white tracking-tighter mb-1 relative z-10 drop-shadow-2xl">أهلاً بك، {userData.display_name}</h1>
-                <p className="text-red-500/60 font-black text-[10px] tracking-widest uppercase relative z-10">MEMBER DASHBOARD</p>
-            </header>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatsCard label="إجمالي النقاط" value={(userData.points || 0).toLocaleString()} icon={Wallet} color="text-yellow-500" />
-                <StatsCard label="المرتبة الحالية" value={stats.rank} icon={Trophy} color="text-red-500" />
-                <StatsCard label="عدد المشتريات" value={stats.purchases.toString()} icon={ShoppingBag} color="text-blue-500" />
-            </div>
-
-            <div className="bg-white/[0.02] border border-white/5 rounded-[1.5rem] p-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-48 h-48 bg-red-600/5 blur-[80px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                <div className="relative z-10">
-                    <h3 className="text-white font-black text-base mb-4 flex items-center gap-2"><Zap className="text-red-500" size={16} /> آخر النشاطات</h3>
-                    <div className="space-y-2">
-                        {history.length > 0 ? history.map(item => (
-                            <ActivityItem key={item.id} label={item.description} time={new Date(item.created_at).toLocaleDateString('ar-SA')} points={item.amount > 0 ? `+${item.amount}` : item.amount.toString()} type={item.type === 'PURCHASE' ? 'purchase' : 'reward'} />
-                        )) : (
-                            <div className="text-center py-6 opacity-20 font-bold italic text-sm">لا توجد نشاطات مؤخراً</div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const Store = ({ userId, kickUsername, points, onPurchase }: any) => {
-    const [items, setItems] = useState<any[]>([]);
-    const [ownedItemsIds, setOwnedItemsIds] = useState<Set<string>>(new Set());
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            const [{ data: storeItems }, { data: userInv }] = await Promise.all([
-                supabase.from('store_items').select('*').eq('is_active', true).order('price', { ascending: true }),
-                supabase.from('user_inventory').select('item_id').eq('user_id', userId)
-            ]);
-
-            if (storeItems) {
-                const sorted = [...storeItems].sort((a, b) => {
-                    const aConfig = typeof a.config === 'string' ? JSON.parse(a.config) : a.config;
-                    const bConfig = typeof b.config === 'string' ? JSON.parse(b.config) : b.config;
-                    const aRest = aConfig?.restrictedTo;
-                    const bRest = bConfig?.restrictedTo;
-
-                    if (aRest && !bRest) return 1;
-                    if (!aRest && bRest) return -1;
-                    return (a.price || 0) - (b.price || 0);
-                });
-                setItems(sorted);
-            }
-            if (userInv) {
-                const ids = new Set(userInv.map((inv: any) => inv.item_id));
-                setOwnedItemsIds(ids);
-            }
-            setLoading(false);
-        };
-        fetchData();
-    }, [userId]);
-
-    const handleBuy = async (item: any) => {
-        if (ownedItemsIds.has(item.id)) {
-            alert('أنت تملك هذا الغرض بالفعل!');
-            return;
-        }
-
-        if (points < item.price) {
-            alert('نقاطك غير كافية!');
-            return;
-        }
-
-        const confirmPurchase = window.confirm(`هل تريد شراء ${item.name} مقابل ${item.price} نقطة؟`);
-        if (!confirmPurchase) return;
-
-        try {
-            const newPoints = points - item.price;
-            const { error: updateError } = await supabase
-                .from('leaderboard')
-                .update({ score: newPoints })
-                .ilike('username', kickUsername);
-
-            if (updateError) throw updateError;
-            await supabase.from('users').update({ points: newPoints }).eq('id', userId);
-
-            await supabase.from('user_inventory').insert({ user_id: userId, item_id: item.id });
-            await supabase.from('transactions').insert({ user_id: userId, amount: -item.price, type: 'PURCHASE', description: `شراء ${item.name}` });
-
-            onPurchase(newPoints);
-            setOwnedItemsIds(prev => new Set([...prev, item.id]));
-            alert('تم الشراء بنجاح! يمكنك تفعيله من الخزانة.');
-        } catch (e) {
-            console.error(e);
-            alert('حدث خطأ أثناء العملية.');
-        }
-    };
-
-    // Helper to get tier color based on price
-    const getTierColor = (price: number) => {
-        if (price >= 5000) return 'from-purple-600 via-pink-500 to-rose-500'; // Legendary
-        if (price >= 3000) return 'from-yellow-400 via-amber-500 to-orange-500'; // Gold
-        if (price >= 1500) return 'from-slate-300 via-gray-400 to-zinc-500'; // Silver
-        return 'from-amber-700 via-orange-800 to-red-900'; // Bronze/Common
-    };
-
-    const getGlowColor = (price: number) => {
-        if (price >= 5000) return 'bg-purple-500/20';
-        if (price >= 3000) return 'bg-yellow-500/20';
-        if (price >= 1500) return 'bg-white/20';
-        return 'bg-amber-700/20';
-    };
-
-    return (
-        <div className="space-y-10 animate-in slide-in-from-bottom-10 duration-700">
-            <header className="relative flex flex-col md:flex-row md:items-end justify-between gap-6 bg-gradient-to-br from-zinc-900 to-black p-8 rounded-[2.5rem] border border-white/5 overflow-hidden">
-                <div className="absolute top-0 right-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 mix-blend-overlay"></div>
-                <div className="absolute -top-24 -left-24 w-64 h-64 bg-red-600/20 blur-[100px] rounded-full"></div>
-                
-                <div className="relative z-10">
-                    <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 tracking-tighter mb-2 drop-shadow-lg">المتجر الحصري</h1>
-                    <p className="text-red-500/80 font-bold text-sm tracking-widest uppercase flex items-center gap-2">
-                        <Sparkles size={14} /> Premium Skins & Items
-                    </p>
-                </div>
-                
-                <div className="relative z-10 flex items-center gap-5 bg-black/40 backdrop-blur-xl border border-white/10 p-4 pr-6 rounded-3xl shadow-2xl">
-                    <div className="flex flex-col items-end">
-                        <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-0.5">رصيدك الحالي</span>
-                        <span className="text-white font-black text-2xl tracking-tighter leading-none">{points.toLocaleString()}</span>
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(234,179,8,0.3)]">
-                        <Gem className="text-black" size={24} />
-                    </div>
-                </div>
-            </header>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
-                {items.map((item) => {
-                    const isOwned = ownedItemsIds.has(item.id);
-                    const config = typeof item.config === 'string' ? JSON.parse(item.config) : item.config;
-                    const restrictedTo = config?.restrictedTo;
-                    const isForbidden = restrictedTo && restrictedTo.toLowerCase() !== kickUsername?.toLowerCase();
-                    const tierGradient = config?.glowColor || getTierColor(item.price);
-                    const glowColorClass = config?.glowColor 
-                        ? `bg-gradient-to-br ${config.glowColor} opacity-20` 
-                        : getGlowColor(item.price);
-
-                    return (
-                        <div key={item.id} className={`group relative bg-zinc-950 rounded-[2rem] p-1 transition-all duration-500 hover:-translate-y-2 ${isOwned ? 'opacity-70' : isForbidden ? 'grayscale-[0.8] opacity-50' : 'hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)]'}`}>
-                            {/* Animated Border Gradient */}
-                            <div className={`absolute inset-0 rounded-[2rem] bg-gradient-to-b ${tierGradient} opacity-50 group-hover:opacity-100 transition-opacity duration-500`}></div>
-                            
-                            {/* Card Content Container */}
-                            <div className="relative h-full bg-zinc-950/90 backdrop-blur-xl rounded-[1.9rem] p-5 flex flex-col overflow-hidden">
-                                
-                                {/* Background Glow */}
-                                <div className={`absolute top-0 right-0 w-32 h-32 ${glowColorClass} blur-[60px] rounded-full transition-all duration-500 group-hover:scale-150`}></div>
-
-                                {isOwned && (
-                                    <div className="absolute top-3 right-3 bg-green-500/20 text-green-400 p-1.5 rounded-full backdrop-blur-md border border-green-500/30 z-20">
-                                        <CheckCircle size={16} />
-                                    </div>
-                                )}
-
-                                {/* Image Section - No Border/Background */}
-                                <div className="relative w-full aspect-square flex items-center justify-center mb-4 overflow-visible">
-                                    
-                                    <div className={`relative z-20 w-24 h-24 flex items-center justify-center transition-transform duration-700 group-hover:scale-110 ${item.type === 'FRAME' ? '' : 'bg-gradient-to-br from-zinc-800 to-black rounded-full border border-white/10 shadow-2xl'}`}>
-                                        {!item.image_url && item.type === 'EFFECT' ? (
-                                            <Sparkles size={40} className="text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]" />
-                                        ) : !item.image_url && item.type === 'BADGE' ? (
-                                            <Crown size={40} className="text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)]" />
-                                        ) : (
-                                            <User size={36} className={`${item.type === 'FRAME' ? 'text-white/5' : 'text-white/10'}`} />
-                                        )}
-                                        
-                                        {item.image_url && (
-                                            <img
-                                                src={item.type === 'FRAME' ? getFrameUrl(item.image_url) : getAssetUrl(item.image_url)}
-                                                className={`absolute inset-0 w-full h-full object-contain drop-shadow-2xl ${item.type === 'FRAME' ? 'scale-[1.45]' : 'scale-125'}`}
-                                                alt={item.name}
-                                                onError={(e) => { (e.target as any).style.display = 'none'; }}
-                                            />
-                                        )}
-                                    </div>
-
-                                    {/* Item Type Badge - Made Smaller */}
-                                    <div className="absolute top-0 left-0 z-20">
-                                        <span className={`bg-black/40 backdrop-blur-md px-2 py-1 rounded-lg text-[7px] font-black text-white border border-white/10 uppercase tracking-widest shadow-lg ${config?.glowColor ? 'border-b-2' : ''}`} style={config?.glowColor ? { borderBottomColor: 'currentColor' } : {}}>
-                                            {item.type}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Text Section */}
-                                <div className="relative z-20 flex-1 flex flex-col">
-                                    <div className="mb-6">
-                                        <h4 className={`text-2xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-l ${tierGradient}`}>{item.name}</h4>
-                                        <p className="text-gray-400 text-sm font-medium leading-relaxed">{item.description}</p>
-                                    </div>
-
-                                    {/* Action Button */}
-                                    <button
-                                        onClick={() => !isOwned && !isForbidden && handleBuy(item)}
-                                        disabled={loading || isOwned || isForbidden}
-                                        className={`w-full mt-auto py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-3 overflow-hidden relative
-                                            ${isOwned
-                                                ? 'bg-green-500/10 text-green-500 border border-green-500/20'
-                                                : isForbidden
-                                                    ? 'bg-zinc-900 text-zinc-600 border border-white/5'
-                                                    : `bg-gradient-to-r ${tierGradient} text-white hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:scale-[1.02]`}`}
-                                    >
-                                        {isOwned ? (
-                                            <><span>مملوك بالفعل</span></>
-                                        ) : isForbidden ? (
-                                            <><Lock size={18} /><span>مقفل</span></>
-                                        ) : (
-                                            <>
-                                                <ShoppingBag size={18} />
-                                                <span>{item.price === 0 ? 'مجاني' : `${item.price.toLocaleString()} نقطة`}</span>
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
-};
-
-const Locker = ({ userId, kickUsername, onEquipChanged }: any) => {
-    const [ownedItems, setOwnedItems] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-
-    useEffect(() => {
-        const fetchOwned = async () => {
-            const { data } = await supabase
-                .from('user_inventory')
-                .select('*, store_items(*)')
-                .eq('user_id', userId);
-            if (data) setOwnedItems(data);
-        };
-        fetchOwned();
-    }, [userId]);
-
-    const toggleEquip = async (inventoryId: string, currentStatus: boolean, itemType: string) => {
-        setIsLoading(true);
-        try {
-            // 1. If equipping, unequip others of ONLY the same type
-            if (!currentStatus) {
-                // Fetch all owned items to find those of the same type
-                const { data: currentInventory } = await supabase
-                    .from('user_inventory')
-                    .select('id, item_id, store_items(type)')
-                    .eq('user_id', userId);
-
-                if (currentInventory) {
-                    const sameTypeIds = currentInventory
-                        .filter((inv: any) => inv.store_items.type === itemType)
-                        .map((inv: any) => inv.id);
-
-                    if (sameTypeIds.length > 0) {
-                        await supabase
-                            .from('user_inventory')
-                            .update({ is_equipped: false })
-                            .in('id', sameTypeIds);
-                    }
-                }
-            }
-
-            // 2. Toggle the selected item
-            const newStatus = !currentStatus;
-            await supabase
-                .from('user_inventory')
-                .update({ is_equipped: newStatus })
-                .eq('id', inventoryId);
-
-            // 3. If it's a FRAME, update profiles.active_frame_url
-            if (itemType === 'FRAME') {
-                const { data: itemData } = await supabase
-                    .from('store_items')
-                    .select('image_url')
-                    .eq('id', (ownedItems.find(i => i.id === inventoryId))?.item_id)
-                    .single();
-
-                const frameUrl = newStatus ? itemData?.image_url : null;
-                const uLower = kickUsername?.toLowerCase();
-                if (uLower) {
-                    await supabase.from('profiles').update({ active_frame_url: frameUrl }).ilike('username', uLower);
-                } else {
-                    await supabase.from('profiles').update({ active_frame_url: frameUrl }).eq('id', userId);
-                }
-                if (onEquipChanged) onEquipChanged(frameUrl);
-            }
-
-            // Refresh
-            const { data } = await supabase
-                .from('user_inventory')
-                .select('*, store_items(*)')
-                .eq('user_id', userId);
-            if (data) setOwnedItems(data);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <div className="space-y-8 animate-in slide-in-from-bottom-10 duration-700">
-            <header>
-                <h1 className="text-4xl font-black italic text-white tracking-tighter mb-2">الخزانة الخاصة</h1>
-                <p className="text-gray-500 font-bold text-sm tracking-widest uppercase">My Collection / Inventory</p>
-            </header>
-
-            {ownedItems.length === 0 ? (
-                <div className="bg-white/5 border border-dashed border-white/10 rounded-[2.5rem] p-20 flex flex-col items-center justify-center text-center">
-                    <Box size={64} className="text-gray-700 mb-6" />
-                    <h3 className="text-white font-black text-xl mb-2">خزانتك فارغة</h3>
-                    <p className="text-gray-500 font-bold text-sm">توجه إلى المتجر للحصول على الإطارات والمميزات الحصرية.</p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {ownedItems.map((inv) => (
-                        <div key={inv.id} className={`bg-white/[0.03] border rounded-[2rem] p-6 transition-all group ${inv.is_equipped ? 'border-green-500/50 shadow-[0_0_30px_rgba(34,197,94,0.1)]' : 'border-white/10'}`}>
-                            <div className="w-full aspect-square bg-black/60 rounded-3xl border border-white/5 flex items-center justify-center mb-6 relative overflow-hidden">
-                                <div className={`w-20 h-20 flex items-center justify-center relative ${inv.store_items.type === 'FRAME' ? '' : 'bg-zinc-800 rounded-full border border-white/10 overflow-hidden shadow-2xl'}`}>
-                                    <User size={40} className={`${inv.store_items.type === 'FRAME' ? 'text-white/10' : 'mt-5 text-zinc-700'}`} />
-                                    {inv.store_items.image_url && (
-                                        <img
-                                            src={inv.store_items.type === 'FRAME' ? getFrameUrl(inv.store_items.image_url) : getAssetUrl(inv.store_items.image_url)}
-                                            className={`absolute inset-0 w-full h-full object-contain ${inv.store_items.type === 'FRAME' ? 'scale-[1.45]' : 'scale-125'}`}
-                                            alt=""
-                                        />
-                                    )}
-                                </div>
-
-                                {inv.store_items.type === 'FRAME' && !inv.store_items.image_url && (
-                                    <div className="w-24 h-24 rounded-2xl border-4" style={inv.store_items.config}>
-                                    </div>
-                                )}
-
-                                {inv.is_equipped && (
-                                    <div className="absolute top-4 right-4 animate-in zoom-in duration-300">
-                                        <div className="bg-green-500 text-black px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-500/20">
-                                            ACTIVE
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            <h4 className="text-white font-black text-lg mb-4">{inv.store_items.name}</h4>
+            {confirm && (
+                <div className="md-md" onClick={() => setConfirm(null)}>
+                    <div className="md-card" onClick={e => e.stopPropagation()}>
+                        <div className="md-ico"><ShoppingBag size={26} /></div>
+                        <h2>{confirm.title}</h2>
+                        <p>{confirm.body}</p>
+                        <div className="md-acts">
                             <button
-                                onClick={() => toggleEquip(inv.id, inv.is_equipped, inv.store_items.type)}
-                                className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all ${inv.is_equipped ? 'bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white' : 'bg-green-600 text-white hover:bg-green-500'}`}
+                                className={`md-btn ${confirm.danger ? 'md-danger' : 'md-gold'}`}
+                                onClick={() => { const fn = confirm.onOk; setConfirm(null); fn(); }}
                             >
-                                {inv.is_equipped ? 'إيقاف التفعيل' : 'تفعيل الآن'}
+                                {confirm.ok}
                             </button>
+                            <button className="md-btn md-ghost" onClick={() => setConfirm(null)}>إلغاء</button>
                         </div>
-                    ))}
+                    </div>
                 </div>
             )}
         </div>
     );
 };
-
-const Rankings = () => {
-    const [players, setPlayers] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchRankings = async () => {
-            const { data: leaderboardData } = await supabase
-                .from('leaderboard')
-                .select('*')
-                .order('score', { ascending: false })
-                .limit(20);
-
-            if (leaderboardData) {
-                // Fetch profiles to get frames
-                const usernames = leaderboardData.map(p => p.username.toLowerCase());
-                const { data: profileData } = await supabase
-                    .from('profiles')
-                    .select('username, active_frame_url')
-                    .in('username', usernames);
-
-                const playersWithFrames = leaderboardData.map(player => {
-                    const profile = profileData?.find(p => p.username.toLowerCase() === player.username.toLowerCase());
-                    return {
-                        ...player,
-                        active_frame_url: profile?.active_frame_url
-                    };
-                });
-                setPlayers(playersWithFrames);
-            }
-            setLoading(false);
-        };
-        fetchRankings();
-    }, []);
-
-    const getRankStyle = (index: number) => {
-        if (index === 0) return { bg: 'from-yellow-500/20 via-yellow-600/10 to-transparent', border: 'border-yellow-500/30', badge: 'bg-yellow-500 text-black', color: 'text-yellow-500', glow: 'shadow-[0_0_20px_rgba(234,179,8,0.15)]' };
-        if (index === 1) return { bg: 'from-slate-400/15 via-slate-500/5 to-transparent', border: 'border-slate-400/20', badge: 'bg-slate-400 text-black', color: 'text-slate-400', glow: '' };
-        if (index === 2) return { bg: 'from-orange-700/15 via-orange-800/5 to-transparent', border: 'border-orange-700/20', badge: 'bg-orange-700 text-white', color: 'text-orange-600', glow: '' };
-        return { bg: 'from-transparent to-transparent', border: 'border-white/5', badge: 'bg-white/10 text-gray-500', color: 'text-gray-400', glow: '' };
-    };
-
-    return (
-        <div className="space-y-6 animate-in slide-in-from-bottom-10 duration-700">
-            {/* Header */}
-            <header className="relative text-center py-6 bg-gradient-to-l from-red-600/10 via-transparent to-red-600/10 rounded-[2rem] border border-red-500/10 overflow-hidden">
-                <div className="absolute top-2 right-4 w-20 h-20 bg-yellow-500/10 blur-[40px] rounded-full" />
-                <div className="absolute bottom-0 left-4 w-16 h-16 bg-red-500/10 blur-[30px] rounded-full" />
-                <Crown className="mx-auto text-yellow-500/30 mb-2" size={32} />
-                <h1 className="text-2xl md:text-4xl font-black italic text-white tracking-tighter mb-1 relative z-10">لوحة الصدارة</h1>
-                <p className="text-red-500/40 font-black text-[9px] md:text-[10px] tracking-[0.3em] uppercase relative z-10">GLOBAL MEMBER RANKINGS</p>
-            </header>
-
-            {loading ? (
-                <div className="py-20 flex flex-col items-center justify-center">
-                    <div className="relative">
-                        <Zap size={40} className="text-red-500 animate-pulse" />
-                        <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full animate-ping" />
-                    </div>
-                    <span className="text-gray-500 font-black italic mt-4 text-sm tracking-widest">GATHERING LEGENDS...</span>
-                </div>
-            ) : players.length === 0 ? (
-                <div className="py-20 flex flex-col items-center justify-center opacity-30">
-                    <Trophy size={50} strokeWidth={1} className="text-gray-600 mb-4" />
-                    <span className="text-gray-500 font-black italic text-sm">لا يوجد متنافسين بعد</span>
-                </div>
-            ) : (
-                <>
-                    {/* === TOP 3 PODIUM (Mobile: vertical cards, Desktop: horizontal) === */}
-                    {players.length >= 3 && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 md:items-end">
-                            {/* 2nd Place */}
-                            {players[1] && (
-                                <div className="order-2 md:order-1 relative bg-gradient-to-br from-slate-400/10 to-transparent rounded-[1.5rem] p-4 md:p-5 border border-slate-400/20 flex items-center md:flex-col md:items-center gap-4 md:gap-3 md:h-[180px] md:justify-center overflow-hidden group hover:border-slate-400/40 transition-all">
-                                    <div className="absolute top-0 right-0 w-20 h-20 bg-slate-400/5 blur-[30px] rounded-full" />
-                                    <div className="relative flex-shrink-0">
-                                        <ProAvatar url={players[1].avatar_url} username={players[1].username} frameUrl={players[1].active_frame_url} size="w-12 h-12 md:w-14 md:h-14" className="shadow-lg" />
-                                        <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-slate-400 text-black flex items-center justify-center font-black text-[10px] border-2 border-black z-[110] shadow">2</div>
-                                    </div>
-                                    <div className="flex-1 md:text-center min-w-0">
-                                        <div className="text-white font-black text-sm truncate">{players[1].username}</div>
-                                        <div className="flex items-center gap-3 md:justify-center mt-1">
-                                            <span className="text-slate-400 font-bold text-xs">{players[1].score?.toLocaleString() || 0} نقطة</span>
-                                            <span className="text-white/10">|</span>
-                                            <span className="text-slate-400/60 font-bold text-xs">{players[1].wins || 0} فوز</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* 1st Place */}
-                            {players[0] && (
-                                <div className="order-1 md:order-2 relative bg-gradient-to-br from-yellow-500/15 via-yellow-600/5 to-transparent rounded-[1.5rem] p-4 md:p-6 border border-yellow-500/30 flex items-center md:flex-col md:items-center gap-4 md:gap-3 md:h-[220px] md:justify-center overflow-hidden group hover:border-yellow-500/50 transition-all shadow-[0_0_30px_rgba(234,179,8,0.08)]">
-                                    <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/10 blur-[40px] rounded-full animate-pulse" />
-                                    <div className="absolute -top-4 md:top-auto md:-top-2 left-1/2 -translate-x-1/2 hidden md:block">
-                                        <Crown size={30} className="text-yellow-500/20" />
-                                    </div>
-                                    <div className="relative flex-shrink-0">
-                                        <div className="absolute -inset-2 bg-yellow-500/10 blur-xl rounded-full animate-pulse" />
-                                        <ProAvatar url={players[0].avatar_url} username={players[0].username} frameUrl={players[0].active_frame_url} size="w-14 h-14 md:w-16 md:h-16" className="shadow-[0_0_15px_rgba(234,179,8,0.2)]" />
-                                        <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-yellow-500 text-black flex items-center justify-center font-black text-xs border-2 border-black z-[110] shadow animate-bounce" style={{ animationDuration: '2s' }}>1</div>
-                                    </div>
-                                    <div className="flex-1 md:text-center min-w-0">
-                                        <div className="text-white font-black text-base md:text-lg italic truncate drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">{players[0].username}</div>
-                                        <div className="flex items-center gap-3 md:justify-center mt-1">
-                                            <div className="bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded-lg">
-                                                <span className="text-yellow-500 font-black text-xs">{players[0].score?.toLocaleString() || 0}</span>
-                                            </div>
-                                            <span className="text-yellow-500/40 font-bold text-xs">{players[0].wins || 0} فوز</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* 3rd Place */}
-                            {players[2] && (
-                                <div className="order-3 relative bg-gradient-to-br from-orange-700/10 to-transparent rounded-[1.5rem] p-4 md:p-5 border border-orange-700/20 flex items-center md:flex-col md:items-center gap-4 md:gap-3 md:h-[160px] md:justify-center overflow-hidden group hover:border-orange-700/40 transition-all">
-                                    <div className="absolute bottom-0 left-0 w-16 h-16 bg-orange-700/5 blur-[25px] rounded-full" />
-                                    <div className="relative flex-shrink-0">
-                                        <ProAvatar url={players[2].avatar_url} username={players[2].username} frameUrl={players[2].active_frame_url} size="w-11 h-11 md:w-12 md:h-12" className="shadow" />
-                                        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-orange-700 text-white flex items-center justify-center font-black text-[9px] border-2 border-black z-[110] shadow">3</div>
-                                    </div>
-                                    <div className="flex-1 md:text-center min-w-0">
-                                        <div className="text-white font-black text-sm truncate">{players[2].username}</div>
-                                        <div className="flex items-center gap-3 md:justify-center mt-1">
-                                            <span className="text-orange-600 font-bold text-xs">{players[2].score?.toLocaleString() || 0} نقطة</span>
-                                            <span className="text-white/10">|</span>
-                                            <span className="text-orange-700/60 font-bold text-xs">{players[2].wins || 0} فوز</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* === REST OF PLAYERS (4+) === */}
-                    {players.length > 3 && (
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-3 px-2 py-2">
-                                <div className="h-px flex-1 bg-gradient-to-l from-transparent via-white/10 to-transparent" />
-                                <span className="text-gray-600 font-black text-[8px] uppercase tracking-[0.3em]">المتنافسين</span>
-                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                            </div>
-
-                            {players.slice(3).map((player, index) => (
-                                <div
-                                    key={player.id}
-                                    className="flex items-center gap-3 p-3 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-white/10 rounded-2xl transition-all group animate-in slide-in-from-right duration-500"
-                                    style={{ animationDelay: `${index * 50}ms` }}
-                                >
-                                    {/* Rank */}
-                                    <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center font-black text-xs text-gray-500 group-hover:text-white group-hover:bg-red-600/20 transition-all border border-white/5 flex-shrink-0">
-                                        {index + 4}
-                                    </div>
-
-                                    {/* Avatar + Name */}
-                                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <ProAvatar url={player.avatar_url} username={player.username} frameUrl={player.active_frame_url} size="w-9 h-9" className="flex-shrink-0" />
-                                        <span className="text-white font-black text-sm truncate group-hover:text-red-500 transition-colors">{player.username}</span>
-                                    </div>
-
-                                    {/* Score + Wins */}
-                                    <div className="flex items-center gap-3 flex-shrink-0">
-                                        <div className="text-left">
-                                            <div className="text-green-400 font-black text-sm tabular-nums">{player.score?.toLocaleString() || 0}</div>
-                                        </div>
-                                        <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-gray-400 font-black text-[10px] border border-white/5">
-                                            {player.wins || 0}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </>
-            )}
-        </div>
-    );
-};
-
-const SettingsSection = ({ userData, onLogout }: any) => {
-    const [displayName, setDisplayName] = useState(userData.display_name);
-    const [isSaving, setIsSaving] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    const handleSave = async () => {
-        setIsSaving(true);
-        try {
-            const { error } = await supabase
-                .from('users')
-                .update({ display_name: displayName })
-                .eq('id', userData.id);
-
-            if (error) throw error;
-
-            // Also update local storage so changes reflect on refresh
-            const stored = localStorage.getItem('iabs_user');
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                parsed.name = displayName;
-                localStorage.setItem('iabs_user', JSON.stringify(parsed));
-            }
-
-            alert('تم حفظ التعديلات بنجاح!');
-        } catch (e) {
-            console.error(e);
-            alert('حدث خطأ أثناء الحفظ.');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleDeleteAccount = async () => {
-        const confirmDelete = window.confirm("⚠️ تحذير خطير ⚠️\nسوف يتم حذف الحساب والنقاط وكل شي والمنتجات نهائياً ولن تتمكن من استرجاعها.\nهل أنت متأكد من رغبتك في الحذف النهائي؟");
-        if (!confirmDelete) return;
-
-        setIsDeleting(true);
-        try {
-            const username = userData.kick_username.toLowerCase();
-            const deletedUsername = `deleted_${Date.now()}_${username}`;
-            
-            // Workaround for RLS (Row Level Security) silently blocking DELETE operations:
-            // First, rename the username in all tables so it frees up the original username for re-registration.
-            await Promise.all([
-                supabase.from('users').update({ kick_username: deletedUsername, display_name: 'Deleted User' }).eq('id', userData.id),
-                supabase.from('profiles').update({ username: deletedUsername }).ilike('username', username),
-                supabase.from('leaderboard').update({ username: deletedUsername }).ilike('username', username)
-            ]);
-
-            // Then, try to physically delete from all tables (might fail silently if RLS restricts DELETE, but username is freed anyway)
-            await Promise.all([
-                supabase.from('transactions').delete().eq('user_id', userData.id),
-                supabase.from('user_inventory').delete().eq('user_id', userData.id),
-                supabase.from('leaderboard').delete().ilike('username', deletedUsername),
-                supabase.from('profiles').delete().ilike('username', deletedUsername),
-            ]);
-            
-            // Delete main user record
-            await supabase.from('users').delete().eq('id', userData.id);
-
-            // Clear local storage
-            localStorage.removeItem('iabs_user');
-            localStorage.removeItem('iabs_device_registered');
-
-            alert('تم حذف الحساب وجميع بياناته بنجاح.');
-            if (onLogout) onLogout();
-            else window.location.reload();
-        } catch (e) {
-            console.error(e);
-            alert('حدث خطأ أثناء حذف الحساب.');
-        } finally {
-            setIsDeleting(false);
-        }
-    };
-
-    return (
-        <div className="space-y-8 animate-in slide-in-from-bottom-10 duration-700">
-            <header>
-                <h1 className="text-4xl font-black italic text-white tracking-tighter mb-2">إعدادات الحساب</h1>
-                <p className="text-gray-500 font-bold text-sm tracking-widest uppercase">Profile & Security Settings</p>
-            </header>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-6 bg-white/[0.02] border border-white/5 p-8 rounded-[2.5rem]">
-                    <h4 className="text-white font-black text-lg mb-4">المعلومات الشخصية</h4>
-                    <div className="space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-gray-500 text-[10px] font-black uppercase tracking-widest">الاسم المعروض</label>
-                            <input
-                                type="text"
-                                value={displayName}
-                                onChange={(e) => setDisplayName(e.target.value)}
-                                className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white font-bold focus:border-red-500 outline-none transition-all"
-                            />
-                        </div>
-                        <div className="bg-white/5 p-4 rounded-2xl border border-dashed border-white/10 opacity-50">
-                            <span className="text-gray-500 text-[10px] font-black uppercase block mb-1">حساب Kick (لا يمكن تغييره)</span>
-                            <span className="text-white font-bold">{userData.kick_username}</span>
-                        </div>
-                        <button
-                            onClick={handleSave}
-                            disabled={isSaving}
-                            className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl transition-all active:scale-95 disabled:opacity-50"
-                        >
-                            {isSaving ? 'جاري الحفظ...' : 'حفظ التعديلات'}
-                        </button>
-                    </div>
-                </div>
-
-                <div className="space-y-6">
-                    <div className="bg-gradient-to-br from-blue-600/10 to-transparent border border-blue-500/10 p-8 rounded-[2.5rem] flex flex-col items-center justify-center text-center h-full relative overflow-hidden">
-                        <Shield size={40} className="text-blue-500 mb-6 relative z-10" />
-                        <h4 className="text-white font-black text-xl mb-2 relative z-10">الأمان والمصادقة</h4>
-                        <p className="text-gray-500 font-bold text-xs mb-8 relative z-10">حسابك محمي بنظام iABS للمصادقة المتقدمة. تم ربط جهازك بنجاح.</p>
-                        
-                        <div className="flex flex-col gap-3 w-full max-w-[220px] relative z-10">
-                            <div className="px-5 py-3 bg-white/5 rounded-xl border border-white/10 w-full mb-2">
-                                <span className="text-[10px] font-black text-green-500 uppercase tracking-widest block">Active Session</span>
-                            </div>
-                            <button
-                                onClick={onLogout}
-                                className="w-full bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 group"
-                            >
-                                <LogOut size={16} className="group-hover:-translate-x-1 transition-transform" />
-                                تسجيل خروج
-                            </button>
-                            
-                            <div className="w-full h-px bg-white/5 my-2"></div>
-                            
-                            <button
-                                onClick={handleDeleteAccount}
-                                disabled={isDeleting}
-                                className="w-full bg-transparent hover:bg-red-950/50 text-red-700 hover:text-red-500 border border-transparent hover:border-red-900/30 py-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
-                            >
-                                <Trash2 size={14} className="group-hover:scale-110 transition-transform" />
-                                {isDeleting ? 'جاري الحذف...' : 'حذف الحساب نهائياً'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// Helper Components
-const StatsCard = ({ label, value, icon: Icon, color }: any) => (
-    <div className="bg-white/[0.03] border border-white/10 p-6 rounded-[2rem] flex items-center gap-6 group hover:bg-white/[0.05] transition-all">
-        <div className={`w-16 h-16 rounded-2xl bg-black/40 flex items-center justify-center ${color} border border-white/5 group-hover:scale-110 transition-transform`}>
-            <Icon size={28} />
-        </div>
-        <div>
-            <div className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-1">{label}</div>
-            <div className="text-white font-black text-2xl tracking-tighter">{value}</div>
-        </div>
-    </div>
-);
-
-const ActivityItem = ({ label, time, points, type }: any) => (
-    <div className="flex items-center justify-between p-4 bg-black/20 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
-        <div className="flex items-center gap-4">
-            <div className={`w-2 h-2 rounded-full ${type === 'purchase' ? 'bg-red-500' : type === 'reward' ? 'bg-green-500' : 'bg-blue-500'}`}></div>
-            <div>
-                <div className="text-white font-bold text-sm">{label}</div>
-                <div className="text-gray-600 text-[10px] font-black uppercase">{time}</div>
-            </div>
-        </div>
-        {points !== "0" && (
-            <div className={`font-black text-sm ${points.startsWith('-') ? 'text-red-500' : 'text-green-500'}`}>
-                {points}
-            </div>
-        )}
-    </div>
-);

@@ -1,43 +1,51 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { CategorySelect } from './components/CategorySelect';
-import { FawazirGame } from './components/FawazirGame';
-import { MusicalChairsGame } from './components/MusicalChairsGame';
-import { MasaqilWar } from './components/MasaqilWar';
-import { BlurGuess } from './components/BlurGuess';
-import { SpinWheel } from './components/SpinWheel';
-import { Raffle } from './components/Raffle';
-import { FlagQuiz } from './components/FlagQuiz';
-import { TeamBattle } from './components/TeamBattle';
-import { TypingRace } from './components/TypingRace';
-import { GridHunt } from './components/GridHunt';
-import { CupShuffle } from './components/CupShuffle';
-import { TerritoryWar } from './components/TerritoryWar';
-import { TruthOrLie } from './components/TruthOrLie';
-
-import { DrawingChallenge } from './components/DrawingChallenge';
-import { FruitWar } from './components/FruitWar';
-import { LogoRound } from './components/LogoRound';
-import { ForbiddenWords } from './components/ForbiddenWords';
-import { VotingGame } from './components/VotingGame';
-import { TimeBomb } from './components/TimeBomb';
-import { WordBuilder } from './components/WordBuilder';
-import { GlassBridgeV2 } from './components/GlassBridgeV2';
-import { FloorIsLava } from './components/FloorIsLava';
-import { EmojiCode } from './components/EmojiCode';
-import { HigherLowerGame } from './components/HigherLowerGame';
-import { MahmahGame } from './components/MahmahGame/MahmahGame';
-import { LetterHexagonGame } from './components/LetterHexagonGame';
-import { BuzzerPad } from './components/BuzzerPad';
-import { SafeCode } from './components/SafeCode';
-import { MapGuesser } from './components/MapGuesser';
-import { AboutPage } from './components/AboutPage';
-import { AdminDashboard } from './components/AdminDashboard';
 import { GlobalAnnouncement } from './components/GlobalAnnouncement';
 import { ViewState } from './types';
 import { GlobalPasswordPage } from './components/GlobalPasswordPage';
-import { UserDashboard } from './components/UserDashboard';
-import { HostLoginPage } from './components/HostLoginPage';
+import { PersonalSitePage } from './components/PersonalSitePage';
+import { adminApi } from './services/adminCenter';
+
+/* كل شاشة ثقيلة تُحمَّل عند الطلب — الواجهة الأولى (الموقع الشخصي) ما عاد فيها أن تُحلِّل
+   ثلاثين لعبة دفعة واحدة. Fallback شفاف: لا لمحة ولا تغيير في التصميم. */
+const FawazirGame = React.lazy(() => import('./components/FawazirGame').then(m => ({ default: m.FawazirGame })));
+const MusicalChairsGame = React.lazy(() => import('./components/MusicalChairsGame').then(m => ({ default: m.MusicalChairsGame })));
+const MasaqilWar = React.lazy(() => import('./components/MasaqilWar').then(m => ({ default: m.MasaqilWar })));
+const BlurGuess = React.lazy(() => import('./components/BlurGuess').then(m => ({ default: m.BlurGuess })));
+const Roulette = React.lazy(() => import('./components/Roulette').then(m => ({ default: m.Roulette })));
+const Raffle = React.lazy(() => import('./components/Raffle').then(m => ({ default: m.Raffle })));
+const FlagQuiz = React.lazy(() => import('./components/FlagQuiz').then(m => ({ default: m.FlagQuiz })));
+const TeamBattle = React.lazy(() => import('./components/TeamBattle').then(m => ({ default: m.TeamBattle })));
+const TypingRace = React.lazy(() => import('./components/TypingRace').then(m => ({ default: m.TypingRace })));
+const GridHunt = React.lazy(() => import('./components/GridHunt').then(m => ({ default: m.GridHunt })));
+const CupShuffle = React.lazy(() => import('./components/CupShuffle').then(m => ({ default: m.CupShuffle })));
+const TerritoryWar = React.lazy(() => import('./components/TerritoryWar').then(m => ({ default: m.TerritoryWar })));
+const TruthOrLie = React.lazy(() => import('./components/TruthOrLie').then(m => ({ default: m.TruthOrLie })));
+const DrawingChallenge = React.lazy(() => import('./components/DrawingChallenge').then(m => ({ default: m.DrawingChallenge })));
+const FruitWar = React.lazy(() => import('./components/FruitWar').then(m => ({ default: m.FruitWar })));
+const LogoRound = React.lazy(() => import('./components/LogoRound').then(m => ({ default: m.LogoRound })));
+const ForbiddenWords = React.lazy(() => import('./components/ForbiddenWords').then(m => ({ default: m.ForbiddenWords })));
+const VotingGame = React.lazy(() => import('./components/VotingGame').then(m => ({ default: m.VotingGame })));
+const TimeBomb = React.lazy(() => import('./components/TimeBomb').then(m => ({ default: m.TimeBomb })));
+const WordBuilder = React.lazy(() => import('./components/WordBuilder').then(m => ({ default: m.WordBuilder })));
+const GlassBridgeV2 = React.lazy(() => import('./components/GlassBridgeV2').then(m => ({ default: m.GlassBridgeV2 })));
+const FloorIsLava = React.lazy(() => import('./components/FloorIsLava').then(m => ({ default: m.FloorIsLava })));
+const EmojiCode = React.lazy(() => import('./components/EmojiCode').then(m => ({ default: m.EmojiCode })));
+const HigherLowerGame = React.lazy(() => import('./components/HigherLowerGame').then(m => ({ default: m.HigherLowerGame })));
+const MafiaGame = React.lazy(() => import('./components/Mafia/MafiaGame').then(m => ({ default: m.MafiaGame })));
+const LetterHexagonGame = React.lazy(() => import('./components/LetterHexagonGame').then(m => ({ default: m.LetterHexagonGame })));
+const BuzzerPad = React.lazy(() => import('./components/BuzzerPad').then(m => ({ default: m.BuzzerPad })));
+const SafeCode = React.lazy(() => import('./components/SafeCode').then(m => ({ default: m.SafeCode })));
+const MapGuesser = React.lazy(() => import('./components/MapGuesser').then(m => ({ default: m.MapGuesser })));
+const AdminControlCenter = React.lazy(() => import('./components/AdminControlCenter'));
+const AdminLogin = React.lazy(() => import('./components/AdminLogin'));
+const UserDashboard = React.lazy(() => import('./components/UserDashboard').then(m => ({ default: m.UserDashboard })));
+const HostLoginPage = React.lazy(() => import('./components/HostLoginPage').then(m => ({ default: m.HostLoginPage })));
+const Home435242 = React.lazy(() => import('./components/Home435242').then(m => ({ default: m.Home435242 })));
+const TutorialLayer = React.lazy(() => import('./components/tutorial/TutorialLayer').then(m => ({ default: m.TutorialLayer })));
+const LeaderboardArena = React.lazy(() => import('./components/LeaderboardArena').then(m => ({ default: m.LeaderboardArena })));
 import {
   Trophy, Play, Lock, User, Swords, Image as ImageIcon,
   RotateCw, Gift, Flag, Users2, Keyboard, Gem, Coffee,
@@ -48,10 +56,10 @@ import {
   ArrowUp, ArrowDown, Edit2, Save, Eye, EyeOff, Maximize, Minimize, Layout as LayoutIcon, X, LogIn, LogOut
 } from 'lucide-react';
 import { getAssetUrl } from './utils/assets';
+import { isCnRoomRoute, isShortRoomRoute, readCnRoomCode, readShortRoomCode } from './utils/gameLink';
 import { chatService } from './services/chatService';
 import { supabase, leaderboardService, gamesService } from './services/supabase';
 import { OBSLinksModal } from './components/OBSLinksModal';
-import { ProAvatar } from './components/ProAvatar';
 import TecshIcon from './components/TecsIcon';
 
 const ICON_MAP: Record<string, any> = {
@@ -84,12 +92,24 @@ const readSession = (key: string): any | null => {
 const App: React.FC = () => {
   // Initialize from URL params to prevent flicker
   const getInitialParams = () => {
-    if (typeof window === 'undefined') return { obs: false, view: 'ABOUT' as ViewState };
+    if (typeof window === 'undefined') return { obs: false, view: 'ABOUT' as ViewState, lb: '' };
     const params = new URLSearchParams(window.location.search);
     const studioToken = !!(process.env.OBS_STUDIO_TOKEN && params.get('t') === process.env.OBS_STUDIO_TOKEN);
+    const room = params.get('r') || readShortRoomCode();
+    const cnRoom = readCnRoomCode();
+    const boardGame = (params.get('lb') || '').trim().toUpperCase();
     return {
       obs: params.get('obs') === 'true' || studioToken,
-      view: studioToken ? 'DRAWING_CHALLENGE' : (params.get('view') as ViewState) || 'ABOUT'
+      room,
+      cnRoom,
+      lb: boardGame,
+      view: studioToken
+        ? 'DRAWING_CHALLENGE'
+        : cnRoom
+          ? ('EMOJI_CODE' as ViewState)
+          : room
+            ? ('MAHMAH_GAME' as ViewState)
+            : (params.get('view') as ViewState) || 'ABOUT'
     };
   };
 
@@ -97,22 +117,60 @@ const App: React.FC = () => {
   const [hostRoute, setHostRoute] = useState<boolean>(() => isHostRoute());
   const [hostUnlocked, setHostUnlocked] = useState<boolean>(() => !!readSession('host_access_granted'));
   const [currentView, setCurrentView] = useState<ViewState | 'ADMIN_LOGIN' | 'ADMIN_PANEL' | 'HOST_GATE'>(() => {
+    if (isCnRoomRoute()) return 'EMOJI_CODE';
+    if (isShortRoomRoute()) return 'MAHMAH_GAME';
+    const pathView = window.location.pathname.replace(/^\//, '').replace(/-/g, '_').toUpperCase();
+    if (pathView && pathView !== 'HOME' && pathView !== '') return pathView as any;
     if (isHostRoute()) return 'HOST_GATE';
     if (initialParams.view !== 'ABOUT' && initialParams.view !== 'HOME') return initialParams.view;
     try {
       const stored = localStorage.getItem('site_access_granted');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed && parsed.valid && parsed.role === 'user') return 'USER_DASHBOARD';
+        if (parsed && parsed.valid) {
+          // التخزين المحلي يثبت بوابة الموقع فقط، ولا يمنح صلاحية الإدارة: لو رجعنا
+          // مباشرة ADMIN_PANEL فإن أي تحديث على «/» يقذفنا في /admin-login بعد فشل me().
+          if (parsed.role === 'admin') return 'HOME';
+          if (parsed.role === 'user') return 'USER_DASHBOARD';
+        }
       }
     } catch (e) { }
     return initialParams.view;
   });
+  const navigate = useNavigate();
+  const pushedPath = useRef<string>('');
+  useEffect(() => {
+    // الروابط المختصرة (/m=CODE و /cn=CODE) تبقى كما هي حتى لا تنكسر عند التحديث
+    if ((currentView === 'MAHMAH_GAME' && isShortRoomRoute()) || (currentView === 'EMOJI_CODE' && isCnRoomRoute())) return;
+    const path = '/' + String(currentView).toLowerCase().replace(/_/g, '-');
+    // نحافظ على باراميترات رابط اللعبة (?r=CODE&m=player) حتى لا تضيع عند التحديث
+    const search = window.location.search || '';
+    if (window.location.pathname !== path) {
+      pushedPath.current = path;
+      navigate(path + search, { replace: true });
+    }
+  }, [currentView, navigate]);
+
+  // زر الرجوع في المتصفح: بدون هذه المزامنة يبقى الرأي القديم في الذاكرة ويُعيد
+  // كتابة نفس الرابط، فيبدو أن الرجوع لا يعمل.
+  useEffect(() => {
+    const syncFromUrl = () => {
+      if (isHostRoute() || isShortRoomRoute() || isCnRoomRoute()) return;
+      const path = window.location.pathname;
+      if (path === pushedPath.current) return;
+      const mapped = path.replace(/^\//, '').replace(/-/g, '_').toUpperCase();
+      if (!mapped || mapped === 'HOME') { setCurrentView('HOME'); return; }
+      setCurrentView(prev => (prev === (mapped as any) ? prev : (mapped as any)));
+    };
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(!initialParams.obs);
   const [isOBSMode, setIsOBSMode] = useState(initialParams.obs);
   const [showOBSModal, setShowOBSModal] = useState(false);
   const [showObsPreview, setShowObsPreview] = useState(false);
+  const [tutView, setTutView] = useState<string | null>(null);
 
   // Authorization State - bypass for OBS
   const [isAuthorized, setIsAuthorized] = useState<boolean>(() => {
@@ -128,8 +186,8 @@ const App: React.FC = () => {
 
   const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
-  const [adminPasswordInput, setAdminPasswordInput] = useState('');
-  const [loginError, setLoginError] = useState('');
+  const [adminStaff, setAdminStaff] = useState<{ staff_name: string; role: string } | null>(null);
+  const [adminChecked, setAdminChecked] = useState(false);
 
 
   const [activeAnnouncement, setActiveAnnouncement] = useState<string | null>(null);
@@ -147,9 +205,41 @@ const App: React.FC = () => {
     }
   };
 
+  // الواجهة الأولى (الموقع الشخصي) ما لها حاجة بقناة الشات ولا بقائمة الألعاب:
+  // التأجيل يمنع Parse/Render منافس لتحميل واجهة الضيف، ويبقى كل شيء كما هو بعد أول نقرة.
+  const needsLiveBus = isOBSMode || hostRoute || currentView !== 'ABOUT';
+
   useEffect(() => {
-    loadGames();
-  }, []);
+    if (needsLiveBus) loadGames();
+  }, [needsLiveBus]);
+
+  // تعديل الألعاب في مركز التحكم (اسم/ترتيب/إخفاء/إيقاف) يظهر فوراً بدون إعادة تحميل
+  useEffect(() => {
+    if (!needsLiveBus) return;
+    let retry: any;
+    let isActive = true;
+
+    const connectGames = () => {
+      if (!isActive) return;
+      const channel = supabase
+        .channel('games_catalog')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, () => loadGames())
+        .subscribe((status: string) => {
+          if (status === 'CHANNEL_ERROR' && isActive) {
+            retry = setTimeout(connectGames, 3000);
+          }
+        });
+      return channel;
+    };
+
+    const channel = connectGames();
+
+    return () => {
+      isActive = false;
+      clearTimeout(retry);
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [needsLiveBus]);
 
   // ===== رابط صفحة الاستضافة المستقل: #/host =====
   useEffect(() => {
@@ -160,7 +250,7 @@ const App: React.FC = () => {
         setHostUnlocked(!!readSession('host_access_granted'));
         setCurrentView('HOST_GATE');
       } else if (currentView === 'HOST_GATE' || currentView === 'HOST_LOGIN') {
-        setCurrentView('ABOUT');
+        setCurrentView('HOME');
       }
     };
     window.addEventListener('hashchange', sync);
@@ -170,7 +260,7 @@ const App: React.FC = () => {
   // لا يمكن الوصول لصفحة الاستضافة إلا عبر رابطها الخاص
   useEffect(() => {
     if ((currentView === 'HOST_LOGIN' || currentView === 'HOST_GATE') && !hostRoute) {
-      setCurrentView('ABOUT');
+      setCurrentView('HOME');
     }
   }, [currentView, hostRoute]);
 
@@ -260,8 +350,30 @@ const App: React.FC = () => {
     }
   }, [isOBSMode]);
 
+  // Restore server-side session (Kick OAuth) on mount
+  useEffect(() => {
+    fetch('/api/me', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.user) {
+          const u = data.user;
+          localStorage.setItem('iabs_user', JSON.stringify({
+            id: u.id,
+            display_name: u.display_name || u.kick_username,
+            kick_username: u.kick_username,
+            avatar: u.avatar || '',
+            points: u.points || 0,
+          }));
+          setIsAuthorized(true);
+          setUserRole('user');
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Global Chat Connection
   useEffect(() => {
+    if (!needsLiveBus) return;
     const channel = 'icg1';
     console.log(`[App] Initializing Chat Connection for: ${channel}`);
 
@@ -273,7 +385,7 @@ const App: React.FC = () => {
       // We don't disconnect here to keep it alive for OBS/GAMES
       // unless we really want a clean exit.
     };
-  }, []);
+  }, [needsLiveBus]);
 
   useEffect(() => {
     let retryTimer: any;
@@ -356,16 +468,18 @@ const App: React.FC = () => {
     }
   }, [currentView]);
 
-// Security Check for Admin Panel
+// بوابة الإدارة: الجلسة يُتحقق منها في السيرفر — التخزين المحلي لا يمنح صلاحيات
 useEffect(() => {
-    if (currentView === 'ADMIN_PANEL') {
-      const adminAuth = readSession('site_access_granted');
-      if (!adminAuth || adminAuth.role !== 'admin') {
-        setUserRole('user');
-        setCurrentView('ADMIN_LOGIN');
-      }
-    }
-  }, [currentView]);
+    if (currentView !== 'ADMIN_PANEL' || adminChecked) return;
+    let alive = true;
+    adminApi.me().then(r => {
+        if (!alive) return;
+        setAdminChecked(true);
+        if (r.ok && r.staff) setAdminStaff(r.staff);
+        else setCurrentView('ADMIN_LOGIN');
+    });
+    return () => { alive = false; };
+}, [currentView, adminChecked]);
 
   // PROTECTION: Prevent regular users from accessing the HOME page
   useEffect(() => {
@@ -380,14 +494,26 @@ useEffect(() => {
     setCurrentView('FAWAZIR_GAME');
   };
 
-  const handleAdminLogin = async () => {
-    const isValid = await leaderboardService.verifyAdminPassword(adminPasswordInput);
-    if (isValid) {
+  const handleAdminLogout = async () => {
+    await adminApi.logout();
+    setAdminStaff(null);
+    setAdminChecked(false);
+    // الخروج يُرجِع لصفحة الألعاب مباشرة: لا سبب لإبقاء من غادر اللوحة أمام بوابة فارغة.
+    setCurrentView('HOME');
+  };
+
+  // زر «الإدارة» في صفحة الألعاب: الجلسة الصالحة تُدخل اللوحة مباشرة، وغير ذلك صفحة الكلمة السر.
+  // الصلاحية يقررها السيرفر بالكوكي HttpOnly — لا شيء في المتصفح يمنحها.
+  const handleOpenAdmin = async () => {
+    const r = await adminApi.me();
+    if (r.ok && r.staff) {
+      setAdminStaff({ staff_name: r.staff.staff_name, role: r.staff.role });
+      setAdminChecked(true);
       setCurrentView('ADMIN_PANEL');
-      setAdminPasswordInput('');
-      setLoginError('');
     } else {
-      setLoginError('كلمة المرور غير صحيحة');
+      setAdminStaff(null);
+      setAdminChecked(false);
+      setCurrentView('ADMIN_LOGIN');
     }
   };
 
@@ -403,7 +529,6 @@ useEffect(() => {
 
   const handleLogout = () => {
     localStorage.removeItem('site_access_granted');
-    localStorage.removeItem('admin_access_granted');
     localStorage.removeItem('iabs_user');
     setIsAuthorized(false);
     setUserRole('admin');
@@ -497,33 +622,31 @@ useEffect(() => {
 
 
 
-  const renderContent = (obsMode: boolean = false) => {
+  const renderView = (obsMode: boolean = false) => {
     switch (currentView) {
       case 'ADMIN_PANEL': {
-        const adminOk = userRole === 'admin' && !!readSession('site_access_granted');
-        if (!adminOk) {
-          window.location.hash = '';
-          setCurrentView('ABOUT');
-          return null;
+        if (!adminChecked || !adminStaff) {
+          return (
+            <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: '#e9c27a', fontSize: 14 }}>
+              جارٍ التحقق من صلاحية الدخول…
+            </div>
+          );
         }
-        return <AdminDashboard onLogout={handleGoHome} />;
+        return <AdminControlCenter staffName={adminStaff.staff_name} onLogout={handleAdminLogout} />;
       }
       case 'ADMIN_LOGIN': return (
-        <GlobalPasswordPage
-          onSuccess={() => setCurrentView('ADMIN_PANEL')}
-          storageKey="admin_access_granted"
-          title="بوابة الإدارة"
-          subtitle="SYSTEM ADMINISTRATION"
-          newTitle="التحقق الإداري"
-          returningTitle="دخول المشرف"
-        />
+        <AdminLogin onBack={() => setCurrentView('HOME')} onSuccess={(staffName, role) => {
+          setAdminStaff({ staff_name: staffName, role });
+          setAdminChecked(true);
+          setCurrentView('ADMIN_PANEL');
+        }} />
       );
       case 'FAWAZIR_SELECT': return <CategorySelect onSelect={handleCategorySelect} onBack={handleGoHome} />;
       case 'FAWAZIR_GAME': return <FawazirGame category={selectedCategory || 'ramadan'} onFinish={() => setCurrentView('LEADERBOARD')} onHome={handleGoHome} isOBS={obsMode} />;
       case 'MUSICAL_CHAIRS': return <MusicalChairsGame onHome={handleGoHome} isOBS={obsMode} />;
       case 'MASAQIL_WAR': return <MasaqilWar channelConnected={true} onHome={handleGoHome} isOBS={obsMode} />;
       case 'BLUR_GUESS': return <BlurGuess channelConnected={true} onHome={handleGoHome} isOBS={obsMode} />;
-      case 'SPIN_WHEEL': return <SpinWheel channelConnected={true} onHome={handleGoHome} isOBS={obsMode} />;
+      case 'SPIN_WHEEL': return <Roulette channelConnected={true} onHome={handleGoHome} isOBS={obsMode} />;
       case 'RAFFLE': return <Raffle channelConnected={true} onHome={handleGoHome} isOBS={obsMode} />;
       case 'FLAG_QUIZ': return <FlagQuiz channelConnected={true} onHome={handleGoHome} isOBS={obsMode} />;
       case 'TEAM_BATTLE': return <TeamBattle channelConnected={true} onHome={handleGoHome} isOBS={obsMode} />;
@@ -544,13 +667,18 @@ useEffect(() => {
       case 'FLOOR_IS_LAVA': return <FloorIsLava onHome={handleGoHome} isOBS={obsMode} />;
       case 'EMOJI_CODE': return <EmojiCode onHome={handleGoHome} isOBS={obsMode} />;
       case 'HIGHER_LOWER': return <HigherLowerGame onHome={handleGoHome} isOBS={obsMode} />;
-      case 'MAHMAH_GAME': return <MahmahGame onBack={handleGoHome} />;
+      case 'MAHMAH_GAME': return <MafiaGame onHome={handleGoHome} />;
       case 'LETTER_GAME': return <LetterHexagonGame onHome={handleGoHome} isOBS={obsMode} onToggleOBSPreview={() => setShowObsPreview(!showObsPreview)} obsPreviewActive={showObsPreview} />;
       case 'BUZZER_PAD': return <BuzzerPad />;
       case 'SAFE_CODE': return <SafeCode onHome={() => setCurrentView('HOME')} isOBS={isOBSMode} />;
       case 'MAP_GUESSER': return <MapGuesser onHome={() => setCurrentView('HOME')} isOBS={isOBSMode} />;
       case 'HARDEES_MEMORY': return null;
-      case 'ABOUT': return <AboutPage onBack={handleGoHome} />;
+      case 'ABOUT': return (
+        <PersonalSitePage
+          onPlayNow={() => setCurrentView('HOME')}
+          onOpenLeaderboard={() => setCurrentView('LEADERBOARD')}
+        />
+      );
 
       case 'HOST_GATE': return (
         <GlobalPasswordPage
@@ -594,7 +722,7 @@ useEffect(() => {
       );
 
       case 'USER_DASHBOARD': return (
-        <div className="flex-1 w-full max-w-7xl mx-auto flex flex-col p-2 md:p-6 animate-in slide-in-from-bottom-20 duration-1000">
+        <div className="flex-1 w-full min-h-full flex flex-col animate-in slide-in-from-bottom-20 duration-1000">
           <UserDashboard
             onLogout={handleLogout}
             userData={(() => {
@@ -606,464 +734,61 @@ useEffect(() => {
       );
 
       case 'LEADERBOARD': return (
-        <div className="animate-in fade-in zoom-in duration-500 max-w-5xl mx-auto w-full pt-6 px-4 h-full flex flex-col items-center">
-          <div className="text-center mb-6">
-            <h2 className="text-4xl md:text-5xl font-black italic red-neon-text tracking-tighter mb-2">أساطير الساحة</h2>
-            <div className="flex items-center justify-center gap-3 text-white/40 uppercase tracking-[0.3em] text-[10px] font-bold">
-              <div className="h-px w-8 bg-white/20" />
-              TOP SURVIVORS
-              <div className="h-px w-8 bg-white/20" />
-            </div>
-          </div>
-
-          <div className="w-full space-y-6">
-            {!isLoadingLeaderboard && leaderboardData.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end mb-8">
-                {leaderboardData[1] && (
-                  <div className="order-2 md:order-1 h-[200px] glass-card rounded-[2rem] p-6 border border-slate-400/30 flex flex-col items-center justify-center relative hover:scale-105 transition-all group overflow-hidden bg-gradient-to-t from-slate-900/80 to-transparent">
-                    <div className="absolute top-0 right-0 p-4 opacity-10"><Medal size={50} className="text-slate-400" /></div>
-                    <div className="mb-3 relative">
-                      <ProAvatar url={leaderboardData[1].avatar_url} username={leaderboardData[1].username} frameUrl={leaderboardData[1].active_frame_url} size="w-16 h-16" className="shadow-xl" />
-                      <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-slate-400 text-black flex items-center justify-center font-black text-sm border-2 border-black z-[110] shadow">2</div>
-                    </div>
-                    <div className="text-lg font-black text-white mb-1">{leaderboardData[1].username}</div>
-                    <div className="flex gap-3 text-xs"><span className="text-slate-400 font-bold">{leaderboardData[1].score || 0} نقطة</span><span className="text-white/20">|</span><span className="text-slate-400 font-bold">{leaderboardData[1].wins || 0} فوز</span></div>
-                  </div>
-                )}
-
-                {leaderboardData[0] && (
-                  <div className="order-1 md:order-2 h-[240px] glass-card rounded-[2.5rem] p-6 border-2 border-yellow-500/50 flex flex-col items-center justify-center relative hover:scale-110 transition-all group overflow-hidden bg-gradient-to-t from-yellow-900/40 via-yellow-950/20 to-transparent shadow-[0_0_50px_rgba(234,179,8,0.15)]">
-                    <div className="absolute -top-8 animate-float opacity-30"><Crown size={80} className="text-yellow-500 blur-sm" /></div>
-                    <div className="mb-4 relative z-10">
-                      <div className="absolute -inset-3 bg-yellow-500/20 blur-xl rounded-full animate-pulse" />
-                      <ProAvatar url={leaderboardData[0].avatar_url} username={leaderboardData[0].username} frameUrl={leaderboardData[0].active_frame_url} size="w-20 h-20" className="shadow-[0_0_20px_rgba(234,179,8,0.3)]" />
-                      <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-yellow-500 text-black flex items-center justify-center font-black text-lg border-2 border-black animate-bounce z-[110] shadow">1</div>
-                    </div>
-                    <div className="text-2xl font-black text-white italic mb-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">{leaderboardData[0].username}</div>
-                    <div className="flex gap-4 relative z-10 bg-black/40 px-4 py-1.5 rounded-full border border-yellow-500/20">
-                      <span className="text-yellow-500 font-black text-sm">{leaderboardData[0].score || 0} نقطة</span>
-                      <span className="text-white/20">|</span>
-                      <span className="text-yellow-500 font-black text-sm">{leaderboardData[0].wins || 0} فوز</span>
-                    </div>
-                  </div>
-                )}
-
-                {leaderboardData[2] && (
-                  <div className="order-3 h-[170px] glass-card rounded-[2rem] p-6 border border-orange-700/30 flex flex-col items-center justify-center relative hover:scale-105 transition-all group overflow-hidden bg-gradient-to-t from-orange-950/40 to-transparent">
-                    <div className="absolute top-0 right-0 p-4 opacity-10"><Medal size={40} className="text-orange-700" /></div>
-                    <div className="mb-3 relative">
-                      <ProAvatar url={leaderboardData[2].avatar_url} username={leaderboardData[2].username} frameUrl={leaderboardData[2].active_frame_url} size="w-14 h-14" className="shadow" />
-                      <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-orange-700 text-white flex items-center justify-center font-black text-xs border-2 border-black z-[110] shadow">3</div>
-                    </div>
-                    <div className="text-base font-black text-white mb-1">{leaderboardData[2].username}</div>
-                    <div className="flex gap-3 text-xs"><span className="text-orange-700 font-bold">{leaderboardData[2].score || 0} نقطة</span><span className="text-white/20">|</span><span className="text-orange-700 font-bold">{leaderboardData[2].wins || 0} فوز</span></div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="glass-card rounded-[2rem] border border-white/5 overflow-hidden shadow-xl bg-black/40 backdrop-blur-xl flex-1 mb-6">
-              {isLoadingLeaderboard ? (
-                <div className="flex flex-col items-center justify-center h-[200px] gap-4">
-                  <Loader2 className="animate-spin text-iabs-red" size={40} />
-                  <div className="text-sm text-gray-400 font-bold animate-pulse italic tracking-widest">GATHERING LEGENDS...</div>
-                </div>
-              ) : (
-                <div className="overflow-x-auto custom-scrollbar">
-                  <table className="w-full text-right">
-                    <thead className="bg-white/5 border-b border-white/5">
-                      <tr className="text-gray-400 font-black uppercase text-[9px] tracking-[0.2em]">
-                        <th className="p-4 text-center w-16">الرتبة</th>
-                        <th className="p-4 text-right">المتسابق</th>
-                        <th className="p-4 text-center">مرات الفوز</th>
-                        <th className="p-4 text-left">مجموع النقاط</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {leaderboardData.slice(3).map((user, index) => (
-                        <tr key={user.id} className="hover:bg-white/10 transition-all group animate-in slide-in-from-right duration-500" style={{ animationDelay: `${index * 50} ms` }}>
-                          <td className="p-3 text-center"><div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center font-black text-xs text-gray-500 group-hover:text-white group-hover:bg-iabs-red/20 transition-all border border-white/5">{index + 4}</div></td>
-                          <td className="p-3"><div className="flex items-center gap-3"><ProAvatar url={user.avatar_url} username={user.username} frameUrl={user.active_frame_url} /><span className="font-black text-base text-white group-hover:text-iabs-red transition-all tracking-tight">{user.username}</span></div></td>
-                          <td className="p-3 text-center"><div className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/5 font-black text-sm text-gray-300 group-hover:text-white transition-all font-mono">{user.wins || 0}</div></td>
-                          <td className="p-3 text-left"><div className="font-black text-xl text-kick-green font-mono tracking-tighter drop-shadow-[0_0_10px_rgba(83,252,24,0.3)] group-hover:scale-110 transition-transform origin-left">{user.score || 0}</div></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {leaderboardData.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-16 space-y-4 opacity-20">
-                      <Trophy size={60} strokeWidth={1} />
-                      <div className="text-lg font-black italic">ARENA IS EMPTY</div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 mt-4 mb-8">
-            <button onClick={handleGoHome} className="group px-8 py-3 bg-white/5 hover:bg-white/10 rounded-[1.5rem] text-white font-black text-sm transition-all border border-white/10 hover:border-white/30 flex items-center gap-3">
-              <ChevronRight size={16} className="group-hover:translate-x-2 transition-transform" /> العودة للرئيسية
-            </button>
-            <button onClick={loadLeaderboard} className="p-3 bg-iabs-red/10 text-iabs-red rounded-[1.5rem] border border-iabs-red/20 hover:bg-iabs-red hover:text-white transition-all">
-              <RefreshCw size={18} className={isLoadingLeaderboard ? 'animate-spin' : ''} />
-            </button>
-          </div>
-        </div>
+        <LeaderboardArena
+          data={leaderboardData}
+          loading={isLoadingLeaderboard}
+          onRefresh={() => loadLeaderboard()}
+          onHome={handleGoHome}
+          games={games}
+          initialGame={initialParams.lb || undefined}
+          me={(() => {
+            try {
+              const stored = localStorage.getItem('iabs_user');
+              return stored ? (JSON.parse(stored).kick_username || '') : '';
+            } catch { return ''; }
+          })()}
+        />
       );
 
       case 'HOME':
       default: {
-        const normalizedSearch = gameSearch.trim().toLocaleLowerCase('ar');
-        const displayedGames = games.filter((game) =>
-          !normalizedSearch ||
-          `${game.title || ''} ${game.view_id || ''}`.toLocaleLowerCase('ar').includes(normalizedSearch)
-        );
-        const jumpToGames = () => document.getElementById('icg-games')?.scrollIntoView({ behavior: 'smooth' });
-
         return (
-          <div id="top" className="icg1-home flex-1 flex flex-col items-center w-full mx-auto px-3 md:px-6 pb-8 animate-in fade-in duration-700">
-            <header className="icg1-header">
-              <a className="icg1-brand" href="#top" aria-label="iCG1 — الرئيسية">
-                <img src="/icg1-banner-v2.png" alt="iCG1" />
-              </a>
-              <nav className="icg1-nav" aria-label="التنقل الرئيسي">
-                <button onClick={() => setCurrentView('HOME')}>الرئيسية</button>
-                <button onClick={jumpToGames}>الألعاب</button>
-                <button onClick={() => setCurrentView('LEADERBOARD')}>لوحة الصدارة</button>
-              </nav>
-              <a className="icg1-live-link" href="https://kick.com/icg1" target="_blank" rel="noreferrer">
-                <span className="icg1-live-dot" />
-                قناة iCG1 على Kick
-              </a>
-            </header>
-
-            <section className="icg1-hero" aria-labelledby="icg1-title">
-              <div className="icg1-hero-copy">
-                <span className="icg1-eyebrow">ساحة الألعاب الرسمية</span>
-                <h1 id="icg1-title">iCG1</h1>
-                <div className="icg1-king"><span>KING OF ACCEPTANCE</span></div>
-                <p>ساحة التحدّي لمجتمع iCG1 — اختر لعبتك وشارك البث مباشرة.</p>
-                <div className="icg1-hero-actions">
-                  <button className="icg1-primary-action" onClick={jumpToGames}>
-                    <Play size={18} fill="currentColor" /> ابدأ اللعب
-                  </button>
-                  <a className="icg1-secondary-action" href="https://kick.com/icg1" target="_blank" rel="noreferrer">
-                    شاهد القناة
-                  </a>
-                </div>
-                <div className="icg1-stats">
-                  <div><strong>{games.length}</strong><span>لعبة في الساحة</span></div>
-                   <div><strong>KICK</strong><span>تفاعل مباشر مع الشات</span></div>
-                </div>
-              </div>
-              <div className="icg1-emblem-wrap">
-                <div className="icg1-emblem-orbit" />
-                <img className="icg1-emblem" src="/icg1-logo-v2.png" alt="شعار iCG1" />
-                <span className="icg1-corner icg1-corner-a" />
-                <span className="icg1-corner icg1-corner-b" />
-                <span className="icg1-corner icg1-corner-c" />
-                <span className="icg1-corner icg1-corner-d" />
-              </div>
-            </section>
-
-            <div id="icg-games" className="icg1-section-heading">
-              <div><span>اختر تحدّيك</span><h2>ألعاب الساحة</h2></div>
-              <span className="icg1-game-count">{displayedGames.length} لعبة</span>
-            </div>
-            <label className="icg1-search">
-              <Search size={18} aria-hidden="true" />
-              <input
-                value={gameSearch}
-                onChange={(event) => setGameSearch(event.target.value)}
-                placeholder="ابحث عن لعبة..."
-                aria-label="ابحث عن لعبة"
-              />
-              {gameSearch && <button type="button" onClick={() => setGameSearch('')} aria-label="مسح البحث"><X size={16} /></button>}
-            </label>
-
-            {/* Games Section */}
-            <div className="w-full flex flex-col items-center mb-4 space-y-3 px-1" style={{perspective:'1200px'}}>
-              {displayedGames.length === 0 && (
-                <div className="icg-section-empty">
-                  {gameSearch ? 'لا توجد ألعاب تطابق بحثك.' : 'لا توجد ألعاب متاحة حالياً.'}
-                </div>
-              )}
-              {(() => {
-                const primaryVisible = displayedGames.filter(g => g.is_primary && (g.is_visible !== false || isEditMode));
-
-                if (primaryVisible.length === 2) {
-                  return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
-                      {primaryVisible.map((game, idx) => (
-                        <div key={game.id}
-                          className="animate-in slide-in-from-bottom duration-700"
-                          style={{
-                            animationDelay: `${idx * 150}ms`,
-                            transform: `rotateX(${2 - idx * 4}deg) rotateY(${idx === 0 ? '-2' : '2'}deg) translateZ(${20 - idx * 10}px)`,
-                            transformStyle: 'preserve-3d',
-                            perspective: '800px'
-                          }}>
-                          <PremiumGameButton
-                            title={game.view_id === 'HARDEES_MEMORY' ? '' : game.title}
-                            icon={ICON_MAP[game.icon_name] || Sparkles}
-                              imageUrl={game.view_id === 'LETTER_GAME' ? '/photo/image76.png' : game.view_id === 'HIGHER_LOWER' ? '/photo/content.png' : game.view_id === 'HARDEES_MEMORY' ? '/908765436789.png' : undefined}
-                              imageScale={game.view_id === 'HIGHER_LOWER' ? 'scale-[2.5]' : game.view_id === 'HARDEES_MEMORY' ? 'scale-[3.5] translate-x-[25%]' : 'scale-[1.2]'}
-                              imageContainerClass={game.view_id === 'HIGHER_LOWER' ? 'w-7 h-7 translate-x-2' : game.view_id === 'HARDEES_MEMORY' ? 'w-8 h-8' : undefined}
-                              isPrimary
-                            onClick={() => setCurrentView(game.view_id)}
-                            index={idx}
-                            total={games.length}
-                            isEditMode={isEditMode}
-                            isVisible={game.is_visible !== false}
-                            onMoveUp={() => moveGame(games.indexOf(game), 'up')}
-                            onMoveDown={() => moveGame(games.indexOf(game), 'down')}
-                            onToggleVisibility={() => toggleGameVisibility(game.id)}
-                            onToggleSize={() => toggleGameSize(game.id)}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  );
-                }
-
-                return (
-                  <>
-                    <div className="w-full flex justify-center max-w-lg">
-                      {primaryVisible.slice(0, 1).map((game) => (
-                        <div key={game.id} className="w-full flex justify-center"
-                          style={{
-                            transform: 'rotateX(3deg) translateZ(30px)',
-                            transformStyle: 'preserve-3d',
-                            perspective: '800px'
-                          }}>
-                          <PremiumGameButton
-                            title={game.view_id === 'HARDEES_MEMORY' ? '' : game.title}
-                            icon={ICON_MAP[game.icon_name] || Sparkles}
-                              imageUrl={game.view_id === 'LETTER_GAME' ? '/photo/image76.png' : game.view_id === 'HIGHER_LOWER' ? '/photo/content.png' : game.view_id === 'HARDEES_MEMORY' ? '/908765436789.png' : undefined}
-                              imageScale={game.view_id === 'HIGHER_LOWER' ? 'scale-[2.5]' : game.view_id === 'HARDEES_MEMORY' ? 'scale-[3.5] translate-x-[25%]' : 'scale-[1.2]'}
-                              imageContainerClass={game.view_id === 'HIGHER_LOWER' ? 'w-7 h-7 translate-x-2' : game.view_id === 'HARDEES_MEMORY' ? 'w-8 h-8' : undefined}
-                              isPrimary
-                            onClick={() => setCurrentView(game.view_id)}
-                            index={0}
-                            total={games.length}
-                            isEditMode={isEditMode}
-                            isVisible={game.is_visible !== false}
-                            onMoveUp={() => moveGame(games.indexOf(game), 'up')}
-                            onMoveDown={() => moveGame(games.indexOf(game), 'down')}
-                            onToggleVisibility={() => toggleGameVisibility(game.id)}
-                            onToggleSize={() => toggleGameSize(game.id)}
-                          />
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg">
-                      {primaryVisible.slice(1, 3).map((game, idx) => (
-                        <div key={game.id} className="w-full"
-                          style={{
-                            transform: `rotateX(${2 - idx * 3}deg) rotateY(${idx === 0 ? '-1' : '1'}deg)`,
-                            transformStyle: 'preserve-3d',
-                            perspective: '600px'
-                          }}>
-                          <PremiumGameButton
-                            title={game.view_id === 'HARDEES_MEMORY' ? '' : game.title}
-                            icon={ICON_MAP[game.icon_name] || Sparkles}
-                              imageUrl={game.view_id === 'LETTER_GAME' ? '/photo/image76.png' : game.view_id === 'HIGHER_LOWER' ? '/photo/content.png' : game.view_id === 'HARDEES_MEMORY' ? '/908765436789.png' : undefined}
-                              imageScale={game.view_id === 'HIGHER_LOWER' ? 'scale-[2.5]' : game.view_id === 'HARDEES_MEMORY' ? 'scale-[3.5] translate-x-[25%]' : 'scale-[1.2]'}
-                              imageContainerClass={game.view_id === 'HIGHER_LOWER' ? 'w-7 h-7 translate-x-2' : game.view_id === 'HARDEES_MEMORY' ? 'w-8 h-8' : undefined}
-                              isPrimary
-                            onClick={() => setCurrentView(game.view_id)}
-                            index={idx + 1}
-                            total={games.length}
-                            isEditMode={isEditMode}
-                            isVisible={game.is_visible !== false}
-                            onMoveUp={() => moveGame(games.indexOf(game), 'up')}
-                            onMoveDown={() => moveGame(games.indexOf(game), 'down')}
-                            onToggleVisibility={() => toggleGameVisibility(game.id)}
-                            onToggleSize={() => toggleGameSize(game.id)}
-                          />
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-lg">
-                      {primaryVisible.slice(3).map((game, idx) => (
-                        <div key={game.id} className="w-full"
-                          style={{
-                            transform: `rotateX(${1 - idx * 2}deg) rotateY(${idx % 2 === 0 ? '-1' : '1'}deg)`,
-                            transformStyle: 'preserve-3d',
-                            perspective: '600px'
-                          }}>
-                          <PremiumGameButton
-                            title={game.view_id === 'HARDEES_MEMORY' ? '' : game.title}
-                            icon={ICON_MAP[game.icon_name] || Sparkles}
-                              imageUrl={game.view_id === 'LETTER_GAME' ? '/photo/image76.png' : game.view_id === 'HIGHER_LOWER' ? '/photo/content.png' : game.view_id === 'HARDEES_MEMORY' ? '/908765436789.png' : undefined}
-                              imageScale={game.view_id === 'HIGHER_LOWER' ? 'scale-[2.5]' : game.view_id === 'HARDEES_MEMORY' ? 'scale-[3.5] translate-x-[25%]' : 'scale-[1.2]'}
-                              imageContainerClass={game.view_id === 'HIGHER_LOWER' ? 'w-7 h-7 translate-x-2' : game.view_id === 'HARDEES_MEMORY' ? 'w-8 h-8' : undefined}
-                              isPrimary
-                            onClick={() => setCurrentView(game.view_id)}
-                            index={idx + 3}
-                            total={games.length}
-                            isEditMode={isEditMode}
-                            isVisible={game.is_visible !== false}
-                            onMoveUp={() => moveGame(games.indexOf(game), 'up')}
-                            onMoveDown={() => moveGame(games.indexOf(game), 'down')}
-                            onToggleVisibility={() => toggleGameVisibility(game.id)}
-                            onToggleSize={() => toggleGameSize(game.id)}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-
-            {/* More Games Section */}
-            <div className="w-full max-w-5xl space-y-3 mb-6">
-              <div className="flex items-center gap-4 px-2">
-                <div className="h-px flex-1 bg-gradient-to-l from-transparent via-red-500/30 to-transparent"></div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse"></div>
-                  <h2 className="text-white/50 font-black text-[9px] uppercase tracking-[1em] italic">كل الألعاب</h2>
-                  <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse" style={{animationDelay:'0.5s'}}></div>
-                </div>
-                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-500/30 to-transparent"></div>
-              </div>
-
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 px-1"
-                style={{perspective:'1000px'}}>
-                {displayedGames.filter(g => !g.is_primary).map((game, idx) => (
-                  <div key={game.id}
-                    className="animate-in slide-in-from-bottom duration-500"
-                    style={{
-                      animationDelay: `${idx * 80}ms`,
-                      transform: `rotateY(${idx % 2 === 0 ? '2' : '-2'}deg)`,
-                      transformStyle: 'preserve-3d',
-                      perspective: '500px'
-                    }}>
-                    <PremiumGameButton
-                      title={game.view_id === 'HARDEES_MEMORY' ? '' : game.title}
-                      icon={ICON_MAP[game.icon_name] || Sparkles}
-                      imageUrl={game.view_id === 'LETTER_GAME' ? '/photo/image76.png' : game.view_id === 'HIGHER_LOWER' ? '/photo/content.png' : game.view_id === 'HARDEES_MEMORY' ? '/908765436789.png' : undefined}
-                      imageScale={game.view_id === 'HIGHER_LOWER' ? 'scale-[2.5]' : game.view_id === 'HARDEES_MEMORY' ? 'scale-[3.5] translate-x-[25%]' : 'scale-[1.3]'}
-                      imageContainerClass={game.view_id === 'HIGHER_LOWER' ? 'w-7 h-7 translate-x-2' : game.view_id === 'HARDEES_MEMORY' ? 'w-8 h-8' : undefined}
-                      onClick={() => setCurrentView(game.view_id)}
-                      isComingSoon={game.is_coming_soon}
-                      comingSoonText={game.coming_soon_text}
-                      hasOBS={game.has_obs}
-                      index={idx + games.filter(g => g.is_primary).length}
-                      total={games.length}
-                      isEditMode={isEditMode}
-                      isVisible={game.is_visible !== false}
-                      onMoveUp={() => moveGame(games.indexOf(game), 'up')}
-                      onMoveDown={() => moveGame(games.indexOf(game), 'down')}
-                      onToggleVisibility={() => toggleGameVisibility(game.id)}
-                      onToggleSize={() => toggleGameSize(game.id)}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Bottom Section */}
-            <div className="w-full flex flex-wrap items-center justify-center gap-4 mt-1 pb-6">
-              {/* Leaderboard Button */}
-              <button onClick={() => setCurrentView('LEADERBOARD')}
-                className="group relative flex items-center gap-4 px-8 py-4 bg-gradient-to-b from-yellow-600/20 to-yellow-700/10 border border-yellow-500/20 hover:border-yellow-400/50 rounded-2xl transition-all duration-500 hover:scale-105 active:scale-95 overflow-hidden"
-                style={{transform:'rotateX(2deg) translateZ(15px)', transformStyle:'preserve-3d', perspective:'500px'}}>
-                <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-yellow-500/10 to-yellow-500/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 skew-x-[-20deg]"></div>
-                <div className="absolute -inset-2 bg-yellow-500/10 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                <Trophy size={28} className="text-yellow-500 group-hover:animate-bounce drop-shadow-[0_0_15px_rgba(255,215,0,0.6)] transition-transform" />
-                <div className="flex flex-col items-start">
-                  <span className="text-white font-black text-base tracking-wider">لوحة الصدارة</span>
-                  <span className="text-yellow-500/50 font-bold text-[9px] uppercase tracking-[0.3em]">Leaderboard</span>
-                </div>
-              </button>
-
-              {/* Admin Button */}
-              {readSession('site_access_granted')?.role === 'admin' && (
-                <button onClick={() => {
-                  const adminAuth = readSession('site_access_granted');
-                  if (adminAuth) {
-                    setCurrentView('ADMIN_PANEL');
-                  } else {
-                    setCurrentView('ADMIN_LOGIN');
-                  }
-                }}
-                  className="group relative flex items-center gap-4 px-8 py-4 bg-gradient-to-b from-blue-600/20 to-blue-700/10 border border-blue-500/20 hover:border-blue-400/50 rounded-2xl transition-all duration-500 hover:scale-105 active:scale-95 overflow-hidden"
-                  style={{transform:'rotateX(2deg) translateZ(15px)', transformStyle:'preserve-3d', perspective:'500px'}}>
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/10 to-blue-500/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 skew-x-[-20deg]"></div>
-                  <ShieldCheck size={28} className="text-blue-500 group-hover:rotate-12 transition-transform drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
-                  <div className="flex flex-col items-start">
-                    <span className="text-white font-black text-base tracking-wider">لوحة الإدارة</span>
-                    <span className="text-blue-500/50 font-bold text-[9px] uppercase tracking-[0.3em]">Admin Panel</span>
-                  </div>
-                </button>
-              )}
-
-              {/* Host Login Button */}
-              <button onClick={openHostPage}
-                className="group relative flex items-center gap-4 px-8 py-4 bg-gradient-to-b from-emerald-600/20 to-emerald-700/10 border border-emerald-500/20 hover:border-emerald-400/50 rounded-2xl transition-all duration-500 hover:scale-105 active:scale-95 overflow-hidden"
-                style={{transform:'rotateX(2deg) translateZ(15px)', transformStyle:'preserve-3d', perspective:'500px'}}>
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/10 to-emerald-500/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 skew-x-[-20deg]"></div>
-                <div className="absolute -inset-2 bg-emerald-500/10 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                <User size={28} className="text-emerald-500 group-hover:scale-110 transition-transform drop-shadow-[0_0_15px_rgba(16,185,129,0.6)]" />
-                <div className="flex flex-col items-start">
-                  <span className="text-white font-black text-base tracking-wider">دخول المستضيف</span>
-                  <span className="text-emerald-500/50 font-bold text-[9px] uppercase tracking-[0.3em]">Host Login</span>
-                </div>
-              </button>
-
-              {/* Leaderboard nav */}
-              {userRole !== 'admin' && (
-                <button onClick={() => setCurrentView('LEADERBOARD')}
-                  className="flex items-center gap-2 px-5 py-3 text-white/30 hover:text-yellow-500/70 font-black text-sm tracking-[0.2em] uppercase transition-all hover:scale-105 border border-white/5 hover:border-yellow-500/20 rounded-xl italic">
-                  <Trophy size={18} />
-                  لوحة الصدارة
-                </button>
-              )}
-
-              <button onClick={() => setCurrentView('ABOUT')}
-                className="group relative flex items-center gap-4 px-8 py-4 bg-gradient-to-b from-purple-600/20 to-purple-700/10 border border-purple-500/20 hover:border-purple-400/50 rounded-2xl transition-all duration-500 hover:scale-105 active:scale-95 overflow-hidden"
-                style={{transform:'rotateX(2deg) translateZ(15px)', transformStyle:'preserve-3d', perspective:'500px'}}>
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/10 to-purple-500/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 skew-x-[-20deg]"></div>
-                <Sparkles size={28} className="text-purple-500 group-hover:rotate-12 transition-transform drop-shadow-[0_0_15px_rgba(147,51,234,0.6)]" />
-                <div className="flex flex-col items-start">
-                  <span className="text-white font-black text-base tracking-wider">عن المنصة</span>
-                  <span className="text-purple-500/50 font-bold text-[9px] uppercase tracking-[0.3em]">About iCG1</span>
-                </div>
-              </button>
-
-              {!isEditMode && userRole === 'admin' && (
-                <button onClick={() => setIsEditMode(true)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 text-white/70 hover:text-white font-black text-sm italic tracking-tighter transition-all hover:scale-105 active:scale-95 group">
-                  <Edit2 size={16} className="text-red-500 group-hover:rotate-12 transition-transform" />
-                  <span>تعديل الألعاب</span>
-                </button>
-              )}
-
-              {isEditMode && (
-                <>
-                  <button onClick={saveGamesOrder} disabled={isSavingGames}
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-b from-green-600 to-green-800 rounded-xl border border-green-400/30 text-white font-black text-sm italic shadow-[0_0_25px_rgba(22,163,74,0.3)] hover:scale-105 transition-all active:scale-95">
-                    {isSavingGames ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    <span>حفظ الترتيب</span>
-                  </button>
-                  <button onClick={handleLogout}
-                    className="flex items-center gap-2 px-5 py-3 bg-red-600/10 hover:bg-red-600/30 rounded-xl border border-red-500/20 text-red-400 hover:text-white font-black text-sm italic transition-all active:scale-95">
-                    <LogOut size={16} />
-                    <span>خروج</span>
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
+          <Home435242
+            games={games}
+            onSelectGame={(viewId) => setCurrentView(viewId as any)}
+            onOpenTutorial={setTutView}
+            onOpenLeaderboard={() => setCurrentView('LEADERBOARD')}
+            isAuthorized={isAuthorized}
+            userRole={userRole}
+            isEditMode={isEditMode}
+            setIsEditMode={setIsEditMode}
+            saveGamesOrder={saveGamesOrder}
+            isSavingGames={isSavingGames}
+            handleLogout={handleLogout}
+            onOpenAdmin={handleOpenAdmin}
+          />
         );
       }
     }
   };
+
+  /* حدود Suspense الشفافة: الشاشة التالية تُحلَّل فقط عند فتحها */
+  const renderContent = (obsMode: boolean = false) => (
+    <React.Suspense fallback={null}>{renderView(obsMode)}</React.Suspense>
+  );
+
+  /* شرح الألعاب: زر «!» العائم + الفيديو — لا يظهر أبداً في بث OBS */
+  const tutorialLayer = (
+    <React.Suspense fallback={null}>
+      <TutorialLayer
+        viewId={currentView}
+        openId={tutView}
+        onOpen={setTutView}
+        onClose={() => setTutView(null)}
+        onPlay={(v) => setCurrentView(v as ViewState)}
+      />
+    </React.Suspense>
+  );
 
 
   if (isOBSMode) {
@@ -1071,6 +796,49 @@ useEffect(() => {
       <div className="fixed inset-0 bg-transparent overflow-hidden flex items-center justify-center z-[99999]">
         {renderContent(true)}
       </div>
+    );
+  }
+
+  // لعبة المافيا تُعرض بملء الشاشة (تصميم المسرح) بدون واجهة الموقع الجانبية
+  if (isAuthorized && currentView === 'MAHMAH_GAME') {
+    return (
+      <div className="fixed inset-0 overflow-auto bg-black">
+        {renderContent(false)}
+        {tutorialLayer}
+      </div>
+    );
+  }
+
+  // هاتف لاعب/ليدر كود نيمز: صفحة كاملة بدون واجهة الموقع
+  if (isAuthorized && currentView === 'EMOJI_CODE' && isCnRoomRoute()) {
+    return (
+      <div className="fixed inset-0 overflow-auto bg-[#03081a]">
+        {renderContent(false)}
+      </div>
+    );
+  }
+
+  // بوابة الإدارة: مسارَان خارج واجهة الموقع وخارج بوابة الموقع. كلمة سر الإدارة وحدها
+  // تفتح اللوحة، وكل صلاحية في السيرفر (كوكي HttpOnly + جلسة تُلغى) — فلا خطر من ظهور الصفحة.
+  const adminRoute = currentView === 'ADMIN_LOGIN' || currentView === 'ADMIN_PANEL';
+  if (adminRoute) {
+    return (
+      <div className="fixed inset-0 overflow-auto bg-[#070504]">
+        {renderContent(false)}
+      </div>
+    );
+  }
+
+  if (!isAuthorized && currentView !== 'ABOUT' && !hostRoute) {
+    return (
+      <GlobalPasswordPage
+        onSuccess={(role) => {
+          setUserRole(role);
+          setIsAuthorized(true);
+          const roomLink = new URLSearchParams(window.location.search).get('r') || readShortRoomCode();
+          setCurrentView(readCnRoomCode() ? 'EMOJI_CODE' : roomLink ? 'MAHMAH_GAME' : 'HOME');
+        }}
+      />
     );
   }
 
@@ -1084,17 +852,9 @@ useEffect(() => {
       obsPreviewSlot={renderContent(true)}
       isAuthorized={isAuthorized}
       userRole={userRole}
+      tutorialOpen={!!tutView}
     >
       <OBSLinksModal isOpen={showOBSModal} onClose={() => setShowOBSModal(false)} />
-      
-      {/* بوابة الموقع العامة — لا تظهر إطلاقاً داخل رابط الاستضافة */}
-      {!isAuthorized && currentView !== 'ABOUT' && !hostRoute && (
-        <GlobalPasswordPage onSuccess={(role) => {
-          setUserRole(role);
-          setIsAuthorized(true);
-          setCurrentView('HOME');
-        }} />
-      )}
 
       {(isAuthorized || currentView === 'ABOUT' || hostRoute) && (
         <div className="relative w-full h-full flex flex-col items-center">
@@ -1108,6 +868,8 @@ useEffect(() => {
           onClose={() => setActiveAnnouncement(null)}
         />
       )}
+
+      {tutorialLayer}
 
       </Layout>
   );

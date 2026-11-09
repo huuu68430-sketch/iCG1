@@ -11,7 +11,7 @@ import { BlurGuess } from './BlurGuess';
 import { TypingRace } from './TypingRace';
 import { CupShuffle } from './CupShuffle';
 import { GridHunt } from './GridHunt';
-import { SpinWheel } from './SpinWheel';
+import { Roulette } from './Roulette';
 import { TerritoryWar } from './TerritoryWar';
 import { TeamBattle } from './TeamBattle';
 import { WordBomb } from './WordBomb';
@@ -131,7 +131,7 @@ export const TournamentManager: React.FC<TournamentManagerProps> = ({ channelCon
           // Add comment above fix: provide missing required onHome prop
           case 'GAME_GRID': return <GridHunt channelConnected={channelConnected} onHome={onGameExit} />;
           // Add comment above fix: provide missing required onHome prop
-          case 'GAME_WHEEL': return <SpinWheel channelConnected={channelConnected} onHome={onGameExit} />;
+          case 'GAME_WHEEL': return <Roulette channelConnected={channelConnected} onHome={onGameExit} />;
           // Add comment above fix: provide missing required onHome prop
           case 'GAME_PAINT': return <TerritoryWar channelConnected={channelConnected} onHome={onGameExit} />;
           // Add comment above fix: provide missing required onHome prop

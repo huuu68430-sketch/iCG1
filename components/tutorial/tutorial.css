@@ -1,0 +1,1494 @@
+/* ============================================================
+   شرح الألعاب — «فيديو كيف تلعب»
+   لغة بصرية مطابقة لساحة iCG1: ذهب على إسبريسو + خط Lalezar.
+   كل المقاسات داخل المسرح em حتى يتSCALE مع العرض بلا كسر.
+   ============================================================ */
+
+.tut-root {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(8px, 1.6vw, 26px);
+  font-family: 'Tajawal', sans-serif;
+  color: #fbeccb;
+  isolation: isolate;
+}
+
+.tut-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(232, 190, 110, .14), transparent 60%),
+    radial-gradient(90% 70% at 50% 110%, rgba(232, 85, 47, .12), transparent 60%),
+    rgba(6, 4, 2, .88);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+}
+
+.tut-scrim::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .024) 0 1px, transparent 1px 3px);
+  opacity: .5;
+  pointer-events: none;
+}
+
+/* جسيمات ذهبية تطفو خلف النافذة */
+.tut-dust {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.tut-dust i {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #f0c46e;
+  box-shadow: 0 0 8px 2px rgba(240, 196, 110, .45);
+  animation: tutFloat linear infinite;
+  opacity: 0;
+}
+
+@keyframes tutFloat {
+  0% { transform: translateY(30px) scale(.6); opacity: 0 }
+  12% { opacity: .85 }
+  88% { opacity: .5 }
+  100% { transform: translateY(-120vh) scale(1.1); opacity: 0 }
+}
+
+/* ====== الإطار العام ====== */
+.tut-shell {
+  position: relative;
+  width: min(1440px, 100%);
+  max-height: calc(100dvh - clamp(8px, 1.6vw, 26px) * 2);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1vw, 14px);
+  padding: clamp(10px, 1.2vw, 18px);
+  border-radius: 26px;
+  background: linear-gradient(168deg, rgba(44, 31, 15, .96), rgba(10, 8, 5, .98));
+  border: 1px solid rgba(232, 190, 110, .42);
+  box-shadow:
+    0 40px 120px rgba(0, 0, 0, .75),
+    inset 0 1px 0 rgba(255, 235, 190, .16),
+    0 0 90px rgba(232, 190, 110, .12);
+  overflow: hidden;
+}
+
+.tut-shell::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #f9e0a4, transparent);
+  opacity: .8;
+}
+
+/* ====== الرأس ====== */
+.tut-head {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1.1vw, 16px);
+  flex: none;
+}
+
+.tut-emblem {
+  position: relative;
+  width: clamp(44px, 4.4vw, 62px);
+  height: clamp(44px, 4.4vw, 62px);
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  font-size: clamp(22px, 2.3vw, 32px);
+  background: radial-gradient(circle at 50% 28%, rgba(232, 190, 110, .38), rgba(18, 13, 6, .95) 72%);
+  border: 1px solid rgba(232, 190, 110, .62);
+  box-shadow: inset 0 0 22px rgba(232, 190, 110, .26), 0 8px 22px rgba(0, 0, 0, .55);
+  flex: none;
+}
+
+.tut-emblem::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 22px;
+  border: 1px dashed rgba(232, 190, 110, .35);
+  animation: tutSpin 14s linear infinite;
+}
+
+@keyframes tutSpin { to { transform: rotate(360deg) } }
+
+.tut-title {
+  font-family: 'Lalezar', 'Tajawal', sans-serif;
+  font-size: clamp(20px, 2.4vw, 34px);
+  line-height: 1.12;
+  color: #fbeccb;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, .6);
+}
+
+.tut-tag {
+  font-size: clamp(11px, 1.05vw, 15px);
+  color: #b2a283;
+  font-weight: 500;
+}
+
+.tut-badges {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-inline-start: auto;
+}
+
+.tut-badge {
+  font-size: clamp(10px, .85vw, 12.5px);
+  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 190, 110, .45);
+  background: rgba(232, 190, 110, .1);
+  color: #f0dcb0;
+  white-space: nowrap;
+}
+
+.tut-badge.phone {
+  border-color: rgba(75, 224, 122, .5);
+  background: rgba(75, 224, 122, .12);
+  color: #a9f2c6;
+}
+
+.tut-close {
+  flex: none;
+  width: clamp(34px, 3vw, 42px);
+  height: clamp(34px, 3vw, 42px);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: #fbeccb;
+  background: rgba(0, 0, 0, .45);
+  border: 1px solid rgba(232, 190, 110, .4);
+  transition: .22s;
+}
+
+.tut-close:hover {
+  background: #e8552f;
+  border-color: #ffb08e;
+  transform: rotate(90deg) scale(1.08);
+}
+
+/* ====== الجسم: مسرح + سكة ====== */
+.tut-body {
+  display: flex;
+  gap: clamp(10px, 1.2vw, 18px);
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.tut-stagebox {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* المسرح بنسبة 16:9 ثابتة */
+.tut-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(232, 190, 110, .1), transparent 55%),
+    linear-gradient(170deg, #171006, #080603);
+  border: 1px solid rgba(232, 190, 110, .38);
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, .8), 0 20px 60px rgba(0, 0, 0, .6);
+  font-size: clamp(9px, 1.92vw, 26px);
+  font-size: min(2.05cqw, 26px);
+  container-type: inline-size;
+  cursor: pointer;
+}
+
+/* شريط أعلى المسرح يعطي إحساس البث */
+.tut-onair {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2.1em;
+  display: flex;
+  align-items: center;
+  gap: .7em;
+  padding: 0 .9em;
+  font-size: .62em;
+  font-weight: 800;
+  letter-spacing: .04em;
+  color: #e6d4ae;
+  background: linear-gradient(180deg, rgba(30, 21, 9, .95), rgba(14, 10, 4, .6));
+  border-bottom: 1px solid rgba(232, 190, 110, .28);
+  z-index: 40;
+}
+
+.tut-rec {
+  display: inline-flex;
+  align-items: center;
+  gap: .4em;
+  color: #ff6b52;
+}
+
+.tut-rec i {
+  width: .62em;
+  height: .62em;
+  border-radius: 50%;
+  background: #ff3b2f;
+  box-shadow: 0 0 .7em #ff3b2f;
+  animation: tutRec 1.4s ease-in-out infinite;
+}
+
+@keyframes tutRec { 50% { opacity: .25 } }
+
+.tut-onair b {
+  font-family: 'Lalezar', sans-serif;
+  font-weight: 400;
+  font-size: 1.25em;
+  color: #fbeccb;
+}
+
+.tut-onair .spacer { margin-inline-start: auto }
+
+/* الكاميرا: تتقرب على العنصر المضغوط */
+.tut-camera {
+  position: absolute;
+  inset: 2.2em 0 3.4em 0;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.tut-scene {
+  position: absolute;
+  inset: 0;
+  padding: .9em 1.1em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .55em;
+  text-align: center;
+}
+
+/* ====== عناصر المشهد ====== */
+.p-kicker {
+  font-size: .62em;
+  letter-spacing: .28em;
+  font-weight: 800;
+  color: #c8a86a;
+  text-transform: uppercase;
+}
+
+.p-headline {
+  font-family: 'Lalezar', sans-serif;
+  font-size: 1.5em;
+  line-height: 1.15;
+  color: #fbeccb;
+  text-shadow: 0 .06em .5em rgba(0, 0, 0, .7);
+}
+
+.p-headline small {
+  display: block;
+  font-family: 'Tajawal', sans-serif;
+  font-size: .42em;
+  font-weight: 600;
+  color: #b2a283;
+  letter-spacing: .06em;
+  margin-top: .35em;
+}
+
+.p-bigtext {
+  font-family: 'Lalezar', sans-serif;
+  font-size: 2.5em;
+  line-height: 1.05;
+  color: #f9e0a4;
+  text-shadow: 0 0 .35em rgba(232, 190, 110, .5), 0 .08em .6em rgba(0, 0, 0, .8);
+}
+
+.p-bigtext small {
+  display: block;
+  font-family: 'Tajawal', sans-serif;
+  font-size: .3em;
+  font-weight: 700;
+  color: #b2a283;
+  margin-top: .5em;
+}
+
+.p-art {
+  font-size: 3.4em;
+  line-height: 1;
+  filter: drop-shadow(0 .1em .5em rgba(0, 0, 0, .8));
+  transition: filter .5s ease;
+}
+
+.p-art-cap {
+  font-size: .62em;
+  font-weight: 700;
+  color: #b2a283;
+}
+
+.p-chips { display: flex; gap: .4em; flex-wrap: wrap; justify-content: center }
+
+.p-chip {
+  font-size: .58em;
+  font-weight: 800;
+  padding: .32em .85em;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 190, 110, .4);
+  background: rgba(232, 190, 110, .1);
+  color: #f0dcb0;
+  white-space: nowrap;
+}
+
+.p-chip.red { border-color: rgba(232, 85, 47, .55); background: rgba(232, 85, 47, .16); color: #ffc0aa }
+.p-chip.green { border-color: rgba(75, 224, 122, .5); background: rgba(75, 224, 122, .14); color: #a9f2c6 }
+.p-chip.blue { border-color: rgba(56, 189, 248, .5); background: rgba(56, 189, 248, .14); color: #b5e5ff }
+.p-chip.dim { opacity: .5 }
+
+.p-tiles-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .35em;
+  width: 100%;
+}
+
+/* ضغطة الموس على الزر */
+.tut-press { animation: tutPress .34s cubic-bezier(.16, 1, .3, 1) both }
+
+@keyframes tutPress {
+  0% { transform: scale(1) }
+  38% { transform: scale(.93); filter: brightness(1.35) }
+  100% { transform: scale(1) }
+}
+
+.p-tiles {
+  display: grid;
+  gap: .45em;
+  width: 100%;
+  max-width: 22em;
+}
+
+.p-tiles.cap { margin-top: .1em }
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .18em;
+  min-height: 2.5em;
+  padding: .5em .6em;
+  border-radius: .7em;
+  font-size: .78em;
+  font-weight: 800;
+  color: #f4e3bd;
+  background: linear-gradient(170deg, rgba(58, 41, 19, .92), rgba(16, 11, 5, .95));
+  border: 1px solid rgba(232, 190, 110, .34);
+  box-shadow: inset 0 1px 0 rgba(255, 236, 200, .1), 0 .3em .9em rgba(0, 0, 0, .5);
+  overflow: hidden;
+}
+
+.tile small {
+  font-size: .68em;
+  font-weight: 600;
+  color: #a89a7d;
+}
+
+.tile.good {
+  color: #0d1b0f;
+  background: linear-gradient(170deg, #8ff0ae, #2fa25c);
+  border-color: #c8ffe0;
+  box-shadow: 0 0 1.2em rgba(75, 224, 122, .6);
+}
+
+.tile.bad {
+  color: #ffd9d0;
+  background: linear-gradient(170deg, rgba(120, 26, 16, .95), rgba(40, 8, 4, .95));
+  border-color: rgba(255, 120, 90, .6);
+}
+
+.tile.hot {
+  color: #2a1a08;
+  background: linear-gradient(180deg, #f9e0a4, #c9962f);
+  border-color: #fff3d0;
+  box-shadow: 0 0 1.4em rgba(232, 190, 110, .7);
+}
+
+.tile.dim { opacity: .38; filter: grayscale(.6) }
+.tile.pick { border-color: #f9e0a4; box-shadow: 0 0 0 .12em rgba(249, 224, 164, .5), 0 0 1.4em rgba(232, 190, 110, .45) }
+
+.tile .av { display: flex; gap: .1em; margin-top: .15em }
+.tile .av img { width: 1.25em; height: 1.25em; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255, 255, 255, .35) }
+
+/* إطار نابض حول العنصر المستهدف */
+.tut-target { position: relative }
+
+.tut-target::after {
+  content: "";
+  position: absolute;
+  inset: -.32em;
+  border-radius: inherit;
+  border: .1em solid rgba(249, 224, 164, .85);
+  box-shadow: 0 0 1.1em rgba(232, 190, 110, .8), inset 0 0 1.1em rgba(232, 190, 110, .35);
+  animation: tutTarget 1.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes tutTarget {
+  0%, 100% { opacity: .35; transform: scale(.985) }
+  50% { opacity: 1; transform: scale(1.015) }
+}
+
+.p-cta {
+  font-family: 'Lalezar', sans-serif;
+  font-size: .95em;
+  font-weight: 400;
+  letter-spacing: .01em;
+  padding: .5em 1.9em;
+  border-radius: 999px;
+  color: #1a1006;
+  background: linear-gradient(180deg, #f9e0a4, #c9962f);
+  border: 1px solid #fff3d0;
+  box-shadow: 0 .35em 1.4em rgba(232, 190, 110, .45), inset 0 1px 0 rgba(255, 255, 255, .7);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.25;
+}
+
+.p-cta small {
+  font-family: 'Tajawal', sans-serif;
+  font-size: .5em;
+  font-weight: 700;
+  opacity: .78;
+}
+
+.p-cta.red {
+  color: #fff1ec;
+  background: linear-gradient(180deg, #ff7a52, #a32716);
+  border-color: #ffb08e;
+  box-shadow: 0 .35em 1.4em rgba(232, 85, 47, .5);
+}
+
+.p-cta.ghost {
+  color: #f0dcb0;
+  background: rgba(232, 190, 110, .12);
+  border-color: rgba(232, 190, 110, .5);
+  box-shadow: none;
+}
+
+.p-note {
+  font-size: .68em;
+  font-weight: 700;
+  color: #d9c49a;
+  background: rgba(0, 0, 0, .4);
+  border: 1px dashed rgba(232, 190, 110, .42);
+  border-radius: .7em;
+  padding: .55em 1em;
+  max-width: 24em;
+}
+
+.p-note.red { color: #ffc7b6; border-color: rgba(232, 85, 47, .55); background: rgba(120, 26, 16, .35) }
+.p-note.green { color: #b6f5cd; border-color: rgba(75, 224, 122, .5); background: rgba(16, 70, 40, .35) }
+
+.p-bar {
+  width: 100%;
+  max-width: 20em;
+  height: .85em;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .55);
+  border: 1px solid rgba(232, 190, 110, .32);
+  overflow: hidden;
+  position: relative;
+}
+
+.p-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #a97a30, #f9e0a4);
+  box-shadow: 0 0 1em rgba(232, 190, 110, .7);
+  transition: width .7s cubic-bezier(.16, 1, .3, 1);
+}
+
+.p-bar.red i { background: linear-gradient(90deg, #7a1a10, #ff6b52); box-shadow: 0 0 1em rgba(255, 90, 60, .7) }
+.p-bar.green i { background: linear-gradient(90deg, #1f7a45, #6cf0a0); box-shadow: 0 0 1em rgba(75, 224, 122, .6) }
+
+.p-bar label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: .5em;
+  font-weight: 800;
+  color: #0a0805;
+  mix-blend-mode: screen;
+  color: #fff;
+}
+
+.p-tally { width: 100%; max-width: 22em; display: flex; flex-direction: column; gap: .4em }
+
+.tally-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: .6em;
+  font-size: .66em;
+  font-weight: 800;
+}
+
+.tally-row .track {
+  grid-column: 1 / -1;
+  height: 1.5em;
+  border-radius: .5em;
+  background: rgba(0, 0, 0, .5);
+  border: 1px solid rgba(232, 190, 110, .22);
+  overflow: hidden;
+  position: relative;
+}
+
+.tally-row .track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: linear-gradient(90deg, rgba(232, 190, 110, .35), rgba(249, 224, 164, .85));
+  transition: width .8s cubic-bezier(.16, 1, .3, 1);
+}
+
+html[dir="rtl"] .tally-row .track i { inset: 0 0 0 auto }
+
+.tally-row .track.red i { background: linear-gradient(90deg, rgba(160, 40, 20, .5), rgba(255, 107, 82, .9)) }
+.tally-row .track.green i { background: linear-gradient(90deg, rgba(20, 100, 55, .5), rgba(108, 240, 160, .9)) }
+.tally-row .track.blue i { background: linear-gradient(90deg, rgba(20, 70, 140, .5), rgba(90, 180, 255, .9)) }
+
+.tally-row .track span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 .7em;
+  font-size: .95em;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .8);
+}
+
+.tally-row .who { display: flex; gap: .12em }
+.tally-row .who img { width: 1.5em; height: 1.5em; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .4) }
+
+/* المؤقّت الدائري */
+.p-ring { position: relative; width: 4.4em; height: 4.4em; margin-bottom: .85em }
+.p-ring svg { width: 100%; height: 100%; transform: rotate(-90deg) }
+.p-ring circle { fill: none; stroke-width: .42em; stroke-linecap: round }
+.p-ring .bg { stroke: rgba(232, 190, 110, .16) }
+.p-ring .fg { stroke: #f9e0a4; filter: drop-shadow(0 0 .3em rgba(232, 190, 110, .8)); transition: stroke-dashoffset .9s linear }
+.p-ring.low .fg { stroke: #ff6b52; filter: drop-shadow(0 0 .45em rgba(255, 80, 50, .95)) }
+.p-ring b {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: 'Lalezar', sans-serif;
+  font-weight: 400;
+  font-size: 1.35em;
+  color: #fbeccb;
+}
+.p-ring.low b { color: #ffb8a6 }
+.p-ring label {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  font-size: .52em;
+  font-weight: 800;
+  color: #a89a7d;
+  letter-spacing: .1em;
+}
+
+/* اللاعبون التجريبيون: صورة جميلة + إطار */
+.p-roster { display: flex; flex-wrap: wrap; gap: .55em; justify-content: center; max-width: 24em }
+
+.pc {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .2em;
+  width: 4.4em;
+}
+
+.pc .pic {
+  position: relative;
+  width: 3.1em;
+  height: 3.1em;
+  display: grid;
+  place-items: center;
+}
+
+.pc .pic .ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #f9e0a4, #a97a30, #fff3d0, #c9962f, #f9e0a4);
+  animation: tutSpin 6s linear infinite;
+  box-shadow: 0 0 .8em rgba(232, 190, 110, .55);
+}
+
+.pc .pic .ring::after {
+  content: "";
+  position: absolute;
+  inset: .16em;
+  border-radius: 50%;
+  background: #0d0a05;
+}
+
+.pc .pic img.face {
+  position: relative;
+  z-index: 2;
+  width: 2.6em;
+  height: 2.6em;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, .25);
+  background: #1a1006;
+}
+
+.pc .pic .glint {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .45), transparent 45%);
+  pointer-events: none;
+}
+
+.pc .pic .crest {
+  position: absolute;
+  inset: -.35em;
+  z-index: 4;
+  pointer-events: none;
+  filter: drop-shadow(0 0 .3em rgba(0, 0, 0, .8));
+}
+
+.pc .nm {
+  font-size: .56em;
+  font-weight: 800;
+  color: #f0dcb0;
+  max-width: 4.6em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc .tg {
+  font-size: .46em;
+  font-weight: 800;
+  color: #0a0805;
+  background: linear-gradient(180deg, #f9e0a4, #c9962f);
+  padding: .1em .5em;
+  border-radius: 999px;
+}
+
+.pc .tg.red { background: linear-gradient(180deg, #ff8f6f, #b32b16); color: #fff }
+.pc .tg.green { background: linear-gradient(180deg, #7cf0ab, #1f8a4c); color: #04220f }
+.pc .tg.blue { background: linear-gradient(180deg, #7fd0ff, #1f5fa8); color: #041526 }
+
+.p-podium { display: flex; align-items: flex-end; gap: .7em; justify-content: center }
+
+.pod {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .25em;
+  width: 5.2em;
+}
+
+.pod .box {
+  width: 100%;
+  border-radius: .5em .5em 0 0;
+  display: grid;
+  place-items: center;
+  font-family: 'Lalezar', sans-serif;
+  font-size: 1.1em;
+  color: #1a1006;
+  background: linear-gradient(180deg, rgba(232, 190, 110, .5), rgba(232, 190, 110, .12));
+  border: 1px solid rgba(232, 190, 110, .5);
+  border-bottom: none;
+}
+
+.pod.p1 .box { height: 3.1em; background: linear-gradient(180deg, #f9e0a4, #b8863a); font-size: 1.5em; color: #2a1a08; text-shadow: 0 1px 0 rgba(255, 255, 255, .45) }
+.pod.p2 .box { height: 2.2em }
+.pod.p3 .box { height: 1.6em }
+.pod .pc { width: 100% }
+.pod .pc .nm { max-width: 5.6em }
+.pod .pts { font-size: .52em; font-weight: 800; color: #a9f2c6 }
+
+/* العنصر الكبير المفرد (بوم/فائز) */
+.p-portrait { display: flex; flex-direction: column; align-items: center; gap: .3em }
+.p-portrait .pic { position: relative; width: 5.4em; height: 5.4em; display: grid; place-items: center }
+.p-portrait .pic .ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #f9e0a4, #a97a30, #fff3d0, #c9962f, #f9e0a4);
+  animation: tutSpin 7s linear infinite;
+  box-shadow: 0 0 1.2em rgba(232, 190, 110, .6);
+}
+.p-portrait .pic .ring::after { content: ""; position: absolute; inset: .2em; border-radius: 50%; background: #0d0a05 }
+.p-portrait .pic img.face {
+  position: relative;
+  z-index: 2;
+  width: 4.5em;
+  height: 4.5em;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, .25);
+}
+.p-portrait .pic .crest { position: absolute; inset: -.5em; z-index: 4; pointer-events: none }
+.p-portrait .nm { font-family: 'Lalezar', sans-serif; font-size: 1em; color: #fbeccb }
+.p-portrait .cap { font-size: .58em; font-weight: 800; color: #b2a283 }
+
+/* أرقام الخزنة / الحروف */
+.p-code { display: flex; gap: .35em; justify-content: center }
+.p-code .d {
+  width: 1.9em;
+  height: 2.6em;
+  border-radius: .4em;
+  display: grid;
+  place-items: center;
+  font-family: 'Lalezar', sans-serif;
+  font-size: 1.3em;
+  color: #f9e0a4;
+  background: linear-gradient(180deg, rgba(60, 44, 20, .95), rgba(14, 10, 4, .95));
+  border: 1px solid rgba(232, 190, 110, .4);
+  box-shadow: inset 0 0 .8em rgba(0, 0, 0, .8);
+}
+.p-code .d.hit { color: #0d1b0f; background: linear-gradient(180deg, #a9f2c6, #2fa25c); border-color: #d7ffe8 }
+.p-code .d.unk { color: #5a4a2c }
+
+/* عجلة الروليت */
+.p-wheel { position: relative; width: 8.4em; height: 8.4em; margin-bottom: 1.15em }
+.p-wheel .disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: .18em solid rgba(232, 190, 110, .75);
+  box-shadow: inset 0 0 1.6em rgba(0, 0, 0, .8), 0 0 1.6em rgba(232, 190, 110, .28);
+  animation: tutSpin 26s linear infinite;
+}
+.p-wheel .seg {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: .5em;
+  font-weight: 800;
+  color: #e8d6ab;
+}
+.p-wheel .seg b { transform: translateY(-3.1em) }
+.p-wheel .hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2.2em;
+  height: 2.2em;
+  margin: -1.1em 0 0 -1.1em;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: 'Lalezar', sans-serif;
+  font-size: .8em;
+  color: #1a1006;
+  background: linear-gradient(180deg, #f9e0a4, #c9962f);
+  box-shadow: 0 0 1.2em rgba(232, 190, 110, .7);
+  z-index: 3;
+}
+.p-wheel .needle {
+  position: absolute;
+  left: 50%;
+  top: -.35em;
+  width: 0;
+  height: 0;
+  margin-left: -.4em;
+  border: .4em solid transparent;
+  border-top-color: #ff5a3c;
+  border-width: .7em .4em 0 .4em;
+  z-index: 4;
+  filter: drop-shadow(0 0 .3em rgba(255, 90, 60, .9));
+}
+
+.p-row { display: flex; gap: .8em; align-items: center; justify-content: center; flex-wrap: wrap; width: 100% }
+
+/* ====== الموس المتحرك ====== */
+.tut-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  width: 1.5em;
+  height: 1.5em;
+  pointer-events: none;
+  will-change: transform;
+  filter: drop-shadow(0 .12em .3em rgba(0, 0, 0, .85));
+}
+
+.tut-cursor svg { width: 100%; height: 100%; overflow: visible }
+
+.tut-ripple {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3em;
+  height: 3em;
+  margin: -1.5em 0 0 -1.5em;
+  border-radius: 50%;
+  border: .14em solid rgba(249, 224, 164, .9);
+  pointer-events: none;
+}
+
+/* ترجمة الفيديو أسفل المسرح */
+.tut-caption {
+  position: absolute;
+  left: 50%;
+  bottom: .5em;
+  transform: translateX(-50%);
+  z-index: 45;
+  max-width: 92%;
+  display: flex;
+  align-items: center;
+  gap: .6em;
+  padding: .5em 1.1em;
+  border-radius: 999px;
+  font-size: .72em;
+  font-weight: 800;
+  color: #fdf3d9;
+  background: linear-gradient(180deg, rgba(28, 20, 8, .92), rgba(8, 6, 3, .92));
+  border: 1px solid rgba(232, 190, 110, .45);
+  box-shadow: 0 .5em 1.6em rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 236, 200, .12);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.tut-caption .n {
+  flex: none;
+  width: 1.7em;
+  height: 1.7em;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: 'Lalezar', sans-serif;
+  font-size: .9em;
+  color: #1a1006;
+  background: linear-gradient(180deg, #f9e0a4, #c9962f);
+}
+
+/* ====== السكة الجانبية ====== */
+.tut-rail {
+  flex: none;
+  width: clamp(230px, 24vw, 340px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, .8vw, 12px);
+  min-height: 0;
+}
+
+.tut-panel {
+  border-radius: 16px;
+  background: linear-gradient(168deg, rgba(40, 28, 13, .8), rgba(10, 8, 5, .9));
+  border: 1px solid rgba(232, 190, 110, .3);
+  box-shadow: inset 0 1px 0 rgba(255, 236, 200, .08);
+  padding: 10px 12px;
+  min-height: 0;
+}
+
+.tut-panel h4 {
+  margin: 0 0 8px;
+  font-family: 'Lalezar', sans-serif;
+  font-weight: 400;
+  font-size: clamp(13px, 1.05vw, 17px);
+  color: #f0dcb0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tut-panel h4 i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e8be6e;
+  box-shadow: 0 0 10px #e8be6e;
+}
+
+.tut-rules { display: flex; flex-direction: column; gap: 7px; overflow: auto }
+
+.tut-rules li {
+  list-style: none;
+  display: flex;
+  gap: 8px;
+  font-size: clamp(11px, .92vw, 14px);
+  line-height: 1.55;
+  color: #d9c9a6;
+}
+
+.tut-rules li b {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 900;
+  color: #1a1006;
+  background: linear-gradient(180deg, #f9e0a4, #c9962f);
+}
+
+/* الشات */
+.tut-chat { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0 }
+.tut-chat .feed { flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; gap: 6px; justify-content: flex-start }
+
+.msg {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  padding: 5px 7px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(232, 190, 110, .12);
+}
+
+.msg.sys {
+  background: rgba(232, 190, 110, .1);
+  border-color: rgba(232, 190, 110, .3);
+  font-size: 11.5px;
+  color: #f0dcb0;
+  font-weight: 800;
+  justify-content: center;
+  text-align: center;
+}
+
+.msg .pic { position: relative; width: 26px; height: 26px; flex: none; display: grid; place-items: center }
+.msg .pic .ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #f9e0a4, #a97a30, #fff3d0, #c9962f, #f9e0a4);
+  box-shadow: 0 0 8px rgba(232, 190, 110, .4);
+}
+.msg .pic .ring::after { content: ""; position: absolute; inset: 2px; border-radius: 50%; background: #0d0a05 }
+.msg .pic img { position: relative; z-index: 2; width: 20px; height: 20px; border-radius: 50%; object-fit: cover }
+.msg .pic .crest { position: absolute; inset: -4px; z-index: 4; pointer-events: none }
+
+.msg .txt { min-width: 0 }
+.msg .nm { font-size: 11px; font-weight: 900; color: #e8be6e; line-height: 1.2 }
+.msg .bd { font-size: 12.5px; font-weight: 600; color: #f7ecd4; line-height: 1.45; word-break: break-word }
+.msg .bd.code {
+  font-family: 'Lalezar', sans-serif;
+  letter-spacing: .06em;
+  color: #a9f2c6;
+  background: rgba(75, 224, 122, .12);
+  border: 1px solid rgba(75, 224, 122, .35);
+  border-radius: 6px;
+  padding: 0 6px;
+  display: inline-block;
+  margin-top: 2px;
+}
+
+/* ====== الجوال ====== */
+.tut-phone {
+  position: absolute;
+  left: clamp(-6px, -.4vw, 0px);
+  bottom: clamp(30px, 4.5%, 54px);
+  z-index: 50;
+  width: clamp(126px, 15.5%, 210px);
+  aspect-ratio: 9 / 19;
+  pointer-events: none;
+}
+
+.tut-phone .body {
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  padding: 5px;
+  background: linear-gradient(150deg, #3a2c14, #0c0904 45%, #2a1f0e);
+  border: 1px solid rgba(255, 240, 205, .35);
+  box-shadow:
+    0 22px 46px rgba(0, 0, 0, .8),
+    0 0 30px rgba(232, 190, 110, .25),
+    inset 0 1px 0 rgba(255, 245, 220, .5);
+}
+
+.tut-phone .screen {
+  position: absolute;
+  inset: 5px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: radial-gradient(120% 80% at 50% 0%, rgba(232, 190, 110, .16), transparent 55%), linear-gradient(175deg, #15100a, #060503);
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(7px, .95vw, 11.5px);
+  padding: 14px 8px 8px;
+  gap: 5px;
+}
+
+.tut-phone .notch {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34%;
+  height: 11px;
+  border-radius: 0 0 9px 9px;
+  background: #0a0805;
+  z-index: 6;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-top: none;
+}
+
+.tut-phone .glare {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+  background: linear-gradient(112deg, rgba(255, 255, 255, .16) 0 18%, transparent 34% 66%, rgba(255, 255, 255, .07) 78% 100%);
+  border-radius: 18px;
+}
+
+/* علامة خفيفة وشريط أسفل الشاشة — المساحة الفارغة تقرأ كخلفية تطبيق لا كسواد */
+.tut-phone .screen::before {
+  content: "iCG1";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 56%;
+  text-align: center;
+  font-family: 'Lalezar', sans-serif;
+  font-size: 2.8em;
+  letter-spacing: .05em;
+  color: rgba(232, 190, 110, .075);
+  pointer-events: none;
+}
+
+.tut-phone .screen::after {
+  content: "";
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30%;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(255, 240, 205, .2);
+  pointer-events: none;
+}
+
+.tut-phone .statusbar,
+.tut-phone .pstack { position: relative; z-index: 1 }
+
+.tut-phone .statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 7.5px;
+  font-weight: 800;
+  color: #cbb88c;
+  opacity: .85;
+}
+
+.tut-phone .ptitle {
+  font-family: 'Lalezar', sans-serif;
+  font-size: 1.25em;
+  color: #fbeccb;
+  line-height: 1.2;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.tut-phone .psub {
+  font-size: .78em;
+  font-weight: 700;
+  color: #b2a283;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.tut-phone .pbtn {
+  margin-top: auto;
+  font-family: 'Lalezar', sans-serif;
+  font-size: 1em;
+  text-align: center;
+  padding: .45em .6em;
+  border-radius: 10px;
+  color: #1a1006;
+  background: linear-gradient(180deg, #f9e0a4, #c9962f);
+  box-shadow: 0 .3em 1em rgba(232, 190, 110, .45);
+}
+
+.tut-phone .pbtn.red { color: #fff; background: linear-gradient(180deg, #ff7a52, #a32716); box-shadow: 0 .3em 1em rgba(232, 85, 47, .5) }
+.tut-phone .pbtn.ghost {
+  color: #f0dcb0;
+  background: rgba(232, 190, 110, .12);
+  border: 1px solid rgba(232, 190, 110, .45);
+  box-shadow: none;
+}
+
+.tut-phone .ptiles {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+
+.tut-phone .ptile {
+  border-radius: 8px;
+  padding: 5px 3px;
+  font-size: .74em;
+  font-weight: 800;
+  text-align: center;
+  color: #f4e3bd;
+  background: linear-gradient(170deg, rgba(58, 41, 19, .9), rgba(16, 11, 5, .95));
+  border: 1px solid rgba(232, 190, 110, .32);
+  min-height: 2.1em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.tut-phone .ptile.red { background: linear-gradient(170deg, rgba(150, 40, 30, .9), rgba(50, 12, 8, .95)); border-color: rgba(255, 130, 100, .5) }
+.tut-phone .ptile.blue { background: linear-gradient(170deg, rgba(30, 70, 150, .9), rgba(8, 20, 50, .95)); border-color: rgba(120, 190, 255, .5) }
+.tut-phone .ptile.gold { background: linear-gradient(170deg, #f9e0a4, #c9962f); color: #1a1006; border-color: #fff3d0 }
+.tut-phone .ptile.dead { background: linear-gradient(170deg, #2b2b2b, #111); color: #9a9a9a; border-color: rgba(255, 255, 255, .2) }
+.tut-phone .ptile.pick { box-shadow: 0 0 0 2px rgba(249, 224, 164, .7), 0 0 14px rgba(232, 190, 110, .6) }
+.tut-phone .ptile small { font-size: .8em; opacity: .75; font-weight: 700 }
+
+.tut-phone .prow { display: flex; align-items: center; gap: 5px; font-size: .76em; font-weight: 700; color: #d9c9a6 }
+
+.tut-phone .pav {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.tut-phone .pav .ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, #f9e0a4, #a97a30, #fff3d0, #c9962f, #f9e0a4) }
+.tut-phone .pav .ring::after { content: ""; position: absolute; inset: 1.5px; border-radius: 50%; background: #0d0a05 }
+.tut-phone .pav img { position: relative; z-index: 2; width: 14px; height: 14px; border-radius: 50%; object-fit: cover }
+
+.tut-phone .rolecard {
+  position: relative;
+  width: 100%;
+  flex: 1 1 auto;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 6px;
+  background: radial-gradient(90% 70% at 50% 20%, rgba(232, 190, 110, .22), rgba(10, 8, 5, .95) 70%);
+  border: 1px solid rgba(232, 190, 110, .5);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, .7);
+  overflow: hidden;
+}
+
+.tut-phone .rolecard .emoji { font-size: 2.1em; line-height: 1; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .8)) }
+.tut-phone .rolecard .rn { font-family: 'Lalezar', sans-serif; font-size: 1.15em; color: #f9e0a4 }
+.tut-phone .rolecard .rd { font-size: .72em; font-weight: 700; color: #cdb98f; line-height: 1.35 }
+
+.tut-phone .qr {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background: #fff;
+  padding: 6px;
+  display: grid;
+  place-items: center;
+}
+
+.tut-phone .qr svg { width: 100%; height: 100% }
+
+.tut-phone .codebox {
+  font-family: 'Lalezar', sans-serif;
+  font-size: 1.5em;
+  letter-spacing: .22em;
+  color: #f9e0a4;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(232, 190, 110, .6);
+}
+
+.tut-phone .hintline {
+  font-size: .7em;
+  font-weight: 800;
+  color: #a9f2c6;
+  background: rgba(75, 224, 122, .12);
+  border: 1px solid rgba(75, 224, 122, .35);
+  border-radius: 8px;
+  padding: 4px 6px;
+  text-align: center;
+}
+
+/* إبهام يلمس الشاشة */
+.tut-finger {
+  position: absolute;
+  z-index: 8;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  pointer-events: none;
+}
+
+.tut-finger .tip {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, rgba(255, 255, 255, .95), rgba(255, 220, 170, .55) 45%, rgba(255, 200, 140, 0) 72%);
+  box-shadow: 0 0 14px rgba(255, 220, 170, .8);
+}
+
+.tut-finger .tap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border-radius: 50%;
+  border: 2px solid rgba(249, 224, 164, .95);
+}
+
+/* شارة «شاشة المتابع» فوق الجوال */
+.tut-phone .tagline {
+  position: absolute;
+  top: -12px;
+  right: -8px;
+  z-index: 9;
+  font-size: 9px;
+  font-weight: 900;
+  color: #062012;
+  background: linear-gradient(180deg, #7cf0ab, #1f8a4c);
+  padding: 3px 8px;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .6);
+  white-space: nowrap;
+}
+
+/* ====== شريط التحكم السفلي ====== */
+.tut-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1vw, 14px);
+  padding: 2px 4px;
+}
+
+.tut-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: clamp(34px, 3.2vw, 44px);
+  padding: 0 clamp(12px, 1.4vw, 20px);
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 900;
+  font-size: clamp(11px, 1vw, 14px);
+  color: #1a1006;
+  background: linear-gradient(180deg, #f9e0a4, #c9962f);
+  border: 1px solid #fff3d0;
+  box-shadow: 0 8px 22px rgba(232, 190, 110, .32);
+  transition: .2s;
+}
+
+.tut-btn:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 12px 30px rgba(232, 190, 110, .45) }
+.tut-btn:active { transform: scale(.96) }
+
+.tut-btn.ghost {
+  color: #f0dcb0;
+  background: rgba(232, 190, 110, .1);
+  border-color: rgba(232, 190, 110, .45);
+  box-shadow: none;
+}
+
+.tut-btn.round { width: clamp(34px, 3.2vw, 44px); padding: 0; border-radius: 50% }
+
+.tut-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .55);
+  border: 1px solid rgba(232, 190, 110, .28);
+  cursor: pointer;
+  overflow: visible;
+}
+
+.tut-track .fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #a97a30, #f9e0a4);
+  box-shadow: 0 0 14px rgba(232, 190, 110, .7);
+}
+
+.tut-track .tick {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 14px;
+  margin-top: -7px;
+  border-radius: 2px;
+  background: rgba(251, 236, 203, .35);
+}
+
+.tut-track .tick.done { background: #f9e0a4 }
+
+.tut-steps {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tut-stepdot {
+  cursor: pointer;
+  font-size: clamp(10px, .85vw, 12.5px);
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #b2a283;
+  background: rgba(0, 0, 0, .4);
+  border: 1px solid rgba(232, 190, 110, .22);
+  transition: .2s;
+  white-space: nowrap;
+}
+
+.tut-stepdot:hover { color: #fbeccb; border-color: rgba(232, 190, 110, .6) }
+
+.tut-stepdot.on {
+  color: #1a1006;
+  background: linear-gradient(180deg, #f9e0a4, #c9962f);
+  border-color: #fff3d0;
+  box-shadow: 0 0 16px rgba(232, 190, 110, .5);
+}
+
+/* ====== زر «!» على بطاقات الألعاب ====== */
+.tut-orb {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  color: #1a1006;
+  font-family: 'Lalezar', sans-serif;
+  font-size: 19px;
+  line-height: 1;
+  background: conic-gradient(from 210deg, #f9e0a4, #c9962f, #fff3d0, #a97a30, #f9e0a4);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .55), 0 0 18px rgba(232, 190, 110, .45);
+  transition: transform .25s cubic-bezier(.16, 1, .3, 1), box-shadow .25s;
+  z-index: 30;
+}
+
+.tut-orb::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #fff6dd, #e8be6e 60%, #b8863a);
+}
+
+.tut-orb span { position: relative; z-index: 2; text-shadow: 0 1px 0 rgba(255, 255, 255, .5) }
+
+.tut-orb::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1px solid rgba(249, 224, 164, .55);
+  animation: tutOrbPulse 2.4s ease-out infinite;
+}
+
+@keyframes tutOrbPulse {
+  0% { transform: scale(.85); opacity: .9 }
+  70% { transform: scale(1.35); opacity: 0 }
+  100% { opacity: 0 }
+}
+
+.tut-orb:hover { transform: scale(1.16) rotate(-6deg); box-shadow: 0 10px 26px rgba(0, 0, 0, .6), 0 0 30px rgba(232, 190, 110, .8) }
+.tut-orb:active { transform: scale(.94) }
+
+.tut-orb-tip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 800;
+  color: #f0dcb0;
+  background: rgba(8, 6, 3, .92);
+  border: 1px solid rgba(232, 190, 110, .4);
+  border-radius: 8px;
+  padding: 3px 8px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: .2s;
+  pointer-events: none;
+}
+
+.tut-orb-wrap { position: relative; display: inline-grid; place-items: center }
+
+/* زر الشرح فوق بطاقة اللعبة في الرئيسية */
+.tut-orb-card { position: absolute; top: 13px; inset-inline-start: 13px; z-index: 31 }
+
+.tut-orb-wrap:hover .tut-orb-tip { opacity: 1; transform: translateY(0) }
+
+/* زر عائم داخل اللعبة */
+.tut-orb-float {
+  position: fixed;
+  bottom: clamp(14px, 3vh, 30px);
+  left: clamp(14px, 2.4vw, 34px);
+  width: 52px;
+  height: 52px;
+  font-size: 27px;
+  z-index: 9998;
+}
+
+.tut-orb-float .tut-orb { width: 52px; height: 52px; font-size: 27px }
+
+.tut-orb-float .tut-orb-tip { right: auto; left: 0 }
+
+@media (max-width: 900px) {
+  .tut-body { flex-direction: column }
+  .tut-rail { width: 100%; max-height: 34vh }
+  .tut-stage { font-size: clamp(8px, 2.6vw, 16px) }
+  .tut-phone { width: 20% }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tut-dust i, .pc .pic .ring, .p-portrait .pic .ring, .p-wheel .disc, .tut-emblem::after, .tut-orb::after { animation: none }
+}

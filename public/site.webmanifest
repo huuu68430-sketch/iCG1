@@ -1,0 +1,26 @@
+{
+  "name": "iCG1 — ساحة الألعاب التفاعلية",
+  "short_name": "iCG1",
+  "description": "ساحة ألعاب تفاعلية لمجتمع القناة على Kick. ألعاب جماعية مباشرة ومسابقات.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0805",
+  "theme_color": "#0a0805",
+  "orientation": "portrait",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/favicon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

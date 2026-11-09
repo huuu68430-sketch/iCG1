@@ -63,6 +63,7 @@ export type ViewState =
   | 'EMOJI_CODE'
   | 'LETTER_GAME'
   | 'HIGHER_LOWER'
+  | 'MAHMAH_GAME'
   | 'BUZZER_PAD'
   | 'ABOUT'
   | 'USER_AUTH'
