@@ -65,9 +65,9 @@ const routes: Record<string, (req: any, res: any) => any> = {
 };
 
 export default async function handler(req: any, res: any) {
-  const seg = req.query?.path;
-  const pathname = Array.isArray(seg) ? '/' + seg.join('/') : '/';
-  const target = routes[pathname];
+  // قاعدة vercel.json توجّه /api/(.*) إلى هنا مع ?route=(المسار الفرعي)
+  const route = typeof req.query?.route === 'string' ? '/' + req.query.route : '/';
+  const target = routes[route];
   if (!target) {
     return res.status(404).json({ error: 'Not found' });
   }
