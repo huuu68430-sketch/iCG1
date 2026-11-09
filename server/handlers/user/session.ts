@@ -1,9 +1,9 @@
-import { supabaseAdmin } from '../../_lib/supabase';
+import { supabaseAdmin } from '../../lib/supabase';
 import {
     clientIp, clearMemberCookie, issueMemberToken, json, memberExists,
     requireMember, revokeMemberToken, setMemberCookie, reqBody,
-} from '../../_lib/memberAuth';
-import { rateLimit } from '../../_lib/rateLimit';
+} from '../../lib/memberAuth';
+import { rateLimit } from '../../lib/rateLimit';
 
 const cleanName = (v: any) => String(v ?? '').trim().toLowerCase().replace(/[^a-z0-9\u0600-\u06FF_\-.\s]/g, '').slice(0, 40);
 

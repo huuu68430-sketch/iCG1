@@ -1,6 +1,6 @@
 import crypto from 'crypto';
-import { supabaseAdmin } from '../../_lib/supabase.js';
-import { signJwt, setSessionCookies, generateJti, generateCsrf } from '../../_lib/auth.js';
+import { supabaseAdmin } from '../../lib/supabase.js';
+import { signJwt, setSessionCookies, generateJti, generateCsrf } from '../../lib/auth.js';
 
 const SECRET = (process.env.SERVER_SECRET || 'dev-secret').padEnd(32, '0').slice(0, 32);
 

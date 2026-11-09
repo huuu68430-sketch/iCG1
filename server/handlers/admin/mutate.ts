@@ -1,7 +1,7 @@
-import { supabaseAdmin } from '../../_lib/supabase';
-import { audit, body, canAccess, json, requireAdmin } from '../../_lib/adminAuth';
-import { rateLimit } from '../../_lib/rateLimit';
-import { clientIp } from '../../_lib/adminAuth';
+import { supabaseAdmin } from '../../lib/supabase';
+import { audit, body, canAccess, json, requireAdmin } from '../../lib/adminAuth';
+import { rateLimit } from '../../lib/rateLimit';
+import { clientIp } from '../../lib/adminAuth';
 
 /**
  * كل كتابة إدارية في اللوحة تمر من هنا. القاعدة الصارمة:

@@ -1,4 +1,4 @@
-import { clampText, json, reqBody, requireMember, supabaseAdmin } from '../../_lib/memberHttp';
+import { clampText, json, reqBody, requireMember, supabaseAdmin } from '../../lib/memberHttp';
 
 export default async function handler(req: any, res: any) {
     const m = await requireMember(req);

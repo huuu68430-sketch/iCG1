@@ -1,5 +1,5 @@
-import { supabaseAdmin, isSupabaseConfigured } from '../../_lib/supabase';
-import { audit, json, requireAdmin } from '../../_lib/adminAuth';
+import { supabaseAdmin, isSupabaseConfigured } from '../../lib/supabase';
+import { audit, json, requireAdmin } from '../../lib/adminAuth';
 
 const TABLES = [
     'profiles', 'leaderboard', 'users', 'bans', 'reports', 'support_tickets',

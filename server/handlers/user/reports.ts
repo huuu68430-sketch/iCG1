@@ -1,4 +1,4 @@
-import { clampText, json, rateLimit, reqBody, requireMember, supabaseAdmin } from '../../_lib/memberHttp';
+import { clampText, json, rateLimit, reqBody, requireMember, supabaseAdmin } from '../../lib/memberHttp';
 
 const KINDS = ['سلوك مخالف', 'تعليق مسيء', 'غش في لعبة', 'انتحال حساب', 'محتوى غير لائق', 'إساءة لمستخدم', 'أخرى'];
 const STATUS_AR: Record<string, string> = { new: 'جديد', reviewing: 'قيد المراجعة', accepted: 'مقبول', rejected: 'مرفوض', closed: 'مغلق' };

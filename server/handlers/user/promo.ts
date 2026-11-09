@@ -1,4 +1,4 @@
-import { clampText, json, rateLimit, reqBody, requireMember, supabaseAdmin } from '../../_lib/memberHttp';
+import { clampText, json, rateLimit, reqBody, requireMember, supabaseAdmin } from '../../lib/memberHttp';
 
 /** استخدام كود ترويجي — التنفيذ الذرّي كله داخل redeem_promo في القاعدة. */
 export default async function handler(req: any, res: any) {
