@@ -18,7 +18,7 @@ const transport: any = (globalThis as any).WebSocket ?? class MockWebSocket {
 
 function baseOpts(): any {
   return {
-    auth: { persistSession: false, autoRefreshToken: false },
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     db: { schema: 'public' },
     realtime: { transport },
   };
@@ -36,9 +36,28 @@ function makeClient(): any {
   } catch {
     /* يسقط للبديل أدناه */
   }
-  return createClient('https://placeholder.supabase.co', 'placeholder', baseOpts());
+  try {
+    return createClient('https://placeholder.supabase.co', 'placeholder', baseOpts());
+  } catch {
+    // عميل طارئ بسيط: كل استدعاء يعيد وعدًا مرفوضًا بهدوء
+    const fail = () => Promise.resolve({ data: null, error: { message: 'supabase unavailable' } });
+    return new Proxy({}, { get: () => fail });
+  }
 }
 
-export const supabaseAdmin: any = makeClient();
+// إنشاء كسول: لا يُبنى العميل إلا عند أول استعلام فعلي.
+let _client: any = null;
+function client(): any {
+  if (!_client) _client = makeClient();
+  return _client;
+}
+
+export const supabaseAdmin: any = new Proxy({}, {
+  get(_t, prop) {
+    const c = client();
+    const v = c[prop];
+    return typeof v === 'function' ? v.bind(c) : v;
+  },
+});
 
 export const isSupabaseConfigured = !!(url && key && /^https?:\/\//.test(url));
