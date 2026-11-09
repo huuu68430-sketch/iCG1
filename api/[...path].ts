@@ -30,6 +30,7 @@ import session from './_handlers/user/session';
 import store from './_handlers/user/store';
 import tickets from './_handlers/user/tickets';
 import tournaments from './_handlers/user/tournaments';
+import creatorsLeaderboard from './_handlers/creators/leaderboard';
 
 const routes: Record<string, (req: any, res: any) => any> = {
   '/me': me,
@@ -59,6 +60,8 @@ const routes: Record<string, (req: any, res: any) => any> = {
   '/user/store': store,
   '/user/tickets': tickets,
   '/user/tournaments': tournaments,
+
+  '/creators/leaderboard': creatorsLeaderboard,
 };
 
 export default async function handler(req: any, res: any) {

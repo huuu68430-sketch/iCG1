@@ -187,6 +187,143 @@
       .reveal { opacity: 1; transform: none; }
     }
   </style>
+
+  <!-- ===== قسم الدعم iCG1 (من icg1-support-section.html — نصٌّ مطابق للتصميم) ===== -->
+  <style>
+.icg1-support{
+  --gold:#e8c987; --gold-2:#b98c4a; --text:#f3e6cc; --muted:#a8977a;
+  --cr-1:#5b3a22; --cr-2:#a8714a; --cr-3:#e0a56e;
+  max-width:1130px;margin:0 auto;padding:24px 16px;color:var(--text);
+  font-family:"Tajawal",system-ui,sans-serif;
+}
+.icg1-support *{box-sizing:border-box}
+.icg1-support a{color:inherit;text-decoration:none}
+.icg1-support .head{display:flex;align-items:flex-end;gap:18px;margin-bottom:34px;padding-bottom:14px;border-bottom:1px solid rgba(232,201,135,.3)}
+.icg1-support .head .num{font:400 64px "Lalezar",sans-serif;color:transparent;-webkit-text-stroke:1.5px rgba(232,201,135,.55);line-height:.9}
+.icg1-support .head small{display:block;letter-spacing:.35em;font-size:11px;color:var(--muted);margin-bottom:4px}
+.icg1-support .head h2{margin:0;font:400 clamp(34px,5vw,52px)/1 "Lalezar",sans-serif;color:#fff}
+.icg1-support .head p{margin:6px 0 0;color:var(--muted);font-size:15px}
+.icg1-support .cr{
+  position:relative;overflow:hidden;border-radius:30px;padding:34px 38px;isolation:isolate;
+  background:
+    radial-gradient(70% 120% at 100% 0%,rgba(224,165,110,.28),transparent 60%),
+    linear-gradient(135deg,#2a1b11 0%,#150e09 70%);
+  border:1px solid rgba(224,165,110,.4);
+  box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,225,190,.18);
+  display:grid;grid-template-columns:auto 1fr auto;gap:30px;align-items:center;
+}
+.icg1-support .cr::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1.5px;z-index:-1;
+  background:conic-gradient(from var(--a,0deg),transparent 0 65%,var(--cr-3) 85%,transparent);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
+  animation:isspin 6s linear infinite}
+@property --a{syntax:"<angle>";inherits:false;initial-value:0deg}
+@keyframes isspin{to{--a:360deg}}
+.icg1-support .cr .grain{position:absolute;inset:0;z-index:-1;opacity:.5;
+  background:repeating-linear-gradient(115deg,transparent 0 14px,rgba(224,165,110,.05) 14px 15px)}
+.icg1-support .cr-logo{width:112px;height:112px;border-radius:28px;overflow:hidden;background:#1c1a3a;border:1px solid rgba(255,255,255,.16);box-shadow:0 14px 40px rgba(0,0,0,.55),0 0 0 6px rgba(224,165,110,.1),0 0 40px rgba(255,140,100,.25);animation:isfloat 4s ease-in-out infinite}
+.icg1-support .cr-logo img{display:block;width:100%;height:100%;object-fit:cover}
+.icg1-support .badge{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--cr-3);
+  padding:6px 14px;border-radius:999px;background:rgba(224,165,110,.1);border:1px solid rgba(224,165,110,.35)}
+.icg1-support .badge svg{width:15px;height:15px}
+.icg1-support .cr h3{margin:12px 0 6px;font:800 clamp(34px,5vw,54px)/1 "Tajawal",sans-serif;letter-spacing:.04em;color:#fff}
+.icg1-support .cr p{margin:0;color:#cdb9a0;font-size:16px;line-height:1.7}
+.icg1-support .cr .secure{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--muted)}
+.icg1-support .cr .secure span{display:inline-flex;align-items:center;gap:6px}
+.icg1-support .cr .secure svg{width:15px;height:15px;color:var(--cr-3)}
+.icg1-support .cta{
+  position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:16px;padding:8px 10px 8px 26px;border-radius:999px;
+  background:linear-gradient(180deg,#f3cf98 0%,#c98f55 100%);color:#2b1708;font:800 20px "Tajawal",sans-serif;
+  box-shadow:0 14px 40px rgba(201,143,85,.45),inset 0 1px 0 rgba(255,255,255,.6),inset 0 -3px 0 rgba(120,70,30,.35);
+  transition:transform .25s,box-shadow .25s;white-space:nowrap}
+.icg1-support .cta .ic{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:#2b1708;color:var(--cr-3);transition:transform .3s}
+.icg1-support .cta .ic svg{width:22px;height:22px}
+.icg1-support .cta::after{content:"";position:absolute;top:0;bottom:0;width:70px;left:-90px;transform:skewX(-20deg);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);animation:issheen 3.4s ease-in-out infinite}
+@keyframes issheen{0%,55%{left:-90px}100%{left:120%}}
+.icg1-support .cta:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 22px 55px rgba(201,143,85,.65),inset 0 1px 0 rgba(255,255,255,.7),inset 0 -3px 0 rgba(120,70,30,.35)}
+.icg1-support .cta:hover .ic{transform:translateX(-6px) rotate(-8deg)}
+.icg1-support :focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.icg1-support .tiers{margin-top:26px;padding:34px 28px 26px;border-radius:28px;border:1px solid rgba(232,201,135,.2);
+  background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.35))}
+.icg1-support .t-head{text-align:center;margin-bottom:30px}
+.icg1-support .t-head h3{margin:0 0 6px;font:400 32px "Lalezar",sans-serif;color:var(--gold)}
+.icg1-support .t-head p{margin:0;color:var(--muted);font-size:14px}
+.icg1-support .t-grid{display:flex;direction:ltr;justify-content:center;align-items:flex-end;gap:16px;padding:10px 0 4px;position:relative}
+.icg1-support .t-grid::after{content:"";position:absolute;left:4%;right:4%;bottom:26px;height:1px;background:linear-gradient(90deg,transparent,rgba(232,201,135,.5),transparent)}
+.icg1-support .tier{--c:#c8814f;position:relative;flex:1 1 0;max-width:122px;display:flex;flex-direction:column;align-items:center;gap:10px;
+  animation:istier .9s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i)*100ms)}
+@keyframes isfloat{50%{transform:translateY(-6px)}}
+@keyframes istier{from{opacity:0;transform:translateY(50px)}}
+.icg1-support .tier b{font:400 28px "Lalezar",sans-serif;line-height:1;color:var(--c);text-shadow:0 0 18px color-mix(in srgb,var(--c) 60%,transparent);transition:transform .3s}
+.icg1-support .pil{position:relative;width:100%;height:var(--h);border-radius:22px 22px 8px 8px;overflow:hidden;display:flex;justify-content:center;padding-top:16px;
+  background:
+   linear-gradient(180deg,color-mix(in srgb,var(--c) 92%,#fff) 0%,color-mix(in srgb,var(--c) 62%,#1a1109) 38%,rgba(12,9,6,.9) 100%);
+  box-shadow:0 18px 40px color-mix(in srgb,var(--c) 22%,transparent),inset 0 2px 0 rgba(255,255,255,.55),inset 0 0 0 1px color-mix(in srgb,var(--c) 70%,transparent);
+  transition:transform .35s cubic-bezier(.3,1.4,.5,1),box-shadow .35s;transform-origin:bottom;animation:isgrow 1s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i)*100ms)}
+@keyframes isgrow{from{transform:scaleY(.2)}}
+.icg1-support .pil::before{content:"";position:absolute;inset:0 0 auto 0;height:38%;background:linear-gradient(180deg,rgba(255,255,255,.28),transparent)}
+.icg1-support .pil::after{content:"";position:absolute;top:0;bottom:0;left:0;width:45%;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);transform:translateX(-160%) skewX(-18deg);animation:ispil 5s ease-in-out infinite;animation-delay:calc(var(--i)*.45s)}
+@keyframes ispil{0%,55%{transform:translateX(-160%) skewX(-18deg)}100%{transform:translateX(320%) skewX(-18deg)}}
+.icg1-support .pil svg{position:relative;z-index:1;width:36px;height:36px;color:#1b1209;opacity:.85;filter:drop-shadow(0 1px 0 rgba(255,255,255,.4))}
+.icg1-support .tier span{font-size:11px;letter-spacing:.24em;font-weight:800;color:color-mix(in srgb,var(--c) 70%,#b9aa8e)}
+.icg1-support .tier:hover .pil{transform:translateY(-12px) scaleY(1.03);box-shadow:0 26px 60px color-mix(in srgb,var(--c) 55%,transparent),inset 0 2px 0 rgba(255,255,255,.7),inset 0 0 0 1px var(--c)}
+.icg1-support .tier:hover b{transform:translateY(-12px) scale(1.12)}
+.icg1-support .tier.max .pil{box-shadow:0 0 60px color-mix(in srgb,var(--c) 50%,transparent),inset 0 2px 0 rgba(255,255,255,.7),inset 0 0 0 1px var(--c)}
+.icg1-support .tier.max b{animation:isfloat 2.6s ease-in-out infinite}
+.icg1-support .note{margin:22px 0 0;text-align:center;font-size:13px;color:var(--muted)}
+.icg1-support .top{margin-top:26px;border-radius:28px;padding:34px 28px;border:1px solid rgba(232,201,135,.3);
+  background:radial-gradient(60% 50% at 50% 0%,rgba(232,201,135,.14),transparent 70%),linear-gradient(180deg,#17110b,#0c0906)}
+.icg1-support .top-h{text-align:center}
+.icg1-support .top-h h3{margin:0;font:400 clamp(34px,5vw,50px) "Lalezar",sans-serif;
+  background:linear-gradient(180deg,#fff3d2,var(--gold),var(--gold-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.icg1-support .top-h p{margin:6px 0 22px;color:var(--muted)}
+.icg1-support .tabs{position:relative;display:flex;width:max-content;max-width:100%;margin:0 auto 34px;padding:5px;border-radius:999px;background:rgba(0,0,0,.45);border:1px solid rgba(232,201,135,.25)}
+.icg1-support .tabs button{position:relative;z-index:1;border:0;background:none;cursor:pointer;color:var(--muted);font:700 16px "Tajawal",sans-serif;padding:10px 28px;border-radius:999px;transition:color .25s}
+.icg1-support .tabs button[aria-selected="true"]{color:#2b1c08}
+.icg1-support .tabs .pill{position:absolute;top:5px;bottom:5px;border-radius:999px;background:linear-gradient(180deg,#f6dda0,#c9a15b);box-shadow:0 6px 20px rgba(201,161,91,.4);transition:inset-inline-start .35s cubic-bezier(.3,1.2,.4,1),width .35s}
+.icg1-support .stage{animation:isfade .5s ease both}
+@keyframes isfade{from{opacity:0;transform:translateY(14px)}}
+.icg1-support .podium{display:flex;direction:ltr;justify-content:center;align-items:flex-end;gap:14px;margin-bottom:26px}
+.icg1-support .pc{width:min(30%,210px);text-align:center}
+.icg1-support .pc .av{position:relative;margin:0 auto 10px;width:74px;height:74px;border-radius:50%;display:grid;place-items:center;
+  font:400 30px "Lalezar",sans-serif;color:#2b1c08;background:var(--g);box-shadow:0 0 0 3px #0c0906,0 0 0 5px var(--c),0 10px 30px color-mix(in srgb,var(--c) 45%,transparent)}
+.icg1-support .pc.p1 .av{width:96px;height:96px;font-size:40px}
+.icg1-support .pc .crown{position:absolute;top:-30px;left:50%;translate:-50% 0;width:40px;color:var(--c);filter:drop-shadow(0 0 10px var(--c));animation:isfloat 3s ease-in-out infinite}
+.icg1-support .pc .nm{font:800 17px "Tajawal",sans-serif;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px}
+.icg1-support .pc .dt{font-size:12px;color:var(--muted);margin-bottom:10px;white-space:nowrap}
+.icg1-support .pc .step{display:grid;place-items:center;border-radius:16px 16px 0 0;font:400 46px "Lalezar",sans-serif;color:rgba(0,0,0,.35);
+  background:linear-gradient(180deg,var(--c),color-mix(in srgb,var(--c) 30%,#0c0906));transform-origin:bottom;animation:isrise .9s cubic-bezier(.2,.8,.2,1) both}
+@keyframes isrise{from{transform:scaleY(0)}}
+.icg1-support .p1{--c:#f0c75e;--g:linear-gradient(145deg,#fff1c2,#e0b04a)}.icg1-support .p1 .step{height:130px}
+.icg1-support .p2{--c:#c9ced6;--g:linear-gradient(145deg,#f4f6f9,#aab0ba)}.icg1-support .p2 .step{height:96px;animation-delay:.15s}
+.icg1-support .p3{--c:#c8814f;--g:linear-gradient(145deg,#f1c49c,#b9703f)}.icg1-support .p3 .step{height:72px;animation-delay:.3s}
+.icg1-support .list{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.icg1-support .row{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:16px;background:rgba(255,255,255,.035);border:1px solid rgba(232,201,135,.14);
+  transition:transform .25s,border-color .25s,background .25s;animation:isrow .5s both;animation-delay:calc(var(--i)*60ms)}
+@keyframes isrow{from{opacity:0;transform:translateX(24px)}}
+.icg1-support .row:hover{transform:translateX(-6px);border-color:rgba(232,201,135,.5);background:rgba(232,201,135,.07)}
+.icg1-support .row .rk{width:34px;font:400 24px "Lalezar",sans-serif;color:rgba(232,201,135,.5);text-align:center}
+.icg1-support .row .av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font:800 16px "Tajawal";color:var(--gold);background:#241b11;border:1px solid rgba(232,201,135,.35)}
+.icg1-support .row .meta{min-width:0}
+.icg1-support .row .nm{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icg1-support .row .dt{font-size:11px;color:var(--muted);white-space:nowrap}
+.icg1-support .empty{text-align:center;color:var(--muted);padding:26px}
+.icg1-support .rv{opacity:0;transform:translateY(30px);transition:opacity .8s,transform .8s}
+.icg1-support .rv.in{opacity:1;transform:none}
+@media (max-width:860px){
+  .icg1-support .cr{grid-template-columns:1fr;text-align:center;justify-items:center;padding:30px 20px}
+  .icg1-support .cr .secure{justify-content:center}
+  .icg1-support .t-grid{gap:8px}.icg1-support .tier b{font-size:20px}.icg1-support .pil{height:calc(var(--h)*.72)}.icg1-support .pil svg{width:26px;height:26px}
+  .icg1-support .list{grid-template-columns:1fr}
+}
+@media (max-width:520px){
+  .icg1-support .t-grid{gap:5px}.icg1-support .tier b{font-size:15px}.icg1-support .tier span{font-size:8px;letter-spacing:.08em}.icg1-support .pil{border-radius:14px 14px 6px 6px}
+  .icg1-support .tabs button{padding:10px 16px}
+  .icg1-support .cta{font-size:17px}
+}
+@media (prefers-reduced-motion:reduce){.icg1-support *,.icg1-support .cr::before{animation:none!important;transition:none!important}.icg1-support .rv{opacity:1;transform:none}}
+</style>
+
   <!--kickFetchShimMarker-->
 
   <!-- فيديوهات كيك: جلب مباشر أولاً، ووسيط /api/kick احتياطاً (كان 404 خارج الإنتاج فيُبقي بيانات قديمة ميّتة) -->
@@ -224,6 +361,136 @@
       <div style="font-size:14px;font-weight:bold">جارِ تحميل iCG1...</div>
     </div>
   </div>
+
+  <!-- ================= قسم الدعم iCG1 (نصٌّ مطابق لتصميم icg1-support-section.html) ================= -->
+  <section class="icg1-support" id="support">
+
+    <!-- رموز SVG -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <symbol id="is-gem" viewBox="0 0 48 48"><path d="M13 6h22l10 12-21 24L3 18z" fill="currentColor" opacity=".22"/><path d="M13 6h22l10 12-21 24L3 18zM3 18h42M17 18l7 24 7-24-4-12M21 6l-4 12M27 6l4 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+      <symbol id="is-crown" viewBox="0 0 48 48"><path d="M5 36 3 14l12 10L24 8l9 16 12-10-2 22z" fill="currentColor" opacity=".3"/><path d="M5 36 3 14l12 10L24 8l9 16 12-10-2 22zM7 42h34" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+      <symbol id="is-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+      <symbol id="is-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="is-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+      <symbol id="is-arrow" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </svg>
+
+    <div class="head rv">
+      <div class="num">03</div>
+      <div>
+        <small>SUPPORT</small>
+        <h2>ادعم iCG1</h2>
+        <p>ادعم البث من خلال صفحة الدعم الرسمية.</p>
+      </div>
+    </div>
+
+    <!-- بطاقة Creators -->
+    <div class="cr rv">
+      <div class="grain"></div>
+      <div class="cr-logo"><img src="/creators-logo.png" alt="Creators" onerror="this.style.display='none'"></div>
+      <div>
+        <span class="badge"><svg><use href="#is-shield"/></svg> صفحة الدعم الرسمية</span>
+        <h3>CREATORS</h3>
+        <p>ادعم iCG1 مباشرة وخلّ اسمك يظهر على البث مع تنبيه خاص.</p>
+        <div class="secure">
+          <span><svg><use href="#is-lock"/></svg> دفع آمن</span>
+          <span><svg><use href="#is-bolt"/></svg> تنبيه فوري على البث</span>
+        </div>
+      </div>
+      <a class="cta" href="https://creators.sa/icg1" target="_blank" rel="noopener">
+        ادعم عبر كريترز
+        <span class="ic"><svg><use href="#is-arrow"/></svg></span>
+      </a>
+    </div>
+
+    <!-- مستويات التنبيه -->
+    <div class="tiers rv">
+      <div class="t-head">
+        <h3>مستويات الدونيشن</h3>
+        <p>اختر مستوى دعمك وخلّ اسمك يلمع على البث</p>
+      </div>
+      <div class="t-grid" id="isTiers"></div>
+      <p class="note">التبرعات غير قابلة للاسترداد</p>
+    </div>
+
+    <!-- كبار الداعمين -->
+    <div class="top rv">
+      <div class="top-h">
+        <h3>كبار الداعمين</h3>
+        <p>أبطال الدعم، شكراً لكل واحد منكم</p>
+      </div>
+      <div class="tabs" role="tablist" id="isTabs">
+        <span class="pill"></span>
+        <button role="tab" data-p="lifetime" aria-selected="true">كل الأوقات</button>
+        <button role="tab" data-p="monthly" aria-selected="false">شهري</button>
+        <button role="tab" data-p="weekly" aria-selected="false">الاسبوعي</button>
+      </div>
+      <div id="isStage"></div>
+    </div>
+  </section>
+
+  <script>
+  (function(){
+    var URL_CREATORS="https://creators.sa/icg1";
+    /* API: وسيط داخلي يرجع [{uname, last_donation_at}] — الاسم والتاريخ فقط، بلا مبالغ */
+    var API_URL="/api/creators/leaderboard?duration=";
+
+    /* ---- المستويات ---- */
+    var TIERS=[[10,"BRONZE","#c8814f"],[25,"SILVER","#c9ced6"],[50,"GOLD","#f0c75e"],[100,"PLATINUM","#e4dccb"],[200,"DIAMOND","#7fd0ff"],[500,"ROYAL","#c78bff"],[1000,"CHAMPAGNE","#ffe9b8"]];
+    var tg=document.getElementById("isTiers");
+    var H=[120,150,182,218,256,298,346];
+    tg.innerHTML=TIERS.map(function(t,i){
+      return '<a class="tier'+(i==6?' max':'')+'" style="--c:'+t[2]+';--h:'+H[i]+'px;--i:'+i+'" href="'+URL_CREATORS+'" target="_blank" rel="noopener" aria-label="'+t[0]+' دولار">'+
+        '<b>'+t[0]+'$</b><div class="pil"><svg><use href="#'+(i==6?'is-crown':'is-gem')+'"/></svg></div><span>'+t[1]+'</span></a>';
+    }).join("");
+
+    /* ---- كبار الداعمين (الاسم + التاريخ فقط) ---- */
+    var stage=document.getElementById("isStage"),tabs=document.getElementById("isTabs"),pill=tabs.querySelector(".pill");
+    function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+    function ini(n){return esc(String(n).trim().charAt(0).toUpperCase())}
+    function dOnly(d){return esc(String(d||"").split(" ")[0])}
+    function render(rows){
+      rows=(rows||[]).filter(function(r){return r&&r.uname});
+      if(!rows.length){stage.innerHTML='<div class="empty stage">ما في داعمين بهالفترة بعد، كن الأول! 👑</div>';return}
+      var pod=[1,0,2].filter(function(i){return rows[i]}).map(function(i){
+        var r=rows[i];
+        return '<div class="pc p'+(i+1)+'">'+(i==0?'<div style="position:relative"><svg class="crown"><use href="#is-crown"/></svg></div>':'')+
+          '<div class="av">'+ini(r.uname)+'</div><div class="nm" title="'+esc(r.uname)+'">'+esc(r.uname)+'</div><div class="dt">'+dOnly(r.last_donation_at)+'</div><div class="step">'+(i+1)+'</div></div>';
+      }).join("");
+      var rest=rows.slice(3,10).map(function(r,i){
+        return '<div class="row" style="--i:'+i+'"><div class="rk">'+(i+4)+'</div><div class="av">'+ini(r.uname)+'</div><div class="meta"><div class="nm" title="'+esc(r.uname)+'">'+esc(r.uname)+'</div><div class="dt">'+dOnly(r.last_donation_at)+'</div></div></div>';
+      }).join("");
+      stage.innerHTML='<div class="stage"><div class="podium">'+pod+'</div>'+(rest?'<div class="list">'+rest+'</div>':'')+'</div>';
+    }
+    function load(p){
+      stage.innerHTML='<div class="empty">جارٍ التحميل…</div>';
+      fetch(API_URL+p,{headers:{Accept:"application/json"}}).then(function(r){return r.json()}).then(function(d){
+        render(Array.isArray(d)?d:[]);
+      }).catch(function(){render([])});
+    }
+    function movePill(b){pill.style.width=b.offsetWidth+"px";pill.style.insetInlineStart=(b.offsetLeft===undefined?0:0)+"px";
+      var rtl=getComputedStyle(tabs).direction==="rtl";
+      pill.style.insetInlineStart=(rtl?(tabs.offsetWidth-b.offsetLeft-b.offsetWidth):b.offsetLeft)+"px"}
+    tabs.addEventListener("click",function(e){
+      var b=e.target.closest("button");if(!b)return;
+      tabs.querySelectorAll("button").forEach(function(x){x.setAttribute("aria-selected",x===b)});
+      movePill(b);load(b.dataset.p);
+    });
+    var first=tabs.querySelector('[aria-selected="true"]');
+    (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(function(){movePill(first)});
+    window.addEventListener("resize",function(){movePill(tabs.querySelector('[aria-selected="true"]'))});
+    load(first.dataset.p);
+
+    /* ---- ظهور عند التمرير ---- */
+    var els=document.querySelectorAll(".icg1-support .rv");
+    if("IntersectionObserver" in window){
+      var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}})},{threshold:.12});
+      els.forEach(function(el){io.observe(el)});
+    }else els.forEach(function(el){el.classList.add("in")});
+  })();
+  </script>
+  <!-- ================= انتهى قسم الدعم ================= -->
+
 </body>
 
 </html>
