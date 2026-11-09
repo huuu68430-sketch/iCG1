@@ -1,81 +1,70 @@
 // دالة موحّدة لجميع مسارات /api (دالة واحدة فقط — حدّ الخطة المجانية 12).
 // قاعدة vercel.json توجّه /api/(.*) إلى هنا مع ?route=(المسار الفرعي).
 // كل الواردات ثابتة داخل api/ (Vercel لا يضمّن ملفات خارج api/).
+//
+// تحميل المعالجات يتم بشكل كسول (dynamic import) — يمنع أي خطأ في وحدة
+// مشتركة من إسقاط كل المسارات، ويكشف الخطأ الحقيقي في استجابة JSON.
 
-import me from './_handlers/me';
-import logout from './_handlers/logout';
+type Loader = () => Promise<any>;
 
-import adminData from './_handlers/admin/data';
-import adminExport from './_handlers/admin/export';
-import adminLogin from './_handlers/admin/login';
-import adminLogout from './_handlers/admin/logout';
-import adminMe from './_handlers/admin/me';
-import adminMutate from './_handlers/admin/mutate';
-import adminPlayer from './_handlers/admin/player';
+const loaders: Record<string, Loader> = {
+  '/me': () => import('./_handlers/me'),
+  '/logout': () => import('./_handlers/logout'),
 
-import chatVerifyIssue from './_handlers/auth/chat-verify-issue';
-import chatVerify from './_handlers/auth/chat-verify';
-import authLogin from './_handlers/auth/login';
-import authRegister from './_handlers/auth/register';
+  '/admin/data': () => import('./_handlers/admin/data'),
+  '/admin/export': () => import('./_handlers/admin/export'),
+  '/admin/login': () => import('./_handlers/admin/login'),
+  '/admin/logout': () => import('./_handlers/admin/logout'),
+  '/admin/me': () => import('./_handlers/admin/me'),
+  '/admin/mutate': () => import('./_handlers/admin/mutate'),
+  '/admin/player': () => import('./_handlers/admin/player'),
 
-import kickCallback from './_handlers/kick/callback';
-import kickLogin from './_handlers/kick/login';
+  '/auth/chat-verify-issue': () => import('./_handlers/auth/chat-verify-issue'),
+  '/auth/chat-verify': () => import('./_handlers/auth/chat-verify'),
+  '/auth/login': () => import('./_handlers/auth/login'),
+  '/auth/register': () => import('./_handlers/auth/register'),
 
-import announcements from './_handlers/user/announcements';
-import notifications from './_handlers/user/notifications';
-import promo from './_handlers/user/promo';
-import reports from './_handlers/user/reports';
-import session from './_handlers/user/session';
-import store from './_handlers/user/store';
-import tickets from './_handlers/user/tickets';
-import tournaments from './_handlers/user/tournaments';
+  '/kick/callback': () => import('./_handlers/kick/callback'),
+  '/kick/login': () => import('./_handlers/kick/login'),
 
-import creatorsLeaderboard from './_handlers/creators/leaderboard';
+  '/user/announcements': () => import('./_handlers/user/announcements'),
+  '/user/notifications': () => import('./_handlers/user/notifications'),
+  '/user/promo': () => import('./_handlers/user/promo'),
+  '/user/reports': () => import('./_handlers/user/reports'),
+  '/user/session': () => import('./_handlers/user/session'),
+  '/user/store': () => import('./_handlers/user/store'),
+  '/user/tickets': () => import('./_handlers/user/tickets'),
+  '/user/tournaments': () => import('./_handlers/user/tournaments'),
 
-const routes: Record<string, (req: any, res: any) => any> = {
-  '/me': me,
-  '/logout': logout,
-
-  '/admin/data': adminData,
-  '/admin/export': adminExport,
-  '/admin/login': adminLogin,
-  '/admin/logout': adminLogout,
-  '/admin/me': adminMe,
-  '/admin/mutate': adminMutate,
-  '/admin/player': adminPlayer,
-
-  '/auth/chat-verify-issue': chatVerifyIssue,
-  '/auth/chat-verify': chatVerify,
-  '/auth/login': authLogin,
-  '/auth/register': authRegister,
-
-  '/kick/callback': kickCallback,
-  '/kick/login': kickLogin,
-
-  '/user/announcements': announcements,
-  '/user/notifications': notifications,
-  '/user/promo': promo,
-  '/user/reports': reports,
-  '/user/session': session,
-  '/user/store': store,
-  '/user/tickets': tickets,
-  '/user/tournaments': tournaments,
-
-  '/creators/leaderboard': creatorsLeaderboard,
+  '/creators/leaderboard': () => import('./_handlers/creators/leaderboard'),
 };
 
-export default function handler(req: any, res: any) {
+export default async function handler(req: any, res: any) {
   const wrapped = wrapRes(res);
   const route = typeof req.query?.route === 'string' ? '/' + req.query.route : '/';
-  const target = routes[route];
-  if (!target) {
+  const loader = loaders[route];
+  if (!loader) {
     return wrapped.status(404).json({ error: 'Not found' });
   }
+
+  let target: any;
   try {
-    return target(req, wrapped);
+    const mod: any = await loader();
+    target = mod?.default ?? mod;
+  } catch (e: any) {
+    console.error('[api:import]', route, e?.message || e);
+    return wrapped.status(500).json({
+      error: 'Import failed',
+      route,
+      detail: String(e?.message || e),
+    });
+  }
+
+  try {
+    return await target(req, wrapped);
   } catch (e: any) {
     console.error('[api]', route, e?.message || e);
-    if (!(res as any).headersSent) return wrapped.status(500).json({ error: 'Service error' });
+    if (!(res as any).headersSent) return wrapped.status(500).json({ error: 'Service error', detail: String(e?.message || e) });
   }
 }
 

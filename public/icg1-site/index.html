@@ -198,11 +198,14 @@
 }
 .icg1-support *{box-sizing:border-box}
 .icg1-support a{color:inherit;text-decoration:none}
-.icg1-support .head{display:flex;align-items:flex-end;gap:18px;margin-bottom:34px;padding-bottom:14px;border-bottom:1px solid rgba(232,201,135,.3)}
-.icg1-support .head .num{font:400 64px "Lalezar",sans-serif;color:transparent;-webkit-text-stroke:1.5px rgba(232,201,135,.55);line-height:.9}
-.icg1-support .head small{display:block;letter-spacing:.35em;font-size:11px;color:var(--muted);margin-bottom:4px}
-.icg1-support .head h2{margin:0;font:400 clamp(34px,5vw,52px)/1 "Lalezar",sans-serif;color:#fff}
-.icg1-support .head p{margin:6px 0 0;color:var(--muted);font-size:15px}
+.icg1-support .head{display:flex;align-items:flex-end;gap:14px;margin-bottom:30px;padding:0;border:0}
+.icg1-support .head .num{font:400 clamp(46px,7vw,64px)/0.9 "Bangers",cursive;color:transparent;-webkit-text-stroke:1.5px rgba(198,164,116,.65);letter-spacing:.02em;flex:0 0 auto}
+@media(min-width:768px){.icg1-support .head .num{-webkit-text-stroke-width:2px}}
+.icg1-support .head small{display:block;letter-spacing:.3em;font-size:10px;font-weight:700;color:rgba(255,255,255,.3);margin-bottom:6px;text-transform:uppercase}
+.icg1-support .head h2{margin:0;font:900 clamp(24px,3.4vw,36px)/1.15 "Tajawal",sans-serif;color:#fff;letter-spacing:-.01em}
+.icg1-support .head p{margin:6px 0 0;color:rgba(255,255,255,.5);font-size:14px;font-weight:500}
+.icg1-support .head .bar{margin-top:12px;height:1px;width:100%;background:linear-gradient(to left,rgba(198,164,116,.6),rgba(255,255,255,.1),transparent)}
+.icg1-support .head .txt{flex:1 1 auto;min-width:0}
 .icg1-support .cr{
   position:relative;overflow:hidden;border-radius:30px;padding:34px 38px;isolation:isolate;
   background:
@@ -246,7 +249,7 @@
 .icg1-support .tiers{margin-top:26px;padding:34px 28px 26px;border-radius:28px;border:1px solid rgba(232,201,135,.2);
   background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.35))}
 .icg1-support .t-head{text-align:center;margin-bottom:30px}
-.icg1-support .t-head h3{margin:0 0 6px;font:400 32px "Lalezar",sans-serif;color:var(--gold)}
+.icg1-support .t-head h3{margin:0 0 6px;font:900 clamp(24px,3.2vw,30px) "Tajawal",sans-serif;color:var(--gold);letter-spacing:-.01em}
 .icg1-support .t-head p{margin:0;color:var(--muted);font-size:14px}
 .icg1-support .t-grid{display:flex;direction:ltr;justify-content:center;align-items:flex-end;gap:16px;padding:10px 0 4px;position:relative}
 .icg1-support .t-grid::after{content:"";position:absolute;left:4%;right:4%;bottom:26px;height:1px;background:linear-gradient(90deg,transparent,rgba(232,201,135,.5),transparent)}
@@ -254,7 +257,7 @@
   animation:istier .9s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i)*100ms)}
 @keyframes isfloat{50%{transform:translateY(-6px)}}
 @keyframes istier{from{opacity:0;transform:translateY(50px)}}
-.icg1-support .tier b{font:400 28px "Lalezar",sans-serif;line-height:1;color:var(--c);text-shadow:0 0 18px color-mix(in srgb,var(--c) 60%,transparent);transition:transform .3s}
+.icg1-support .tier b{font:400 30px "Bangers",cursive;line-height:1;color:var(--c);text-shadow:0 0 18px color-mix(in srgb,var(--c) 60%,transparent);transition:transform .3s}
 .icg1-support .pil{position:relative;width:100%;height:var(--h);border-radius:22px 22px 8px 8px;overflow:hidden;display:flex;justify-content:center;padding-top:16px;
   background:
    linear-gradient(180deg,color-mix(in srgb,var(--c) 92%,#fff) 0%,color-mix(in srgb,var(--c) 62%,#1a1109) 38%,rgba(12,9,6,.9) 100%);
@@ -274,7 +277,7 @@
 .icg1-support .top{margin-top:26px;border-radius:28px;padding:34px 28px;border:1px solid rgba(232,201,135,.3);
   background:radial-gradient(60% 50% at 50% 0%,rgba(232,201,135,.14),transparent 70%),linear-gradient(180deg,#17110b,#0c0906)}
 .icg1-support .top-h{text-align:center}
-.icg1-support .top-h h3{margin:0;font:400 clamp(34px,5vw,50px) "Lalezar",sans-serif;
+.icg1-support .top-h h3{margin:0;font:900 clamp(26px,4.2vw,38px) "Tajawal",sans-serif;letter-spacing:-.01em;
   background:linear-gradient(180deg,#fff3d2,var(--gold),var(--gold-2));-webkit-background-clip:text;background-clip:text;color:transparent}
 .icg1-support .top-h p{margin:6px 0 22px;color:var(--muted)}
 .icg1-support .tabs{position:relative;display:flex;width:max-content;max-width:100%;margin:0 auto 34px;padding:5px;border-radius:999px;background:rgba(0,0,0,.45);border:1px solid rgba(232,201,135,.25)}
@@ -286,12 +289,12 @@
 .icg1-support .podium{display:flex;direction:ltr;justify-content:center;align-items:flex-end;gap:14px;margin-bottom:26px}
 .icg1-support .pc{width:min(30%,210px);text-align:center}
 .icg1-support .pc .av{position:relative;margin:0 auto 10px;width:74px;height:74px;border-radius:50%;display:grid;place-items:center;
-  font:400 30px "Lalezar",sans-serif;color:#2b1c08;background:var(--g);box-shadow:0 0 0 3px #0c0906,0 0 0 5px var(--c),0 10px 30px color-mix(in srgb,var(--c) 45%,transparent)}
+  font:900 26px "Tajawal",sans-serif;color:#2b1c08;background:var(--g);box-shadow:0 0 0 3px #0c0906,0 0 0 5px var(--c),0 10px 30px color-mix(in srgb,var(--c) 45%,transparent)}
 .icg1-support .pc.p1 .av{width:96px;height:96px;font-size:40px}
 .icg1-support .pc .crown{position:absolute;top:-30px;left:50%;translate:-50% 0;width:40px;color:var(--c);filter:drop-shadow(0 0 10px var(--c));animation:isfloat 3s ease-in-out infinite}
 .icg1-support .pc .nm{font:800 17px "Tajawal",sans-serif;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px}
 .icg1-support .pc .dt{font-size:12px;color:var(--muted);margin-bottom:10px;white-space:nowrap}
-.icg1-support .pc .step{display:grid;place-items:center;border-radius:16px 16px 0 0;font:400 46px "Lalezar",sans-serif;color:rgba(0,0,0,.35);
+.icg1-support .pc .step{display:grid;place-items:center;border-radius:16px 16px 0 0;font:400 48px "Bangers",cursive;color:rgba(0,0,0,.35);
   background:linear-gradient(180deg,var(--c),color-mix(in srgb,var(--c) 30%,#0c0906));transform-origin:bottom;animation:isrise .9s cubic-bezier(.2,.8,.2,1) both}
 @keyframes isrise{from{transform:scaleY(0)}}
 .icg1-support .p1{--c:#f0c75e;--g:linear-gradient(145deg,#fff1c2,#e0b04a)}.icg1-support .p1 .step{height:130px}
@@ -302,7 +305,7 @@
   transition:transform .25s,border-color .25s,background .25s;animation:isrow .5s both;animation-delay:calc(var(--i)*60ms)}
 @keyframes isrow{from{opacity:0;transform:translateX(24px)}}
 .icg1-support .row:hover{transform:translateX(-6px);border-color:rgba(232,201,135,.5);background:rgba(232,201,135,.07)}
-.icg1-support .row .rk{width:34px;font:400 24px "Lalezar",sans-serif;color:rgba(232,201,135,.5);text-align:center}
+.icg1-support .row .rk{width:34px;font:400 26px "Bangers",cursive;color:rgba(232,201,135,.5);text-align:center}
 .icg1-support .row .av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font:800 16px "Tajawal";color:var(--gold);background:#241b11;border:1px solid rgba(232,201,135,.35)}
 .icg1-support .row .meta{min-width:0}
 .icg1-support .row .nm{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -324,7 +327,10 @@
 @media (prefers-reduced-motion:reduce){.icg1-support *,.icg1-support .cr::before{animation:none!important;transition:none!important}.icg1-support .rv{opacity:1;transform:none}}
 /* ===== iCG1: إزالة زخارف الـ HUD + القسم القديم من الحزمة ===== */
 .tech-corner, .tech-corner-tl, .tech-corner-tr, .tech-corner-bl, .tech-corner-br { display: none !important; }
-#root section#support { display: none !important; }
+/* أخفِ قسم الدعم القديم من الحزمة، وأبقِ قسم iCG1 الجديد ظاهرًا */
+#root section#support:not(.icg1-support) { display: none !important; }
+/* القسم الجديد يُنقل داخل حاوية الموقع نفسها فيورث عرضها وخطوطها ومسافاتها */
+.icg1-support.icg1-in-main { max-width: none; margin: 0; padding-inline: 0; }
 </style>
 
   <!--kickFetchShimMarker-->
@@ -380,10 +386,11 @@
 
     <div class="head rv">
       <div class="num">03</div>
-      <div>
+      <div class="txt">
         <small>SUPPORT</small>
         <h2>ادعم iCG1</h2>
         <p>ادعم البث من خلال صفحة الدعم الرسمية.</p>
+        <div class="bar"></div>
       </div>
     </div>
 
@@ -490,6 +497,41 @@
       var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}})},{threshold:.12});
       els.forEach(function(el){io.observe(el)});
     }else els.forEach(function(el){el.classList.add("in")});
+  })();
+  </script>
+
+  <!-- نقل قسم الدعم الجديد إلى مكان قسم الدعم القديم داخل حاوية الموقع نفسها (ترتيب 03) -->
+  <script>
+  (function(){
+    var sec = document.querySelector('body > section.icg1-support');
+    if (!sec) return;
+    var root = document.getElementById('root');
+    if (!root) return;
+
+    function place(){
+      var old = root.querySelector('section#support');
+      if (!old) return false;
+      if (old.classList.contains('icg1-support')) return true; // هو قسمنا نفسه
+      var parent = old.parentElement;
+      if (!parent) return false;
+      // احتفظ بالقسم الجديد مكان القديم تمامًا
+      if (sec.parentElement !== parent || sec.previousElementSibling !== old) {
+        old.removeAttribute('id');
+        old.setAttribute('aria-hidden', 'true');
+        old.style.display = 'none';
+        sec.classList.add('icg1-in-main', 'pt-12', 'md:pt-16', 'scroll-mt-28');
+        parent.insertBefore(sec, old.nextSibling);
+      }
+      return true;
+    }
+
+    if (!place()) {
+      // انتظر لحظة ظهور قسم الدعم القديم من React
+      var mo = new MutationObserver(function(){ place(); });
+      mo.observe(root, { childList: true, subtree: true });
+      window.addEventListener('load', place);
+      window.addEventListener('hashchange', place);
+    }
   })();
   </script>
   <!-- ================= انتهى قسم الدعم ================= -->
