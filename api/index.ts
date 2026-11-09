@@ -65,19 +65,44 @@ const routes: Record<string, (req: any, res: any) => any> = {
 };
 
 export default function handler(req: any, res: any) {
-  ensureRes(res);
+  const wrapped = wrapRes(res);
   // قاعدة vercel.json توجّه /api/(.*) إلى هنا مع ?route=(المسار الفرعي)
   const route = typeof req.query?.route === 'string' ? '/' + req.query.route : '/';
   const target = routes[route];
   if (!target) {
-    return res.status(404).json({ error: 'Not found' });
+    return wrapped.status(404).json({ error: 'Not found' });
   }
   try {
-    return target(req, res);
+    return target(req, wrapped);
   } catch (e: any) {
     console.error('[api]', route, e?.message || e);
-    if (!res.headersSent) return res.status(500).json({ error: 'Service error' });
+    if (!(res as any).headersSent) return wrapped.status(500).json({ error: 'Service error' });
   }
+}
+
+/**
+ * يُعطي المعالجات واجهة res.status().json() بأدوات Node الصرفة، عبر Proxy —
+ * لا إسناد على كائن الرد الأصلي إطلاقًا (قد يكون مقفلًا في بعض البيئات).
+ */
+function wrapRes(res: any) {
+  if (!res || typeof res !== 'object' || res.__icg1Shim) return res;
+  if (typeof res.json === 'function' && typeof res.status === 'function') return res;
+  const proxied: any = new Proxy(res, {
+    get(t, k) {
+      if (k === '__icg1Shim') return true;
+      if (k === 'status') return (code: number) => { t.statusCode = code; return proxied; };
+      if (k === 'json') return (obj: any) => {
+        try {
+          if (!t.headersSent) t.writeHead(t.statusCode || 200, { 'Content-Type': 'application/json; charset=utf-8' });
+          t.end(JSON.stringify(obj));
+        } catch { /* انتهى الرد */ }
+        return proxied;
+      };
+      const v = Reflect.get(t, k);
+      return typeof v === 'function' ? v.bind(t) : v;
+    },
+  });
+  return proxied;
 }
 
 /**
