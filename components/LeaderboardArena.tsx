@@ -197,6 +197,12 @@ const LeaderboardArena: React.FC<LeaderboardArenaProps> = ({ data, loading, onRe
                 </div>
             </header>
 
+            {/* زر رجوع عائم للصفحة الرئيسية (مريح بالهاتف) */}
+            <button className="lba-back" onClick={onHome} aria-label="العودة إلى الصفحة الرئيسية">
+                <ChevronRight />
+                <span>الصفحة الرئيسية</span>
+            </button>
+
             <nav className="lba-tabs">
                 <button className={`lba-tab${!isGame ? ' on' : ''}`} onClick={() => pickGame(GLOBAL)}>
                     <Trophy />
@@ -734,6 +740,47 @@ const LBA_STYLES = /* CSS */ `
   border: 1px solid rgba(255,255,255,.3); box-shadow: 0 12px 30px rgba(0,0,0,.45);
 }
 .lba-audio svg { width: 1em; height: 1em; font-size: 15px; }
+
+/* زر الرجوع العائم */
+.lba-back {
+  position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 60;
+  display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 22px; border-radius: 999px; cursor: pointer;
+  font-family: inherit; font-size: 15px; font-weight: 900; color: var(--ink);
+  background: linear-gradient(150deg, var(--gold-lt), var(--gold)); border: 1px solid rgba(255,255,255,.4);
+  box-shadow: 0 14px 34px rgba(0,0,0,.5);
+}
+.lba-back svg { width: 20px; height: 20px; }
+.lba-back:active { transform: scale(.96); }
+
+@media (max-width: 640px) {
+  .lba-root { padding: 18px 12px 96px; }
+  .lba-head { gap: 12px; margin-bottom: 16px; }
+  .lba-head-mark { width: 48px; height: 48px; border-radius: 16px; font-size: 24px; }
+  .lba-head-text { min-width: 0; flex: 1 1 100%; order: 2; }
+  .lba-title { font-size: 30px; }
+  .lba-head-actions { order: 3; width: 100%; }
+  .lba-head-actions .lba-btn { flex: 1; min-height: 48px; justify-content: center; font-size: 15px; }
+  .lba-tabs { padding-bottom: 10px; }
+  .lba-tab { padding: 11px 15px; }
+  .lba-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .lba-stat b { font-size: 20px; }
+  .lba-podium { gap: 8px; }
+  .lba-pod { padding: 14px 8px 0; }
+  .lba-pod.gold .lba-pod-avatar > div { width: 88px !important; height: 88px !important; }
+  .lba-pod.silver .lba-pod-avatar > div, .lba-pod.bronze .lba-pod-avatar > div { width: 68px !important; height: 68px !important; }
+  .lba-pod-name { font-size: 13px; }
+  .lba-pod.gold .lba-pod-name { font-size: 15px; }
+  .lba-pod-score { font-size: 20px; }
+  .lba-pod.gold .lba-pod-score { font-size: 24px; }
+  .lba-pod-stand { margin-top: 10px; }
+  .lba-board-bar { padding: 12px; }
+  .lba-thead, .lba-row { grid-template-columns: 40px minmax(0,1fr) 44px minmax(72px,32%); gap: 8px; padding-left: 12px; padding-right: 12px; }
+  .lba-board.per-game .lba-thead, .lba-row.five { grid-template-columns: 38px minmax(0,1fr) 40px 40px minmax(64px,30%); }
+  .lba-pts strong { min-width: 42px; font-size: 15px; }
+  .lba-player b { font-size: 13px; }
+  .lba-me { grid-template-columns: 64px minmax(0,1fr); }
+  .lba-back { right: 12px; left: 12px; justify-content: center; min-height: 56px; font-size: 16px; }
+}
 `;
 
 export { LeaderboardArena };

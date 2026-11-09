@@ -724,7 +724,7 @@ useEffect(() => {
           data={leaderboardData}
           loading={isLoadingLeaderboard}
           onRefresh={() => loadLeaderboard()}
-          onHome={handleGoHome}
+          onHome={() => setCurrentView('ABOUT' as any)}
           games={games}
           initialGame={initialParams.lb || undefined}
           me={(() => {

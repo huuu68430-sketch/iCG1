@@ -35,24 +35,24 @@ export const PersonalSitePage: React.FC<PersonalSitePageProps> = ({
         allow="autoplay; fullscreen; picture-in-picture"
       />
 
-      {/* بوابة الألعاب العائمة */}
-      <div className="fixed bottom-5 left-1/2 z-40 -translate-x-1/2 md:left-8 md:translate-x-0">
-        <div className="flex items-center gap-2 rounded-2xl border border-[#F6DFAE]/30 bg-black/80 p-1.5 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+      {/* بوابة الألعاب العائمة — شريط سفلي بعرض الهاتف + منطقة أمان الآيفون */}
+      <div className="fixed bottom-0 inset-x-0 z-40 px-3 pt-3 pb-[max(1.35rem,env(safe-area-inset-bottom))] md:inset-x-auto md:left-8 md:bottom-5 md:px-0 md:pb-0 md:pt-0">
+        <div className="flex items-stretch gap-2 rounded-[1.6rem] border border-[#F6DFAE]/30 bg-black/85 p-2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.9)] backdrop-blur-xl md:rounded-2xl">
           <button
             onClick={onPlayNow}
-            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-xl border border-[#F6DFAE]/40 bg-gradient-to-b from-[#F6DFAE] via-[#E3B25C] to-[#A87B36] px-5 py-3 text-sm font-black text-[#1a1206] shadow-[0_10px_30px_-8px_rgba(227,178,92,0.8)] transition-transform duration-300 hover:scale-[1.03] active:scale-95"
+            className="group relative flex-1 md:flex-none inline-flex min-h-[52px] items-center justify-center gap-2 overflow-hidden rounded-2xl border border-[#F6DFAE]/40 bg-gradient-to-b from-[#F6DFAE] via-[#E3B25C] to-[#A87B36] px-5 py-3 text-base md:text-sm font-black text-[#1a1206] shadow-[0_10px_30px_-8px_rgba(227,178,92,0.8)] transition-transform duration-300 hover:scale-[1.03] active:scale-95"
           >
             <span className="absolute inset-0 -translate-x-full bg-white/30 skew-x-[-20deg] transition-transform duration-700 group-hover:translate-x-full" />
-            <Gamepad2 size={18} className="relative z-10" />
+            <Gamepad2 size={20} className="relative z-10" />
             <span className="relative z-10">ادخل العب الآن</span>
           </button>
 
           <button
             onClick={onOpenLeaderboard}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-black text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+            className="inline-flex flex-1 md:flex-none min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-base md:text-sm font-black text-white/75 transition-colors hover:bg-white/10 hover:text-white"
           >
-            <Trophy size={16} className="text-[#E3B25C]" />
-            <span className="hidden sm:inline">لوحة الصدارة</span>
+            <Trophy size={18} className="text-[#E3B25C]" />
+            <span>لوحة الصدارة</span>
           </button>
         </div>
       </div>
