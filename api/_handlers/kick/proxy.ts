@@ -57,7 +57,8 @@ export default async function handler(req: any, res: any) {
   try {
     const upstream = await fetch(upstreamUrl, {
       method: 'GET',
-      redirect: 'follow',
+      // لا نتبع التحويلات: يمنع أي محاولة SSRF عبر Location إلى مضيف آخر.
+      redirect: 'manual',
       headers: {
         ...BROWSER_HEADERS,
         referer: refererHost,
