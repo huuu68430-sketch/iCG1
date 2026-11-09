@@ -2,35 +2,35 @@
 // قاعدة vercel.json توجّه /api/(.*) إلى هنا مع ?route=(المسار الفرعي).
 // استيرادات ثابتة: Vercel يضمّنها داخل حزمة الدالة (الاستيراد الديناميكي لا يُضمَّن).
 
-import me from './_handlers/me';
-import logout from './_handlers/logout';
+import me from '../api/_handlers/me';
+import logout from '../api/_handlers/logout';
 
-import adminData from './_handlers/admin/data';
-import adminExport from './_handlers/admin/export';
-import adminLogin from './_handlers/admin/login';
-import adminLogout from './_handlers/admin/logout';
-import adminMe from './_handlers/admin/me';
-import adminMutate from './_handlers/admin/mutate';
-import adminPlayer from './_handlers/admin/player';
+import adminData from '../api/_handlers/admin/data';
+import adminExport from '../api/_handlers/admin/export';
+import adminLogin from '../api/_handlers/admin/login';
+import adminLogout from '../api/_handlers/admin/logout';
+import adminMe from '../api/_handlers/admin/me';
+import adminMutate from '../api/_handlers/admin/mutate';
+import adminPlayer from '../api/_handlers/admin/player';
 
-import chatVerifyIssue from './_handlers/auth/chat-verify-issue';
-import chatVerify from './_handlers/auth/chat-verify';
-import authLogin from './_handlers/auth/login';
-import authRegister from './_handlers/auth/register';
+import chatVerifyIssue from '../api/_handlers/auth/chat-verify-issue';
+import chatVerify from '../api/_handlers/auth/chat-verify';
+import authLogin from '../api/_handlers/auth/login';
+import authRegister from '../api/_handlers/auth/register';
 
-import kickCallback from './_handlers/kick/callback';
-import kickLogin from './_handlers/kick/login';
+import kickCallback from '../api/_handlers/kick/callback';
+import kickLogin from '../api/_handlers/kick/login';
 
-import announcements from './_handlers/user/announcements';
-import notifications from './_handlers/user/notifications';
-import promo from './_handlers/user/promo';
-import reports from './_handlers/user/reports';
-import session from './_handlers/user/session';
-import store from './_handlers/user/store';
-import tickets from './_handlers/user/tickets';
-import tournaments from './_handlers/user/tournaments';
+import announcements from '../api/_handlers/user/announcements';
+import notifications from '../api/_handlers/user/notifications';
+import promo from '../api/_handlers/user/promo';
+import reports from '../api/_handlers/user/reports';
+import session from '../api/_handlers/user/session';
+import store from '../api/_handlers/user/store';
+import tickets from '../api/_handlers/user/tickets';
+import tournaments from '../api/_handlers/user/tournaments';
 
-import creatorsLeaderboard from './_handlers/creators/leaderboard';
+import creatorsLeaderboard from '../api/_handlers/creators/leaderboard';
 
 const routes: Record<string, (req: any, res: any) => any> = {
   '/me': me,
