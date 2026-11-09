@@ -1,5 +1,5 @@
-import { supabaseAdmin, isSupabaseConfigured } from '../../lib/supabase';
-import { json, requireAdmin } from '../../lib/adminAuth';
+import { supabaseAdmin, isSupabaseConfigured } from '../../_lib/supabase';
+import { json, requireAdmin } from '../../_lib/adminAuth';
 import { GAME_POINTS } from '../../../services/gameRewards';
 
 /* تسميات عربية جاهزة للعرض — السيرفر يحوّل، والواجهة تعرض فقط. */

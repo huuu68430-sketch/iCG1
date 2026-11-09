@@ -1,4 +1,4 @@
-import { json, requireAdmin } from '../../lib/adminAuth';
+import { json, requireAdmin } from '../../_lib/adminAuth';
 
 export default async function handler(req: any, res: any) {
     if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed' });

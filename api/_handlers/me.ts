@@ -1,5 +1,5 @@
-import { requireSession } from '../lib/auth.js';
-import { supabaseAdmin } from '../lib/supabase.js';
+import { requireSession } from '../_lib/auth.js';
+import { supabaseAdmin } from '../_lib/supabase.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });

@@ -1,5 +1,5 @@
-import { supabaseAdmin } from '../../lib/supabase';
-import { json, requireAdmin } from '../../lib/adminAuth';
+import { supabaseAdmin } from '../../_lib/supabase';
+import { json, requireAdmin } from '../../_lib/adminAuth';
 
 const num = (v: any) => Math.round(Number(v) || 0);
 const iso = (v: any) => (v ? String(v) : '');

@@ -1,9 +1,9 @@
-import { rateLimit } from '../../lib/rateLimit';
-import { supabaseAdmin } from '../../lib/supabase';
+import { rateLimit } from '../../_lib/rateLimit';
+import { supabaseAdmin } from '../../_lib/supabase';
 import {
     audit, body, checkAdminPassword, clientIp, clearAdminCookie, issueAdminSession,
     json, setAdminCookie,
-} from '../../lib/adminAuth';
+} from '../../_lib/adminAuth';
 
 /** كلمة سر واحدة تفتح اللوحة: هوية المشرف تُقرأ من القاعدة، لا من المتصفح. */
 const OWNER_NAME = 'المشرف العام';

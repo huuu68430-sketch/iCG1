@@ -66,8 +66,8 @@ export default function devApi(): Plugin {
                 const query = Object.fromEntries(new URL(url, 'http://local').searchParams);
                 let mod: any;
                 try {
-                    // المعالجات سكنت في server/handlers/ (دالة Vercel الموحدة api/index.ts تستقبلها في الإنتاج)
-                    mod = await s.ssrLoadModule(`/server/handlers${path.slice(4)}.ts`);
+                    // المعالجات سكنت في api/_handlers/ (دالة Vercel الموحدة api/index.ts تستقبلها في الإنتاج)
+                    mod = await s.ssrLoadModule(`/api/_handlers${path.slice(4)}.ts`);
                 } catch (e: any) {
                     console.error('[dev-api] load failed', path, e?.message || e);
                     out.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
