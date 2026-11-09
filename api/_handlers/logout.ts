@@ -1,5 +1,5 @@
-import { requireSession, verifyCsrf, clearSessionCookies } from './_lib/auth.js';
-import { supabaseAdmin } from './_lib/supabase.js';
+import { requireSession, verifyCsrf, clearSessionCookies } from '../_lib/auth.js';
+import { supabaseAdmin } from '../_lib/supabase.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

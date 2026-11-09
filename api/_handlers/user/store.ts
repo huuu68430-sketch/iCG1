@@ -1,4 +1,4 @@
-import { clampText, json, rateLimit, reqBody, requireMember, supabaseAdmin } from '../_lib/memberHttp';
+import { clampText, json, rateLimit, reqBody, requireMember, supabaseAdmin } from '../../_lib/memberHttp';
 
 const SAFE_ID = /^[A-Za-z0-9_\-]{1,64}$/;
 

@@ -1,4 +1,4 @@
-import { clampText, json, rateLimit, reqBody, requireMember, supabaseAdmin } from '../_lib/memberHttp';
+import { clampText, json, rateLimit, reqBody, requireMember, supabaseAdmin } from '../../_lib/memberHttp';
 
 const CATS = ['مشكلة حساب', 'مشكلة مشتريات', 'مشكلة رصيد', 'مشكلة لعبة', 'بلاغ', 'اقتراح', 'مشكلة تقنية'];
 const PRIS = ['منخفضة', 'متوسطة', 'عالية'];

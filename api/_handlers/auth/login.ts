@@ -1,6 +1,6 @@
-import { verifyPassword, signJwt, setSessionCookies, generateJti, generateCsrf, verifyCsrf, verifyOrigin, hashPasswordNew } from '../_lib/auth.js';
-import { supabaseAdmin } from '../_lib/supabase.js';
-import { rateLimit } from '../_lib/rateLimit.js';
+import { verifyPassword, signJwt, setSessionCookies, generateJti, generateCsrf, verifyCsrf, verifyOrigin, hashPasswordNew } from '../../_lib/auth.js';
+import { supabaseAdmin } from '../../_lib/supabase.js';
+import { rateLimit } from '../../_lib/rateLimit.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

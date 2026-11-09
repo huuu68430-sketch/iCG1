@@ -1,4 +1,4 @@
-import { audit, clearAdminCookie, json, requireAdmin, revokeAdminSession } from '../_lib/adminAuth';
+import { audit, clearAdminCookie, json, requireAdmin, revokeAdminSession } from '../../_lib/adminAuth';
 
 export default async function handler(req: any, res: any) {
     if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });

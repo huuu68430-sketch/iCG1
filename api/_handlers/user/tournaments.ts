@@ -1,4 +1,4 @@
-import { clampText, json, rateLimit, reqBody, requireMember, supabaseAdmin } from '../_lib/memberHttp';
+import { clampText, json, rateLimit, reqBody, requireMember, supabaseAdmin } from '../../_lib/memberHttp';
 
 const STATUS_AR: Record<string, string> = { draft: 'مسودة', open: 'التسجيل مفتوح', closed: 'التسجيل مغلق', running: 'جارية', completed: 'مكتملة' };
 

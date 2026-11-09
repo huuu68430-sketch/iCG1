@@ -1,6 +1,6 @@
-import { supabaseAdmin, isSupabaseConfigured } from '../_lib/supabase';
-import { json, requireAdmin } from '../_lib/adminAuth';
-import { GAME_POINTS } from '../../services/gameRewards';
+import { supabaseAdmin, isSupabaseConfigured } from '../../_lib/supabase';
+import { json, requireAdmin } from '../../_lib/adminAuth';
+import { GAME_POINTS } from '../../../services/gameRewards';
 
 /* تسميات عربية جاهزة للعرض — السيرفر يحوّل، والواجهة تعرض فقط. */
 const BAN_STATUS: Record<string, string> = { active: 'نشط', expired: 'منتهي', lifted: 'مرفوعة' };
