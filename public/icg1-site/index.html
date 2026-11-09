@@ -505,33 +505,33 @@
   (function(){
     var sec = document.querySelector('body > section.icg1-support');
     if (!sec) return;
-    var root = document.getElementById('root');
-    if (!root) return;
+    sec.classList.add('icg1-in-main', 'pt-12', 'md:pt-16', 'scroll-mt-28');
 
     function place(){
-      var old = root.querySelector('section#support');
-      if (!old) return false;
-      if (old.classList.contains('icg1-support')) return true; // هو قسمنا نفسه
+      var root = document.getElementById('root');
+      if (!root) return false;
+      // القديم: إما ما زال يحمل id=support، أو وُسم سابقًا
+      var old = root.querySelector('section#support:not(.icg1-support)') || root.querySelector('[data-icg1-legacy]');
+      if (!old) return true; // لا يوجد قسم قديم — قسمنا في مكانه
+      if (old.id === 'support') old.removeAttribute('id');
+      old.setAttribute('data-icg1-legacy', '1');
+      old.setAttribute('aria-hidden', 'true');
+      old.style.display = 'none';
       var parent = old.parentElement;
       if (!parent) return false;
-      // احتفظ بالقسم الجديد مكان القديم تمامًا
       if (sec.parentElement !== parent || sec.previousElementSibling !== old) {
-        old.removeAttribute('id');
-        old.setAttribute('aria-hidden', 'true');
-        old.style.display = 'none';
-        sec.classList.add('icg1-in-main', 'pt-12', 'md:pt-16', 'scroll-mt-28');
         parent.insertBefore(sec, old.nextSibling);
       }
       return true;
     }
 
-    if (!place()) {
-      // انتظر لحظة ظهور قسم الدعم القديم من React
-      var mo = new MutationObserver(function(){ place(); });
-      mo.observe(root, { childList: true, subtree: true });
-      window.addEventListener('load', place);
-      window.addEventListener('hashchange', place);
-    }
+    place();
+    // أبقِ القسم في مكانه حتى لو أعاد React بناء القسم القديم
+    var mo = new MutationObserver(function(){ place(); });
+    var rootEl = document.getElementById('root');
+    if (rootEl) mo.observe(rootEl, { childList: true, subtree: true });
+    window.addEventListener('load', place);
+    window.addEventListener('hashchange', place);
   })();
   </script>
   <!-- ================= انتهى قسم الدعم ================= -->
