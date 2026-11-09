@@ -24450,6 +24450,81 @@ async function handler15(req, res) {
   return res.redirect(302, url2.toString());
 }
 
+// api/_handlers/kick/proxy.ts
+var ALLOWED_HOSTS = /* @__PURE__ */ new Set(["kick.com", "www.kick.com", "botrix.live", "www.botrix.live"]);
+var MAX_BYTES = 15e5;
+var TIMEOUT_MS = 8e3;
+var BROWSER_HEADERS = {
+  "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  accept: "application/json, text/plain, */*",
+  "accept-language": "en-US,en;q=0.9",
+  "cache-control": "no-cache"
+};
+async function handler16(req, res) {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+  const raw = typeof req.query?.endpoint === "string" ? req.query.endpoint : "";
+  if (!raw) {
+    return res.status(400).json({ error: "Missing endpoint" });
+  }
+  let target;
+  try {
+    target = new URL(raw);
+  } catch {
+    return res.status(400).json({ error: "Invalid endpoint" });
+  }
+  if (target.protocol !== "https:") {
+    return res.status(400).json({ error: "Invalid protocol" });
+  }
+  if (target.username || target.password) {
+    return res.status(400).json({ error: "Invalid endpoint" });
+  }
+  if (target.port && target.port !== "443") {
+    return res.status(403).json({ error: "Host not allowed" });
+  }
+  if (!ALLOWED_HOSTS.has(target.hostname.toLowerCase())) {
+    return res.status(403).json({ error: "Host not allowed" });
+  }
+  const path = target.pathname.replace(/^\/+/, "/");
+  if (!path.startsWith("/api/")) {
+    return res.status(403).json({ error: "Path not allowed" });
+  }
+  const upstreamUrl = `https://${target.hostname.toLowerCase()}${path}${target.search}`;
+  const refererHost = target.hostname.toLowerCase().includes("kick.com") ? "https://kick.com/" : `https://${target.hostname}/`;
+  try {
+    const upstream = await fetch(upstreamUrl, {
+      method: "GET",
+      redirect: "follow",
+      headers: {
+        ...BROWSER_HEADERS,
+        referer: refererHost,
+        origin: refererHost.replace(/\/$/, "")
+      },
+      signal: AbortSignal.timeout(TIMEOUT_MS)
+    });
+    if (!upstream.ok) {
+      return res.status(502).json({ error: "Upstream error", status: upstream.status });
+    }
+    const text = await upstream.text();
+    if (text.length > MAX_BYTES) {
+      return res.status(502).json({ error: "Upstream response too large" });
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return res.status(502).json({ error: "Upstream returned invalid JSON" });
+    }
+    res.setHeader("Cache-Control", "public, max-age=30, s-maxage=60, stale-while-revalidate=300");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    return res.status(200).json(parsed);
+  } catch (e) {
+    const timedOut = e?.name === "TimeoutError" || e?.name === "AbortError";
+    return res.status(timedOut ? 504 : 502).json({ error: timedOut ? "Upstream timeout" : "Bad gateway" });
+  }
+}
+
 // api/_lib/memberAuth.ts
 var MEMBER_COOKIE = "icg1_member";
 var MEMBER_TTL = 7 * 24 * 3600;
@@ -24528,7 +24603,7 @@ function clientIp2(req) {
 var clampText = (v, max) => String(v ?? "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, max);
 
 // api/_handlers/user/announcements.ts
-async function handler16(req, res) {
+async function handler17(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24563,7 +24638,7 @@ async function handler16(req, res) {
 }
 
 // api/_handlers/user/notifications.ts
-async function handler17(req, res) {
+async function handler18(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24600,7 +24675,7 @@ async function handler17(req, res) {
 }
 
 // api/_handlers/user/promo.ts
-async function handler18(req, res) {
+async function handler19(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24628,7 +24703,7 @@ async function handler18(req, res) {
 // api/_handlers/user/reports.ts
 var KINDS = ["\u0633\u0644\u0648\u0643 \u0645\u062E\u0627\u0644\u0641", "\u062A\u0639\u0644\u064A\u0642 \u0645\u0633\u064A\u0621", "\u063A\u0634 \u0641\u064A \u0644\u0639\u0628\u0629", "\u0627\u0646\u062A\u062D\u0627\u0644 \u062D\u0633\u0627\u0628", "\u0645\u062D\u062A\u0648\u0649 \u063A\u064A\u0631 \u0644\u0627\u0626\u0642", "\u0625\u0633\u0627\u0621\u0629 \u0644\u0645\u0633\u062A\u062E\u062F\u0645", "\u0623\u062E\u0631\u0649"];
 var STATUS_AR = { new: "\u062C\u062F\u064A\u062F", reviewing: "\u0642\u064A\u062F \u0627\u0644\u0645\u0631\u0627\u062C\u0639\u0629", accepted: "\u0645\u0642\u0628\u0648\u0644", rejected: "\u0645\u0631\u0641\u0648\u0636", closed: "\u0645\u063A\u0644\u0642" };
-async function handler19(req, res) {
+async function handler20(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24688,7 +24763,7 @@ async function handler19(req, res) {
 
 // api/_handlers/user/session.ts
 var cleanName = (v) => String(v ?? "").trim().toLowerCase().replace(/[^a-z0-9\u0600-\u06FF_\-.\s]/g, "").slice(0, 40);
-async function handler20(req, res) {
+async function handler21(req, res) {
   const method = req.method;
   if (method === "GET") {
     const m = await requireMember(req);
@@ -24724,7 +24799,7 @@ async function handler20(req, res) {
 
 // api/_handlers/user/store.ts
 var SAFE_ID = /^[A-Za-z0-9_\-]{1,64}$/;
-async function handler21(req, res) {
+async function handler22(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24775,7 +24850,7 @@ async function handler21(req, res) {
 var CATS = ["\u0645\u0634\u0643\u0644\u0629 \u062D\u0633\u0627\u0628", "\u0645\u0634\u0643\u0644\u0629 \u0645\u0634\u062A\u0631\u064A\u0627\u062A", "\u0645\u0634\u0643\u0644\u0629 \u0631\u0635\u064A\u062F", "\u0645\u0634\u0643\u0644\u0629 \u0644\u0639\u0628\u0629", "\u0628\u0644\u0627\u063A", "\u0627\u0642\u062A\u0631\u0627\u062D", "\u0645\u0634\u0643\u0644\u0629 \u062A\u0642\u0646\u064A\u0629"];
 var PRIS = ["\u0645\u0646\u062E\u0641\u0636\u0629", "\u0645\u062A\u0648\u0633\u0637\u0629", "\u0639\u0627\u0644\u064A\u0629"];
 var STATUS_AR2 = { new: "\u062C\u062F\u064A\u062F\u0629", reviewing: "\u0642\u064A\u062F \u0627\u0644\u0645\u0631\u0627\u062C\u0639\u0629", resolved: "\u062A\u0645 \u0627\u0644\u062D\u0644", closed: "\u0645\u063A\u0644\u0642\u0629" };
-async function handler22(req, res) {
+async function handler23(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24811,7 +24886,7 @@ async function loadCard(id) {
   const { data } = await supabaseAdmin.from("tournaments").select("*").eq("id", id).maybeSingle();
   return data;
 }
-async function handler23(req, res) {
+async function handler24(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24880,7 +24955,7 @@ async function handler23(req, res) {
 
 // api/_handlers/creators/leaderboard.ts
 var ALLOWED = ["lifetime", "monthly", "weekly"];
-async function handler24(req, res) {
+async function handler25(req, res) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -24923,19 +24998,20 @@ var routes = {
   "/auth/chat-verify": handler11,
   "/auth/login": handler12,
   "/auth/register": handler13,
+  "/kick": handler16,
   "/kick/callback": handler14,
   "/kick/login": handler15,
-  "/user/announcements": handler16,
-  "/user/notifications": handler17,
-  "/user/promo": handler18,
-  "/user/reports": handler19,
-  "/user/session": handler20,
-  "/user/store": handler21,
-  "/user/tickets": handler22,
-  "/user/tournaments": handler23,
-  "/creators/leaderboard": handler24
+  "/user/announcements": handler17,
+  "/user/notifications": handler18,
+  "/user/promo": handler19,
+  "/user/reports": handler20,
+  "/user/session": handler21,
+  "/user/store": handler22,
+  "/user/tickets": handler23,
+  "/user/tournaments": handler24,
+  "/creators/leaderboard": handler25
 };
-async function handler25(req, res) {
+async function handler26(req, res) {
   const wrapped = wrapRes(res);
   const route = typeof req.query?.route === "string" ? "/" + req.query.route : "/";
   const target = routes[route];
@@ -24976,5 +25052,5 @@ function wrapRes(res) {
   return proxied;
 }
 export {
-  handler25 as default
+  handler26 as default
 };

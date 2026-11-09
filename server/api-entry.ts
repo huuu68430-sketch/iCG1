@@ -20,6 +20,7 @@ import authRegister from '../api/_handlers/auth/register';
 
 import kickCallback from '../api/_handlers/kick/callback';
 import kickLogin from '../api/_handlers/kick/login';
+import kickProxy from '../api/_handlers/kick/proxy';
 
 import announcements from '../api/_handlers/user/announcements';
 import notifications from '../api/_handlers/user/notifications';
@@ -49,6 +50,7 @@ const routes: Record<string, (req: any, res: any) => any> = {
   '/auth/login': authLogin,
   '/auth/register': authRegister,
 
+  '/kick': kickProxy,
   '/kick/callback': kickCallback,
   '/kick/login': kickLogin,
 

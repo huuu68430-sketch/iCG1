@@ -327,6 +327,9 @@
 @media (prefers-reduced-motion:reduce){.icg1-support *,.icg1-support .cr::before{animation:none!important;transition:none!important}.icg1-support .rv{opacity:1;transform:none}}
 /* ===== iCG1: إزالة زخارف الـ HUD + القسم القديم من الحزمة ===== */
 .tech-corner, .tech-corner-tl, .tech-corner-tr, .tech-corner-bl, .tech-corner-br { display: none !important; }
+/* صفوف "أساطير الشات": ظهور مرة واحدة فقط بدل تكرار الأنيميشن كل ثانية */
+#root .cl .row{animation:cl-row-in .6s ease both !important;animation-delay:calc(var(--i)*30ms) !important}
+@keyframes cl-row-in{from{opacity:0;transform:translateY(14px)}}
 /* أخفِ قسم الدعم القديم من الحزمة، وأبقِ قسم iCG1 الجديد ظاهرًا */
 #root section#support:not(.icg1-support) { display: none !important; }
 /* القسم الجديد يُنقل داخل حاوية الموقع نفسها فيورث عرضها وخطوطها ومسافاتها */
