@@ -3,19 +3,24 @@ import crypto from 'crypto';
 import { supabaseAdmin } from './supabase';
 import { env, isProduction } from './env';
 
-// 🔒 Fail-closed: في الإنتاج، غياب السر يمنع العمل بدل التوقيع بمفتاح معروف للجميع.
+// 🔒 Fail-closed: في الإنتاج، غياب السر يمنع التوقيع/التحقق — لكنه لا يُسقط وحدة الدالة
+// (وإلا عطّل مسارات لا تحتاجه مثل وسيط Creators). لذلك يُرمى عند الاستخدام فقط.
 const _sessionSecret = env('SESSION_SECRET');
 const _hmacSecret = env('CODE_HMAC_SECRET');
-if (isProduction() && (!_sessionSecret || !_hmacSecret)) {
-  throw new Error('Missing SESSION_SECRET / CODE_HMAC_SECRET in production');
-}
 const SESSION_SECRET = _sessionSecret || 'dev-insecure-secret-change-me';
 const CODE_HMAC_SECRET = _hmacSecret || 'dev-insecure-hmac-change-me';
+
+function requireSecrets() {
+  if (isProduction() && (!_sessionSecret || !_hmacSecret)) {
+    throw new Error('Missing SESSION_SECRET / CODE_HMAC_SECRET in production');
+  }
+}
 const ISSUER = 'icg1';
 const AUDIENCE = 'icg1-app';
 
 // ---------- JWT (HS256) ----------
 export function signJwt(payload: Record<string, unknown>, expiresInSec = 7 * 24 * 3600): string {
+  requireSecrets();
   const header = { alg: 'HS256', typ: 'JWT' };
   const now = Math.floor(Date.now() / 1000);
   const body = { ...payload, iss: ISSUER, aud: AUDIENCE, iat: now, exp: now + expiresInSec };
@@ -26,6 +31,7 @@ export function signJwt(payload: Record<string, unknown>, expiresInSec = 7 * 24 
 }
 
 export function verifyJwt(token: string): Record<string, unknown> | null {
+  requireSecrets();
   const parts = token.split('.');
   if (parts.length !== 3) return null;
   const [h, b, s] = parts;
@@ -153,6 +159,7 @@ export function clearSessionCookies(res: any) {
 
 // ---------- HMAC for chat verification codes ----------
 export function hmacCode(code: string): string {
+  requireSecrets();
   return crypto.createHmac('sha256', CODE_HMAC_SECRET).update(code, 'utf8').digest('hex');
 }
 
