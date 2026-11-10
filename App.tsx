@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { GameBackButton } from './components/GameBackButton';
 import { CategorySelect } from './components/CategorySelect';
 import { GlobalAnnouncement } from './components/GlobalAnnouncement';
 import { ViewState } from './types';
@@ -800,15 +801,19 @@ useEffect(() => {
 
   // لعبة المافيا تُعرض بملء الشاشة (تصميم المسرح) بدون واجهة الموقع الجانبية
   if (isAuthorized && currentView === 'MAHMAH_GAME') {
+    /* جوال اللاعب فيه زر «خروج» خاص به داخل الشاشة — الزر العام كان يطغى على شريط القرار السفلي */
+    const mafiaPhone = isShortRoomRoute() || ['p', 'player'].includes((new URLSearchParams(window.location.search).get('m') || '').toLowerCase());
     return (
       <div className="fixed inset-0 overflow-auto bg-black">
         {renderContent(false)}
+        {/* شريط أدوات المسرح يختفي بعد لحظات — فلا يبقى المشاهد بلا طريق للعودة */}
+        {!mafiaPhone && <GameBackButton fixed onHome={handleGoHome} />}
         {tutorialLayer}
       </div>
     );
   }
 
-  // هاتف لاعب/ليدر كود نيمز: صفحة كاملة بدون واجهة الموقع
+  // هاتف لاعب/ليدر كود نيمز: صفحة كاملة بدون واجهة الموقع (زر «خروج» داخل الشاشة نفسها)
   if (isAuthorized && currentView === 'EMOJI_CODE' && isCnRoomRoute()) {
     return (
       <div className="fixed inset-0 overflow-auto bg-[#03081a]">

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { ViewState } from '../types';
 import { ChatWidget } from './ChatWidget';
+import { GameBackButton } from './GameBackButton';
 import {
   MessageSquare, X, Settings2,
   Maximize2, Minimize2, PanelRightClose,
@@ -223,6 +224,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
         <div className="flex-1 w-full h-full relative z-10 overflow-y-auto overflow-x-hidden flex flex-col items-center pb-[env(safe-area-inset-bottom)]">
           {children}
         </div>
+
+        {/* رجوع ظاهر دائماً داخل ساحة اللعبة — الشريط الجانبي يكون مقفولاً على الجوال */}
+        {isGameView && (
+          <GameBackButton onHome={() => onChangeView(userRole === 'user' ? 'USER_DASHBOARD' as any : 'HOME')} />
+        )}
       </main>
 
       {/* Re-Open Chat Button (Visible only when chat is closed) */}
