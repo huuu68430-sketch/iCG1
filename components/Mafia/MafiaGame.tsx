@@ -132,6 +132,7 @@ export const MafiaGame: React.FC<MafiaGameProps> = ({ onHome }) => {
       name: member.name,
       avatar: liveAvatar || member.avatar,
       gk: member.gameKey,
+      ks: member.keyState,
       rk: keyNonce,
       fr: frame.frameId,
       fu: frame.frameUrl,
@@ -270,7 +271,10 @@ export const MafiaGame: React.FC<MafiaGameProps> = ({ onHome }) => {
   }, []);
 
   const chrome = mode !== 'player' && !howOpen;
-  const needLogin = mode === 'player' && (!me || !member?.gameKey);
+  /* بوابة الدخول تظهر حين لا جلسة عضو إطلاقاً. أما لو الجلسة موجودة ومفتاح الإثبات
+     لم يُمحَّب أو الحساب غير مسجّل فتتكفّل شاشة اللعبة برسالة دقيقة — لأن إعادته
+     لبوابة الدخول كل ثانيتين كانت تبدو له كـ«مشكلة دخول» ولا تنتهي. */
+  const needLogin = mode === 'player' && !me;
 
   /* ===== لوحة الإدارة: لأدمن الموقع فقط — أي مستخدم عادي ممنوع ===== */
   if (mode === 'admin' && !adminOk) {

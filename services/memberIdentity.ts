@@ -16,6 +16,8 @@ export interface MemberIdentity {
   frameUrl: string;
   /** مفتاح عضلة مشتق من كلمة السر، يبقى في هذا المتصفح ولا يُرسل للقناة */
   gameKey: string;
+  /** حالة مفتاح الإثبات: ok = مفتاح هذا الحساب تحديداً · unsynced = لم يُمحَّب بعد · missing = لا حساب بهذا الاسم */
+  keyState: 'ok' | 'unsynced' | 'missing';
   isAdmin: boolean;
 }
 
@@ -37,26 +39,42 @@ export const isAdminSession = (): boolean =>
 
 const userRow = () => parse(localStorage.getItem('iabs_user'));
 
+/** شكل مفتاح العضو كما يُخزَّن في users.password_hash (sha256 قديم أو scrypt/bcrypt جديد) */
+const KEY_SHAPE = /^[A-Za-z0-9$/+=._-]{20,200}$/;
+let syncedHandle = '';
+
+/**
+ * المفتاح المحلي صالح فقط إن كان مُوسَماً باسم هذا الحساب بالذات.
+ * بدون الوسام كان المتصفح الذي انتقل بين حسابين يُثبت ملكية الحساب الجديد
+ * بمفتاح الحساب القديم، فترفض المافيا الانضمام برسالة «المفتاح لا يطابق» إلى الأبد.
+ */
+const pairedKey = (handle: string): string => {
+  if (localStorage.getItem('iabs_game_key_for') !== handle) return '';
+  const k = String(localStorage.getItem('iabs_game_key') || '');
+  return KEY_SHAPE.test(k) ? k : '';
+};
+
 export const readMember = (): Omit<MemberIdentity, 'frameId' | 'frameUrl'> | null => {
   const session = readSession('site_access_granted') || readSession('admin_access_granted');
   if (!session) return null;
   const u = userRow();
   const handle = String(u?.kick_username || u?.id || '').toLowerCase().trim();
   if (!handle || handle === 'guest') return null;
+  const gameKey = pairedKey(handle);
   return {
     handle,
     name: String(u?.display_name || u?.kick_username || handle).slice(0, 24),
     avatar: String(u?.avatar || ''),
-    gameKey: String(localStorage.getItem('iabs_game_key') || ''),
+    gameKey,
+    keyState: gameKey ? 'ok' : (lastState[handle] || 'unsynced'),
     isAdmin: session.role === 'admin',
   };
 };
 
 const frameMemCache = new Map<string, { frameId: string; frameUrl: string }>();
 
-/** شكل مفتاح العضو كما يُخزَّن في users.password_hash (sha256 قديم أو scrypt/bcrypt جديد) */
-const KEY_SHAPE = /^[A-Za-z0-9$/+=._-]{20,200}$/;
-let syncedHandle = '';
+/** آخر حالة معروفة لكل حساب — تُعرض على الهاتف بدل رسالة «المفتاح لا يطابق» الغامضة */
+const lastState: Record<string, 'ok' | 'unsynced' | 'missing'> = {};
 
 /**
  * يزامن مفتاح اللعبة مع المخزّن في قاعدة البيانات.
@@ -65,27 +83,38 @@ let syncedHandle = '';
  * force = إعادة القراءة من قاعدة البيانات حتى لو زُومِن هذا الحساب في الجلسة الحالية.
  */
 export const syncGameKey = async (handle: string, force = false): Promise<string> => {
-  const readLocal = () => String(localStorage.getItem('iabs_game_key') || '');
-  if (localStorage.getItem('iabs_game_key_for') !== handle) {
-    try { localStorage.setItem('iabs_game_key_for', handle); } catch { /* التخزين ممتلئ */ }
+  if (!force && syncedHandle === handle) {
+    const k = pairedKey(handle);
+    lastState[handle] = k ? 'ok' : (lastState[handle] || 'unsynced');
+    return k;
   }
-  if (!force && syncedHandle === handle) return readLocal();
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('users')
       .select('password_hash')
       .eq('kick_username', handle)
       .limit(1);
+    if (error) { syncedHandle = ''; lastState[handle] = 'unsynced'; return pairedKey(handle); }
     const stored = String((data as any)?.[0]?.password_hash || '');
-    if (KEY_SHAPE.test(stored) && stored !== readLocal()) {
+    if (!stored) {
+      // لا حساب بهذا الاسم: المفتاح المحلي ليس مفتاحه — نُبقي وسام الحساب القديم كما هو
+      syncedHandle = handle;
+      lastState[handle] = 'missing';
+      return '';
+    }
+    if (KEY_SHAPE.test(stored)) {
       try {
         localStorage.setItem('iabs_game_key', stored);
         localStorage.setItem('iabs_game_key_for', handle);
       } catch { /* التخزين ممتلئ */ }
+      syncedHandle = handle;
+      lastState[handle] = 'ok';
+      return stored;
     }
-    syncedHandle = handle;
-  } catch { /* القراءة غير مسموحة — يبقى المفتاح المحلي */ }
-  return readLocal();
+    syncedHandle = '';
+    lastState[handle] = 'unsynced';
+  } catch { /* القراءة غير مسموحة — يبقى المفتاح المحلي المُوسَم لهذا الحساب فقط */ }
+  return pairedKey(handle);
 };
 
 /** الإطار المجهّز: من الكاش فوراً، ثم من قاعدة البيانات */

@@ -262,7 +262,7 @@ addEventListener("message",e=>{const d=e.data;if(!d||d.type!=="icg:mafia:cfg")re
  if(d.app)APPU=String(d.app).replace(/\/+$/,"")+"/";
  /* الهوية تصل بالتكرار من القشرة (كل ٢.٦ث): لا نُعيد رسم الجوال إلا عند تغيّر حقيقي — الرفرفة المستمرة تُجمّد الواجهة وتُغلق الكيبورد */
  if(d.me){const pg=BUS.me?String(BUS.me.gk||""):"",prk=BUS.me?String(BUS.me.rk||""):"",pav=BUS.me?profSig():"";BUS.me=d.me;
-  if(MODE==="p"&&(accId()!==P.pid||String(d.me.gk||"")!==pg||String(d.me.rk||"")!==prk)){P.joined=false;P.hard=false;P.nextAt=0}
+  if(MODE==="p"&&(accId()!==P.pid||String(d.me.gk||"")!==pg||String(d.me.rk||"")!==prk)){if(P.joined&&accId()!==P.pid)SY.tx({t:"bye",pid:P.pid,to:"stage"});P.joined=false;P.hard=false;P.nextAt=0;clearFail(String(d.me.handle||""))}
   if(MODE==="p"){const id=accId()||P.pid,nw=id!==P.pid||profSig()!==pav;if(nw){P.pid=id;render()}syncProf();
    /* الهوية وصلت للتو: لا ننتظر نبضة الـ ٤ ثوانٍ — نطلب الحالة فوراً فيُستعاد المقعد في أقل من ثانية */
    if(nw&&!P.joined){if(P.ck)tryAutoJoin(true);else hello()}}}
@@ -412,7 +412,7 @@ function addP(name,pid){name=String(name||"").trim().slice(0,16);if(!name)return
 function check(){const m=ofr("mafia").length,o=alive().length-m;if(m===0)return"town";if(m>=o)return"mafia";return null}
 /* --- النشر --- */
 const vcount=()=>{const c={};Object.values(G.votes).forEach(t=>{if(t!=="skip")c[t]=(c[t]||0)+1});return c};
-function pubObj(){return{t:"pub",ph:G.ph,st:G.st,rd:G.rd,tl:Math.max(0,G.tEnd-Date.now())/1000,tt:G.tTot,pa:G.pause?1:0,pl:G.P.map(p=>({i:p.id,n:p.name,c:p.col,a:p.alive?1:0,r:p.ready?1:0,av:p.av||"",fr:p.fr||"",fu:p.fu||""})),res:G.res,win:G.win,crit:G.crit?1:0,vc:vcount(),vs:Object.keys(G.votes).length,out:G.out,rl:G.ph==="end"?Object.fromEntries(G.P.map(p=>[p.id,p.role])):null}}
+function pubObj(){return{t:"pub",ph:G.ph,st:G.st,rd:G.rd,tl:Math.max(0,G.tEnd-Date.now())/1000,tt:G.tTot,pa:G.pause?1:0,pl:G.P.map(p=>({i:p.id,n:p.name,c:p.col,a:p.alive?1:0,r:p.ready?1:0,m:p.muted?1:0,av:p.av||"",fr:p.fr||"",fu:p.fu||""})),res:G.res,win:G.win,crit:G.crit?1:0,vc:vcount(),vs:Object.keys(G.votes).length,out:G.out,rl:G.ph==="end"?Object.fromEntries(G.P.map(p=>[p.id,p.role])):null}}
 const pubAll=()=>tx(null,pubObj());
 function privFor(p){const o={t:"priv",to:p.id,role:p.role,muted:p.muted?1:0,alive:p.alive?1:0};if(p.role==="mafia")o.mates=G.P.filter(x=>x.role==="mafia"&&x.id!==p.id).map(x=>x.name);
  if(p.alive){const tg=a=>a.map(x=>({i:x.id,n:x.name,c:x.col}));
@@ -493,10 +493,13 @@ if(m.t==="join"){const h=safeId(m.pid);if(!h||h.length<3)return;const nm=String(
    if(v===null)return tx(h,{t:"rej",x:"تعذّر التحقق من الحسابات الآن — جرّب بعد لحظات"});
    if(v==="stale")return tx(h,{t:"rej",x:"انتهت صلاحية التحقق — أعد المحاولة"});
    if(v==="bad")return tx(h,{t:"rej",x:"الإثبات لم يكتمل على جوالك — سجّل الخروج وادخل من جديد (١)",h:1,hard:1});
-   if(v!==true){markFail(h);return tx(h,{t:"rej",x:"مفتاح حسابك على جوالك لا يطابق حسابك في الموقع — سجّل الخروج وادخل من جديد (٢)",h:1,hard:1})}
+   if(v!==true){markFail(h);return tx(h,{t:"rej",x:"مفتاح حسابك على جوالك لا يطابق حسابك في الموقع — يُجلب المفتاح الصحيح تلقائياً، وإن تكرّر سجّل الخروج وادخل من جديد (٢)",h:1,hard:1})}
    seatAcc(h,nm,m)})}
  else if(m.t==="hello"){SY.tx({t:"ch",k:CH,to:m.pid});const p=pl(m.pid);if(!p)return tx(m.pid,{t:"unk"});pubAll();SY.tx(privFor(p))}
  else if(m.t==="ready"){const p=pl(m.pid);if(p&&G.ph==="reveal"){p.ready=true;drawStage();pubAll();hostSync();if(G.P.every(x=>x.ready))setTimeout(()=>{if(G.ph==="reveal")next()},900)}}
+ else if(m.t==="bye"){const h=safeId(m.pid);
+  /* بدّل اللاعب حسابه في اللوبي: أخلِ مقعد الحساب السابق حتى لا يبقى شبحاً في قائمة المدير — قبل التوزيع فقط */
+  if(G.ph==="join"&&pl(h)&&!pl(h).ready){G.P=G.P.filter(x=>x.id!==h);drawStage();pubAll();hostSync()}}
  else if(m.t==="chat")onChat(m);else if(m.t==="act")onAct(m);else if(m.t==="hh"&&m.k===HK){HOSTOK=1;hostSync()}else if(m.t==="cmd"&&m.k===HK)onCmd(m)}
 /* لا تُرسَل الرسالة إلى المجهول: كل رفض يعود للجوال بسبب واضح حتى لا تختفي الفقاعة بصمت */
 function nack(m,p,x){const id=p?p.id:m.pid;if(id)tx(id,{t:"nack",mid:m.mid,x:x})}
@@ -558,16 +561,18 @@ function drawStage(){if(MODE!=="s")return;const n=G.P.length,sz=Math.max(40,Math
  document.body.classList.toggle("night",night);document.body.dataset.ph=ph;document.body.dataset.g=({mafia:"mafia",doctor:"doctor",elder:"elder",op1:"op",op2:"op"})[st]||"";
  /* وميض الضحية لا يظهر إلا لحظة كشف النتيجة (op3) — لا قبلها */
  const showHit=ph==="night"&&st==="op3";
- const vc=vcount();let h=ph==="end"?"":G.P.map((p,i)=>{const s=seatPos(i,n);return`<div class="seat ${p.alive?"":"dead"} ${G.fresh.has(p.id)?"new":""} ${showHit&&G.hit===p.id?"hit":""}" style="left:${s.x}%;top:${s.y}%;--sz:${sz}px">${ph==="deal"?`<i class="cb" style="--i:${i};--dx:${(50-s.x)*9}px;--dy:${(50-s.y)*5}px"></i>`:""}${av(p,sz)}${ph==="reveal"&&p.ready?'<i class="ok">✓</i>':""}${vc[p.id]?`<i class="bd">${vc[p.id]}</i>`:""}<span class="nm">${esc(p.name)}</span></div>`}).join("");
+ const vc=vcount();let h=ph==="end"?"":G.P.map((p,i)=>{const s=seatPos(i,n);return`<div class="seat ${p.alive?"":"dead"} ${G.fresh.has(p.id)?"new":""} ${showHit&&G.hit===p.id?"hit":""} ${p.muted?"muted":""}" style="left:${s.x}%;top:${s.y}%;--sz:${sz}px">${ph==="deal"?`<i class="cb" style="--i:${i};--dx:${(50-s.x)*9}px;--dy:${(50-s.y)*5}px"></i>`:""}${av(p,sz)}${ph==="reveal"&&p.ready?'<i class="ok">✓</i>':""}${p.muted?`<i class="mt" title="أُسكِت هذه الجولة">${ic("mute")}</i>`:""}${vc[p.id]?`<i class="bd">${vc[p.id]}</i>`:""}<span class="nm">${esc(p.name)}</span></div>`}).join("");
  h+=`<div class="core ${ph==="end"?"wide":""}">${coreH()}</div>`;$("#tbl").innerHTML=h;G.fresh.clear();
  const o=$("#out");if(o)o.innerHTML=G.out.length?G.out.map(x=>`<span class="ou"><b>${esc(x.n)}</b><i>${x.w} · ليلة/يوم ${x.d}</i></span>`).join(""):'<i class="no">لا أحد خرج بعد</i>';
+ /* من أُسكِت هذه الجولة يظهر مباشرةً تحت قائمة الخارجين — القرية تعرف من لا يكلّمها */
+ const mt=$("#mtl");if(mt){const q=G.P.filter(p=>p.muted&&p.alive);mt.innerHTML=q.length?q.map(p=>`<span class="ou mtc">${ic("mute")}<b>${esc(p.name)}</b></span>`).join(""):'<i class="no">لا أحد تحت الصمت</i>';}
  $("#chRd").style.display=G.rd?"":"none";$("#chRd").innerHTML=ic("moon")+" الجولة "+G.rd;$("#chPh").textContent=PN[ph]+(ph==="day"?(st==="vote"?" · التصويت":st==="res"?" · النتيجة":" · النقاش"):"");$("#tmr").style.visibility=G.tEnd?"visible":"hidden";}
 setInterval(()=>{if(MODE!=="s")return;if(G.pause&&G.tEnd){G.tEnd+=250}const left=Math.max(0,(G.tEnd-Date.now())/1000),v=$("#tmv");if(v&&G.tEnd){v.textContent=Math.ceil(left);const c=$("#tmc");c.style.strokeDashoffset=125.66*(1-left/(G.tTot||1));c.style.stroke=left<10?"#ff6b5a":"#e8be6e"}
  if(G.tEnd&&left<=0&&!G.pause&&!["join","end"].includes(G.ph))next()},250);
 function stageMain(){SY.init();$("#app").innerHTML=`<div class="stg"><div class="bgx bm"></div><div class="bgx bd"></div><div class="bgx be"></div><div class="sky"><div class="stars"></div><div class="moon"></div><div class="fog"></div><div class="fog b"></div></div><div class="glow"></div>
 <header class="sh"><div class="brand"><img src="mafia/brand.png" alt="">المافيا<small>iCG1</small></div><span class="chip" id="chRd"></span><span class="chip" id="chPh"></span><div class="tmr" id="tmr"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="4"/><circle id="tmc" cx="24" cy="24" r="20" fill="none" stroke="#e8be6e" stroke-width="4" stroke-linecap="round" stroke-dasharray="125.66" stroke-dashoffset="0"/></svg><b id="tmv"></b></div>
 <button class="tl" id="bSnd" title="الصوت"></button><button class="tl" id="bFs" title="ملء الشاشة"></button><button class="tl" id="bHost" title="لوحة الإدارة — نافذة جديدة"></button></header>
-<main class="sm"><div class="tbl" id="tbl"></div><aside class="sc"><div class="outs"><h4>خرجوا من اللعبة</h4><div id="out" class="outl"></div></div><h4>نقاش القرية</h4><div id="chat" style="display:flex;flex-direction:column;gap:6px;overflow:auto"></div></aside></main></div>
+<main class="sm"><div class="tbl" id="tbl"></div><aside class="sc"><div class="outs"><h4>خرجوا من اللعبة</h4><div id="out" class="outl"></div></div><div class="outs mutes" id="mutes"><h4>تحت الصمت</h4><div id="mtl" class="outl"></div></div><h4>نقاش القرية</h4><div id="chat" style="display:flex;flex-direction:column;gap:6px;overflow:auto"></div></aside></main></div>
 <div class="dp" id="dp"><div class="bx"><h3 style="margin:0;color:var(--gold)">رابط الهوست (سرّي)</h3><p>افتحه على جهازك للتحكم باللعبة. لا تعرضه على البث.</p><div class="lk" id="hl"></div><div style="display:flex;gap:8px;justify-content:center"><button class="btn p" id="hc">نسخ الرابط</button><a class="btn" id="ho" target="_blank" rel="noopener">فتح</a><button class="btn" id="hx">إغلاق</button></div></div></div>`;
  window.SND=true;$("#bSnd").innerHTML=ic("vol");$("#bFs").innerHTML=ic("max");$("#bHost").innerHTML=ic("shield");
  $("#bSnd").onclick=()=>{window.SND=!window.SND;$("#bSnd").innerHTML=ic(window.SND?"vol":"off");if(!window.SND)drone(false)};$("#bFs").onclick=()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}catch(e){}};
@@ -622,16 +627,23 @@ function reconn(){P.nextAt=0;P.hard=false;if(P.joined)hello();else if(P.ck)tryAu
 const tbar=()=>{const m=me()||{n:P.name,c:col(P.name||"?")};return`<div class="tp">${av(m,34)}<b>${esc(m.n||P.name)}</b><span class="chip" id="pt"></span><button class="tbk" data-a="home" aria-label="خروج" title="خروج">${ic("x")}</button></div>`};
 const wrap=(c,b)=>`<div class="ph ${c||""}">${b}</div>`;
 const tgs=(a,k,my)=>`<div class="tg">${a.tg.map(t=>`<button class="tt ${my===t.i?"sel":""}" style="--ac:${t.c}" data-a="act" data-k="${k}" data-t="${t.i}">${av(t,28)}<span>${esc(t.n)}</span></button>`).join("")}</div>`;
+/* شريط الصمت: من أُسكِت هذه الجولة يظهر فوق الشات للجميع — لا يُترك النقاش بلا سبب ظاهر */
+const mbar=s=>{const q=(s&&s.pl||[]).filter(p=>p.m&&p.a);return q.length?`<div class="mutebar">${ic("mute")}<span>تحت الصمت هذه الجولة: ${q.map(p=>esc(p.n)).join("، ")}</span></div>`:""};
 function view(){const s=P.pub;
  if(!P.joined){const acc=BUS.me,who=acc?{name:acc.name,n:acc.name,av:avUrl(acc.avatar),fr:frId(acc.fr),fu:frUrl(acc.fu)}:null;
- return wrap("",`<h1 style="font-size:clamp(26px,3vw,52px)">${who?"جارٍ دخولك إلى اللعبة…":"المافيا"}</h1>
+  const gk=!!(acc&&acc.gk),ks=acc?String(acc.ks||""):"";
+  /* ثلاث حالات صادقة بدل دوّار لا ينتهي: مفتاح جاهز / مفتاح يُجلب الآن / حساب غير مسجّل أصلاً */
+  const blocked=!!acc&&!gk&&ks==="missing",prep=!!acc&&!gk&&!blocked;
+  const h1=!who?"المافيا":blocked?"حسابك غير مسجّل في iCG1":prep?"جارٍ تجهيز مفتاح حسابك…":"جارٍ دخولك إلى اللعبة…";
+  const sub=!who?"المافيا للأعضاء المسجّلين فقط — سجّل دخولك بحساب Kick":blocked?"الدخول للاعبين المسجّلين فقط: أنشئ حسابك من صفحة الدخول ثم أعد المحاولة":prep?"يُجلب المفتاح من السيرفر الآن — لا تُغلق الصفحة":"ثوانٍ ويكتمل دخولك تلقائياً";
+ return wrap("",`<h1 style="font-size:clamp(26px,3vw,52px)">${h1}</h1>
  ${who?`<div class="acc">${av(who,74)}<div><b>${esc(acc.name||acc.handle)}</b><span>@${esc(acc.handle)} · Kick</span></div></div>`:""}
- <p>${who?"ثوانٍ ويكتمل دخولك تلقائياً":"المافيا للأعضاء المسجّلين فقط — سجّل دخولك بحساب Kick"}</p>
- <div class="big" style="color:var(--gold)">${ic("load","spin")}</div>
+ <p>${sub}</p>
+ <div class="big" style="color:${blocked?"#ff9aa6":who?"var(--gold)":"var(--mut)"}">${!who?ic("users"):blocked?ic("x"):ic("load","spin")}</div>
  <div class="pb"><button class="howbtn" data-how>📖 كيف ألعب؟</button><button class="howbtn" data-a="home">🏠 العودة للرئيسية</button></div>
  ${P.rej?`<p style="color:#ff9aa6;font-size:14px;max-width:520px;margin:14px auto 8px">${esc(P.rej)}</p><button class="btn" data-a="join">إعادة المحاولة</button>`:""}`)}
  if(!s)return wrap("",`${P.joined?tbar():""}<h1>${ic("load","spin")}</h1><p>جاري الاتصال بالشاشة…</p><p style="font-size:13px;color:var(--mut)">لو تأخر، اضغط إعادة الاتصال — مقعدك محفوظ ودورك لن يضيع</p><div class="pb"><button class="btn p" data-a="re">إعادة الاتصال</button><button class="howbtn" data-a="home">🏠 العودة للرئيسية</button></div>`);
- if(s.ph==="join")return wrap("",`${tbar()}<h1>أنت داخل اللعبة!</h1><p>انتظر حتى يبدأ المدير التوزيع</p><button class="howbtn" data-how>📖 مشاهدة طريقة اللعب</button><div class="lst">${s.pl.map(p=>av(p,40)).join("")}</div><p>${s.pl.length} لاعبين</p>`);
+ if(s.ph==="join")return wrap("",`${tbar()}<h1>أنت داخل اللعبة!</h1><p>انتظر حتى يبدأ المدير التوزيع</p><button class="howbtn" data-how>📖 مشاهدة طريقة اللعب</button><div class="lst">${s.pl.map(p=>`<span class="avw">${av(p,40)}${p.m?`<i class="mt" title="تحت الصمت">${ic("mute")}</i>`:""}</span>`).join("")}</div><p>${s.pl.length} لاعبين</p>`);
  if(s.ph==="deal")return wrap("",`${tbar()}<h1>${ic("shuffle")}</h1><p>تُخلط البطاقات… استعد لدورك</p>`);
  if(s.ph==="reveal")return reveal();if(s.ph==="end")return endV();
  const m=me(),dead=m&&!m.a;if(dead)return deadV();
@@ -643,11 +655,11 @@ function view(){const s=P.pub;
   return wrap("night",`${tbar()}<div class="zz">${ic("moon","f")}</div><h1>الليل…</h1><p>أغمض عينيك ولا تفتحهما حتى يطلع الصباح</p>${P.notes.length?`<div class="note2">${esc(P.notes[P.notes.length-1])}</div>`:""}`)}
  if(s.ph==="day"){if(s.st==="vote"&&P.act&&P.act.k==="vote")return wrap("",`${tbar()}<h1>${ic("vote")} صوّت</h1><p>من تظنه من المافيا؟</p><div class="pb">${tgs(P.act,"vote",P.act.my)}<button class="tt ${P.act.my==="skip"?"sel":""}" style="--ac:#666" data-a="act" data-k="vote" data-t="skip"><span>تجاوز (لا أحد)</span></button></div>`);
   if(s.st==="res")return wrap("",`${tbar()}<h1>${s.res&&s.res.ej?"أُقصي "+esc(s.res.name):"لم يُقصَ أحد"}</h1><p>انظر إلى الشاشة</p>`);
-  return wrap("",`${tbar()}<h1>${ic("sun")} النقاش</h1>${s.crit?`<div class="note2">المواجهة الأخيرة: خطأ واحد وتفوز المافيا</div>`:""}<div class="pb"><div class="chat" id="cl" data-empty="لا رسائل بعد — ابدأ النقاش">${P.dchat.map(line).join("")}</div>${P.muted?`<div class="note2">${ic("mute")} أُسكِتّ في هذه الجولة. لا يمكنك الكلام.</div>`:`<div class="row"><input class="inp" id="ci" maxlength="140" placeholder="تكلّم مع القرية" autocomplete="off"><button class="btn p" data-a="sendD" aria-label="إرسال">${ic("send")}</button></div>`}${P.notes.length?`<div class="note2">${esc(P.notes[P.notes.length-1])}</div>`:""}</div>`)}
+  return wrap("",`${tbar()}<h1>${ic("sun")} النقاش</h1>${s.crit?`<div class="note2">المواجهة الأخيرة: خطأ واحد وتفوز المافيا</div>`:""}<div class="pb">${mbar(s)}<div class="chat" id="cl" data-empty="لا رسائل بعد — ابدأ النقاش">${P.dchat.map(line).join("")}</div>${P.muted?`<div class="note2">${ic("mute")} أُسكِتّ في هذه الجولة. لا يمكنك الكلام.</div>`:`<div class="row"><input class="inp" id="ci" maxlength="140" placeholder="تكلّم مع القرية" autocomplete="off"><button class="btn p" data-a="sendD" aria-label="إرسال">${ic("send")}</button></div>`}${P.notes.length?`<div class="note2">${esc(P.notes[P.notes.length-1])}</div>`:""}</div>`)}
  return wrap("",`<p>…</p>`)}
 function reveal(){const r=P.role;if(!r)return wrap("",`${tbar()}<h1>${ic("load","spin")}</h1><p>جاري استلام دورك…</p>`);
  return wrap("",`<p>دورك سري… لا تُره لأحد!</p><div class="fl"><div class="fi ${P.flip?"on":""}" id="fi"><div class="bk"><b>؟</b></div><div class="ft"><div class="rc ${r}" style="height:100%"><i class="burst"></i>${chr(r)}<span class="rn">${RL[r].n}</span></div></div></div></div>${P.flip?`<p>${RL[r].d}</p>${r==="mafia"&&P.mates.length?`<div class="note2">زميلك في المافيا: ${P.mates.map(esc).join("، ")}</div>`:""}<button class="btn p" data-a="ready">فهمت ${ic("check")}</button>`:`<button class="btn r" data-a="flip">اكشف بطاقتك</button>`}`)}
-function deadV(){const s=P.pub;return wrap("dead",`${tbar()}<h1>${ic("skull")}</h1><h1>خرجت من اللعبة</h1><p>تابع الشاشة… دورك انتهى لكن اللعبة مستمرة</p>${s.ph==="day"?`<div class="chat" id="cl" data-empty="لا رسائل بعد — ابدأ النقاش">${P.dchat.map(line).join("")}</div>`:""}`)}
+function deadV(){const s=P.pub;return wrap("dead",`${tbar()}<h1>${ic("skull")}</h1><h1>خرجت من اللعبة</h1><p>تابع الشاشة… دورك انتهى لكن اللعبة مستمرة</p>${s.ph==="day"?`${mbar(s)}<div class="chat" id="cl" data-empty="لا رسائل بعد — ابدأ النقاش">${P.dchat.map(line).join("")}</div>`:""}`)}
 function endV(){const s=P.pub,town=s.win==="town",mine=P.role==="mafia"?"mafia":"town",won=s.win==="joker"?P.role==="joker":mine===s.win;return wrap("",`${tbar()}<h1 style="color:${won?"var(--gold)":"#ff6b7b"}">${won?"فزت! "+"🏆":"خسرت"}</h1><p>${s.win==="joker"?"فاز الجوكر! طردتموه بالتصويت 🃏":town?"فاز المواطنون":"فازت المافيا"}</p><div class="pb"><div class="tg">${s.pl.map(p=>`<div class="tt" style="--ac:${p.c};${p.a?"":"opacity:.5"}">${av(p,28)}<span>${esc(p.n)}</span><span class="n">${RL[(s.rl||{})[p.i]||"citizen"].n}</span></div>`).join("")}</div></div>`)}
 document.addEventListener("click",e=>{if(MODE==="h"){hClick(e);return}if(MODE!=="p")return;const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a;
  if(a==="join"){P.rej="";P.hard=false;P.nextAt=0;if(P.ck)tryAutoJoin(true,true);else hello()}
@@ -923,7 +935,7 @@ ${tile("citizen","الباقون. يبحثون عن المافيا بالنقا�
 ${join?(pn.err?`<div class="msg2 er">${pn.err}</div>`:`<div class="msg2 ok">التوزيع جاهز: ${n} لاعبين</div>`):""}</div>
 <div class="pn2"><h3>${ic("clock")} سير اللعبة والأوقات</h3><div class="g3">${tm("مهلة القرار لكل دور","tDec")}${tm("وقت النقاش","tDay")}${tm("وقت التصويت","tVote")}<div class="tm2"><span>تقدّم يدوي (المدير ينقل المراحل)</span>${sw("manual",!!c.manual,1)}</div>${rl("تحقيق الشايب (مرة)","invest")}${rl("كشف دور المُقصى","reveal")}${rl("الجوكر لا يفوز في اليوم الأول","jokerD1")}${rl("التحقيق كل ليلتين","det2")}</div>
 <div class="hint">${c.manual?"وضع يدوي: لا تنتقل أي مرحلة تلقائياً — تنقلها أنت، وتظهر المهلة كتنبيه فقط.":"وضع تلقائي: تنتقل المرحلة فور اكتمال كل القرارات المطلوبة، ومهلة القرار تحمي من لاعب لا يقرر."} لم تعد هناك أوقات طويلة لكل دور: بقي وقت النقاش ووقت التصويت.</div></div>
-<div class="pn2"><h3>${ic("users")} اللاعبون (${n}) — أحياء ${al} · خارج ${n-al}</h3><div class="pls2">${v.P.map(p=>`<div class="pc2 ${p.r||""} ${p.a?"":"d"}"><span class="nn">${esc(p.n)}</span>${v.ph==="reveal"&&p.rd?ic("check"):""}${p.m?ic("mute"):""}${p.a?"":'<em class="outb">خرج</em>'}<span class="rl">${p.r?RL[p.r].n:"—"}</span>${join?`<button class="kk" data-a="kick" data-id="${p.i}" aria-label="طرد">${ic("x")}</button>`:""}</div>`).join("")||"<p>لا يوجد لاعبون بعد</p>"}</div>${v.out&&v.out.length?`<div class="outsum">${v.out.map(o=>`<span>${esc(o.n)}<i>${o.w} · ${o.d}</i></span>`).join("")}</div>`:""}</div>
+<div class="pn2"><h3>${ic("users")} اللاعبون (${n}) — أحياء ${al} · خارج ${n-al}${v.P.filter(p=>p.m&&p.a).length?` · صامت ${v.P.filter(p=>p.m&&p.a).length}`:""}</h3><div class="pls2">${v.P.map(p=>`<div class="pc2 ${p.r||""} ${p.a?"":"d"} ${p.m&&p.a?"mu":""}"><span class="nn">${esc(p.n)}</span>${v.ph==="reveal"&&p.rd?ic("check"):""}${p.m?`<i class="muic" title="تحت الصمت هذه الجولة">${ic("mute")}</i>`:""}${p.a?"":'<em class="outb">خرج</em>'}<span class="rl">${p.r?RL[p.r].n:"—"}</span>${join?`<button class="kk" data-a="kick" data-id="${p.i}" aria-label="طرد">${ic("x")}</button>`:""}</div>`).join("")||"<p>لا يوجد لاعبون بعد</p>"}</div>${v.out&&v.out.length?`<div class="outsum">${v.out.map(o=>`<span>${esc(o.n)}<i>${o.w} · ${o.d}</i></span>`).join("")}</div>`:""}</div>
 ${dcs?`<div class="pn2"><h3>${ic("vote")} القرارات الآن</h3>${dcs}</div>`:""}
 ${v.ph==="night"||v.ph==="day"?`<div class="pn2"><h3>${ic("knife")} كواليس الليلة (للمدير فقط)</h3><p>اقتراحات المافيا: ${Object.entries(v.nt.mv||{}).map(([a,b])=>nm(a)+" ← "+nm(b)).join(" · ")||"—"}<br>الضحية: <b>${v.nt.kill?nm(v.nt.kill):"—"}</b> · يحميه الدكتور: <b>${v.nt.protect?nm(v.nt.protect):"—"}</b> · إسكات الشايب: <b>${v.nt.silence?nm(v.nt.silence):"—"}</b> · تحقيق الشايب: <b>${v.nt.invest?nm(v.nt.invest):"—"}</b> · تحقيق المحقق: <b>${v.nt.det?nm(v.nt.det):"—"}</b></p><div class="lg">${(v.mc||[]).slice().reverse().map(l=>`<span><b>${esc(l[0])}</b> ${esc(l[1])}</span>`).join("")||"<i>لا رسائل بعد</i>"}</div>
 <div class="mcp"><input class="mcx" id="mx" maxlength="140" placeholder="رسالة إلى شات المافيا — لا يقرأها غيرهم"><select id="mto" aria-label="المستقبِل"><option value="">شات المافيا</option>${v.P.filter(p=>p.a).map(p=>`<option value="${p.i}">خاص: ${esc(p.n)}</option>`).join("")}</select><button class="hb2" data-a="msnd">${ic("send")} إرسال</button><button class="hb2 qk" data-a="msnd" data-x="خلصتوا؟">خلصتوا؟</button></div></div>
@@ -1228,3 +1240,25 @@ if(MODE==="h"){
   if(!x)return;cmd("mchat",sel&&sel.value?{x,who:sel.value}:{x});const i=$("#mx");if(i)i.value="";MX=""}};
 })();
 </script>
+<style>
+/* ===== المافيا: ظهور المُسكَت (أيقونة ميكروفون مقفول) ===== */
+.seat .mt{position:absolute;bottom:calc(var(--sz)*-.10);right:calc(var(--sz)*-.08);width:calc(var(--sz)*.42);height:calc(var(--sz)*.42);min-width:20px;min-height:20px;display:grid;place-items:center;border-radius:50%;background:#2a1140;border:2px solid #c77dff;box-shadow:0 0 14px #c77dffaa,0 4px 12px #0009;color:#f0d9ff;z-index:3;animation:mtin .4s cubic-bezier(.2,1.4,.4,1) both}
+.seat .mt .ic{width:60%;height:60%;stroke-width:2.6}
+@keyframes mtin{from{opacity:0;transform:scale(.4)}}
+.seat.muted .av{filter:saturate(.55) brightness(.86)}
+.seat.muted .nm{background:rgba(74,20,96,.78);color:#f0d9ff;box-shadow:inset 0 0 0 1px #c77dff66}
+.mutes h4{color:#d9b6ff}
+.outl .ou.mtc{background:#c77dff1a;border-color:#c77dff55;flex-direction:row;align-items:center;gap:5px}
+.outl .ou.mtc b{color:#f0d9ff}
+.outl .ou.mtc .ic{width:13px;height:13px;color:#e0c4ff}
+.lst .avw{position:relative;display:inline-grid}
+.lst .avw .mt{position:absolute;top:-4px;right:-4px;width:19px;height:19px;display:grid;place-items:center;border-radius:50%;background:#2a1140;border:2px solid #c77dff;color:#f0d9ff;z-index:2}
+.lst .avw .mt .ic{width:11px;height:11px;stroke-width:2.8}
+.mutebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 8px;padding:7px 10px;border-radius:14px;background:#c77dff14;border:1px solid #c77dff44}
+.mutebar .ic{width:15px;height:15px;color:#e0c4ff;flex:none}
+.mutebar b{font:800 12.5px Tajawal;color:#f0d9ff}
+.mutebar span{font:700 12px Tajawal;color:#cdb6e6}
+.pc2 .muic{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#2a1140;border:1px solid #c77dff;color:#f0d9ff;flex:none}
+.pc2 .muic .ic{width:12px;height:12px;stroke-width:2.8}
+.pc2.mu{border-color:#c77dff55}
+</style>
