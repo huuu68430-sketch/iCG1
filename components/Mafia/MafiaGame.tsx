@@ -156,6 +156,9 @@ export const MafiaGame: React.FC<MafiaGameProps> = ({ onHome }) => {
   const noticeTimer = useRef<any>(null);
   const codeRef = useRef(code);
   codeRef.current = code;
+  /* المرجع يبقى محدّثاً حتى لا يستخدم المستمع القديم قيمة قديمة */
+  const onHomeRef = useRef(onHome);
+  onHomeRef.current = onHome;
 
   const flash = useCallback((text: string) => {
     setNotice(text);
@@ -203,6 +206,9 @@ export const MafiaGame: React.FC<MafiaGameProps> = ({ onHome }) => {
           : 'تعذّر الوصول لقاعدة البيانات — اللعبة على هذا الجهاز فقط، نفّذ ملف SQL');
       } else if (d.type === 'icg:mafia:how') {
         setHowOpen(d.open === 1);
+      } else if (d.type === 'icg:mafia:home') {
+        /* زر الرجوع داخل الجوال: خروج بدون لمس حالة المباراة — المقعد والدور محفوظان ويُستعادان عند العودة */
+        onHomeRef.current?.();
       } else if (d.type === 'icg:mafia:needkey') {
         /* اللعبة رفضت الإثبات: أعِد قراءة مفتاح الحساب من قاعدة البيانات ثم أعد الانضمام */
         const m = readMember();

@@ -48,21 +48,31 @@ export const EmojiCode: React.FC<EmojiCodeProps> = ({ onHome, isOBS }) => {
     return () => clearInterval(id);
   }, [joinMode, member]);
 
-  /* الهوية تُرسل بالتكرار حتى تصل — الإطار قد يتأخر في التحميل */
+  /* الهوية تُرسل حتى تصل — لكن التكرار كل ثانيتين كان يُعيد رسم شاشة الليدر ويغلق الكيبورد
+     أثناء الكتابة. اللعبة الآن ترد بإيصال (icg:cn:acked) فنَتوقّف عن الإعادة حتى تتغيّر الهوية. */
+  const ackRef = useRef('');
   useEffect(() => {
     if (!joinMode || !me) return;
+    const sig = `${src}|${me.handle}`;
     const send = () => {
       const win = iframeRef.current?.contentWindow;
       if (!win) return;
       win.postMessage({ source: 'icg-shell', type: 'icg:cn:me', me }, window.location.origin);
     };
-    send();
-    const id = setInterval(send, 2000);
-    return () => clearInterval(id);
+    if (ackRef.current !== sig) send();
+    const id = setInterval(() => { if (ackRef.current !== sig) send(); }, 2000);
+    const onAck = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      const d = e.data;
+      if (d && d.source === 'icg-cn' && d.type === 'icg:cn:acked') ackRef.current = sig;
+    };
+    window.addEventListener('message', onAck);
+    return () => { clearInterval(id); window.removeEventListener('message', onAck); };
   }, [joinMode, me, src]);
 
+  /* خروج جوال اللاعب (/cn=CODE) وزر خروج الهوست — كلاهما يرجع للرئيسية دون لمس حالة الغرفة */
   useEffect(() => {
-    if (!onHome || joinMode) return;
+    if (!onHome) return;
     const handler = (e: MessageEvent) => {
       if (e.data && e.data.type === 'codenames-exit') {
         onHome();
@@ -70,7 +80,7 @@ export const EmojiCode: React.FC<EmojiCodeProps> = ({ onHome, isOBS }) => {
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [onHome, joinMode]);
+  }, [onHome]);
 
   // الرابح يُحسب داخل إطار codenames — يرسل لنا قائمة الفريق الفائز هنا لنرصّدها.
   // في وضع الانضمام الرابح يُرصَّد من شاشة الهوست، فلا نحسبه مرتين.

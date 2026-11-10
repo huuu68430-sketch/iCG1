@@ -90,6 +90,14 @@ button,input{font:inherit;color:inherit}button{cursor:pointer;border:0;backgroun
 .kv::after{content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;border:5px solid var(--kc);background:color-mix(in srgb,var(--kc) 22%,transparent)}.kv.k-red{--kc:var(--red)}.kv.k-blue{--kc:var(--blue)}.kv.k-neutral{--kc:#9aa3b2}.kv.k-assassin{--kc:#000}
 .vt{position:absolute;top:8px;left:8px;display:flex;flex-direction:row-reverse}.vt .av{--s:26px;margin-inline-start:-8px}
 .vt .avf{--s:26px;margin-inline-start:-8px}.vt em{font:800 12px Tajawal;align-self:center;margin-inline-end:4px;font-style:normal;background:#10213f;color:#fff;border-radius:9px;padding:0 6px}
+/* تصويت الشات: حلقة ذهبية منفصلة تماماً عن مفتاح الألوان (kv) حتى لا يخلط المشاهد */
+.cd.voted::after{content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;border:4px solid #f0c674;box-shadow:inset 0 0 0 2px rgba(0,0,0,.25),0 0 18px rgba(240,198,116,.45)}
+/* Mark الهوست: شارة علم + إطار متقطّع — لا تعني اعتماداً ولا تُقلب البطاقة */
+.cd.mk{--cs:#c08b3a}
+.cd.mk::before{border:2px dashed #f0c674;border-radius:10px}
+.cd .mkf{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:4;display:flex;align-items:center;gap:3px;font:800 11px Tajawal;background:linear-gradient(180deg,#f9e0a4,#c08b3a);color:#1a1006;border-radius:9px;padding:2px 7px;box-shadow:0 2px 8px rgba(0,0,0,.45)}
+.cd .mkf .ic{width:12px;height:12px}
+.cd.rev.mk::before{border-style:solid;border-color:rgba(255,255,255,.55)}
 .ft{min-height:26px;text-align:center;font-size:13px;font-weight:700;color:#b9cdf2}.ft b{color:#ffd24d}
 /* result */
 .res{text-align:center;padding:10px 0}.res small{font-weight:700;color:#b9cdf2}.res h1{margin:4px 0 12px;font:italic 800 clamp(44px,7vw,84px)/1.4 var(--dsp);color:var(--c);text-shadow:0 0 40px color-mix(in srgb,var(--c) 60%,transparent)}
@@ -106,6 +114,7 @@ button,input{font:inherit;color:inherit}button{cursor:pointer;border:0;backgroun
 body.ldm .bar{display:none}.ld{max-width:520px;margin:0 auto;padding:12px 12px 40px}
 .lb{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-radius:18px;background:linear-gradient(135deg,var(--c),var(--c2));font:italic 800 22px var(--dsp)}.ld.red{--c:var(--red);--c2:var(--red2)}.ld.blue{--c:var(--blue);--c2:var(--blue2)}
 .lb small{display:block;font:700 12px Tajawal;opacity:.9}
+.lxb{flex:none;padding:8px 14px;border-radius:999px;border:1px solid #ffffff66;background:#0006;color:#fff;font:800 13px Tajawal}.lxb:active{transform:scale(.95)}
 .lgd{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.lgd span{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font:800 12px Tajawal;background:rgba(255,255,255,.07)}.lgd i{width:11px;height:11px;border-radius:50%;background:var(--k)}
 .lgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
 .lt{position:relative;display:grid;place-items:center;min-height:62px;padding:14px 2px 2px;border-radius:10px;font:800 clamp(10px,3vw,15px)/1.25 var(--dsp);text-align:center;color:#fff;background:var(--k);border:2px solid rgba(255,255,255,.35);word-break:break-word}
@@ -155,6 +164,8 @@ body.ldm .bar{display:none}.ld{max-width:520px;margin:0 auto;padding:12px 12px 4
 .bflip{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .emp2{display:block;width:100%;text-align:center;font:700 13px Tajawal;color:var(--mut)}
 .bf{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:11px;font:800 13px Tajawal;background:var(--k);color:#fff;border:1px solid rgba(255,255,255,.3)}
+.bf em{font:800 11px Tajawal;font-style:normal;background:rgba(0,0,0,.4);border-radius:8px;padding:1px 6px;color:#ffe9b8}
+.bf.mk{outline:2px solid #f0c674;outline-offset:1px;box-shadow:0 0 14px rgba(240,198,116,.5)}
 .bf i{font:800 12px var(--dsp);font-style:normal;opacity:.8}.bf.k-red{--k:#d83e22}.bf.k-blue{--k:#1f85d6}.bf.k-neutral{--k:#8b92a0}.bf.k-assassin{--k:#0a0a10;border-color:#ff3b3b}
 .gh{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:8px;padding:11px;border-radius:14px;font:800 15px Tajawal;background:rgba(255,255,255,.08);border:1px solid rgba(110,170,255,.4);color:#cfe0ff;transition:.2s}.gh:hover{background:rgba(110,170,255,.2)}
 a.btn{color:#fff;text-decoration:none}
@@ -343,7 +354,7 @@ function frameOf(name){
 
 /* ===== الحالة ===== */
 let JOIN=false;
-const S={page:"lobby",P:[],seed:0,bd:null,rev:[],turn:"red",phase:"clue",clue:null,flips:0,votes:{},uv:{},log:[],joined:{red:false,blue:false},over:null,all:false,key:false,manual:true,room:"",tEnd:0,tTot:120,newFlip:-1,endC:false,jL:{red:"",blue:""}};
+const S={page:"lobby",P:[],seed:0,bd:null,rev:[],turn:"red",phase:"clue",clue:null,flips:0,votes:{},uv:{},marks:{},log:[],joined:{red:false,blue:false},over:null,all:false,key:false,manual:true,markMode:false,room:"",tEnd:0,tTot:120,tClue:0,newFlip:-1,endC:false,jL:{red:"",blue:""},seq:0};
 const pl=id=>S.P.find(p=>p.id===String(id).toLowerCase()),team=t=>S.P.filter(p=>p.team===t),lead=t=>S.P.find(p=>p.team===t&&p.leader),appr=t=>S.P.find(p=>p.team===t&&p.appr);
 const rem=t=>S.bd.keys.filter((k,i)=>k===t&&!S.rev.includes(i)).length;
 const logAdd=(t,m)=>{S.log.unshift([t,m]);S.log=S.log.slice(0,9)};
@@ -386,41 +397,57 @@ const cardN=n=>n===1?"بطاقة واحدة":n===2?"بطاقتين":n+" بطاق
 function banner(){if(S.over)return`<div class="ban ${S.over.t} win">${ic("trophy","f")}<span>فاز الفريق ${TN[S.over.t]}</span><small>${S.over.why}</small><button class="rnd" data-a="toRes">النتيجة</button></div>`;
  const t=S.turn,L=lead(t);if(S.phase==="clue")return`<div class="ban ${t}">${av(L,38)}<span>ليدر الفريق ${TN[t]} يكتب التلميح من هاتفه</span><i class="dots2"></i></div>`;
  const n=S.clue.num;return`<div class="ban ${t}"><span>تلميح الفريق ${TN[t]}</span><span class="cl">${S.clue.word}</span><span class="cn">${n||"∞"}</span><span>${n?`يمكنهم قلب ${cardN(n-S.flips)}`:"تخمين غير محدود"}</span></div>`}
-function cardH(i){const c=S.bd.keys[i],r=S.rev.includes(i),show=r||S.all,v=S.votes[i+1]||[];
- return`<button class="cd ${show?"rev "+c:""} ${S.all&&!r?"dim":""} ${S.key&&!show?"kv k-"+c:""} ${!show&&v.length?"kv k-"+S.turn:""}" data-n="${i+1}" ${S.newFlip===i?"":""}><span class="nm">${i+1}</span>${show?`<span class="fg">${spy(c)}</span>`:""}<span class="pl">${S.bd.words[i]}</span>${v.length?`<span class="vt">${v.slice(0,8).map(id=>av(pl(id),26)).join("")}${v.length>8?`<em>+${v.length-8}</em>`:""}</span>`:""}</button>`}
-function hint(){if(S.over)return"انتهت اللعبة";if(S.phase==="clue")return"انتظروا التلميح… الليدر وحده يرى ألوان البطاقات";const t=S.turn,A=appr(t),mv=S.clue.num||3;return`صوّتوا بكتابة <b>رقم</b> البطاقة (حتى ${mv}) · <b>${A?A.name:""}</b> يكتب الرقم لقلبها أو <b>انتهاء</b> لإنهاء الدور`}
+function cardH(i){const c=S.bd.keys[i],n=i+1,r=S.rev.includes(i),show=r||S.all,v=S.votes[n]||[],mk=!!S.marks[n];
+ return`<button class="cd ${show?"rev "+c:""} ${S.all&&!r?"dim":""} ${S.key&&!show?"kv k-"+c:""} ${!show&&v.length?"voted":""} ${mk?"mk":""}" data-n="${n}"><span class="nm">${n}</span>${show?`<span class="fg">${spy(c)}</span>`:""}<span class="pl">${S.bd.words[i]}</span>${v.length?`<span class="vt">${v.slice(0,8).map(id=>av(pl(id),26)).join("")}${v.length>8?`<em>+${v.length-8}</em>`:""}</span>`:""}${mk?`<span class="mkf">${ic("flag")}محدّدة</span>`:""}</button>`}
+function hint(){if(S.over)return"انتهت اللعبة";if(S.phase==="clue")return"انتظروا التلميح… الليدر وحده يرى ألوان البطاقات";const t=S.turn,A=appr(t),mv=S.clue.num||3;return`صوّتوا بكتابة <b>رقم</b> البطاقة (حتى ${mv}) · <b>${A?A.name:""}</b> يكتب الرقم لاعتماد بطاقة واحدة أو <b>انتهاء</b> لإنهاء الدور · الهوست يعلّم المرشّحات بـ <b>Mark</b> (كليك يمين) — التحديد ليس اعتماداً والعدّاد لا يتوقف`}
 function pGame(){const t=S.turn;$("#pg").innerHTML=`<div class="gm">${panel("red")}<section class="ctr"><div class="top"><div class="tm"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="4"/><circle id="tmr" cx="24" cy="24" r="20" fill="none" stroke="#7cc4ff" stroke-width="4" stroke-linecap="round" stroke-dasharray="125.66" stroke-dashoffset="0"/></svg><b id="tmv">0</b></div>${banner()}</div><div class="grid">${S.bd.words.map((_,i)=>cardH(i)).join("")}</div><div class="ft">${hint()}</div></section>${panel("blue")}</div>`;tick()}
 function pResult(){const w=S.over.t,m=team(w).slice().sort((a,b)=>b.c-a.c)[0],role=m?m.leader?"الليدر":m.appr?"المعتمد":"لاعب":"";
  $("#pg").innerHTML=`<div class="pgw"><div class="sheet"><div class="res ${w}"><small>الفريق الفائز هو</small><h1>فاز الفريق ${TN[w]}</h1><p class="sub">${S.over.why}</p>${m?`<span class="mvp">${ic("trophy","f")} MVP · أفضل لاعب</span><br><div class="mc">${av(m,110)}<b>${m.name}</b><div class="st"><span><b>${role}</b>الدور</span><span><b>${m.c}</b>تصويتات صحيحة</span></div></div>`:""}
 <div class="nav"><button class="btn p" data-a="again">إعادة اللعبة بنفس اللاعبين</button><button class="btn" data-a="relobby">إعادة فتح اللوبي</button><button class="btn" data-a="board">مشاهدة اللوحة</button></div></div></div></div>`}
 function tick(){if(S.page!=="game"||S.over)return;const left=Math.max(0,(S.tEnd-Date.now())/1000),v=$("#tmv"),r=$("#tmr");if(v){v.textContent=Math.ceil(left);r.style.strokeDashoffset=125.66*(1-left/S.tTot);r.style.stroke=left<15?"#ff6b5a":"#7cc4ff"}
- if(left<=0&&S.tEnd)endTurn(S.phase==="clue"?"انتهى وقت التلميح":"انتهى الوقت")}
+ if(!S.tEnd)return;
+ /* مهلة التلميح تُنهي الدور مبكراً — لكنها لا تلمس العدّاد أبداً */
+ if(S.phase==="clue"&&S.tClue&&Date.now()>=S.tClue){endTurn("انتهى وقت التلميح");return}
+ if(left<=0)endTurn(S.phase==="clue"?"انتهى وقت التلميح":"انتهى الوقت")}
 setInterval(tick,250);
-const resetTimer=s=>{S.tTot=s;S.tEnd=Date.now()+s*1000};
+/* جولة واحدة = عدّاد واحد: يبدأ مع بداية الدور ولا يُصفَّر لا عند إرسال التلميح ولا عند اعتماد البطاقات */
+const resetTimer=s=>{S.tTot=s;S.tEnd=Date.now()+s*1000;S.tClue=Math.min(Date.now()+CFG.clueTime*1000,S.tEnd)};
 /* تغيير الليدر يجب أن يصل للهواتف فوراً، وفريقه ينتظر دخول الليدر الجديد */
 function leadGate(shift){["red","blue"].forEach(t=>{const L=lead(t),id=L?L.id:"";if(S.jL[t]!==id){S.jL[t]=id;if(shift)S.joined[t]=false}})}
 let cnLast=0,cnT=0;
 const cnPut=p=>{try{sb.from("cn_rooms").upsert({room_code:S.room,seed:S.seed,state:p}).then(()=>{}).catch(()=>{})}catch(e){}};
 /* كبح استهلاك Supabase: النبضة كل ٢ث تصل للأجهزة عبر Realtime فوراً، أما كتابة قاعدة البيانات (للداخلين متأخراً) فتكفي كل ٥ث مع حفظ ختامي مؤجل */
 function cnSave(p){const floor=S.page==="game"?5000:15000;const n=Date.now(),d=n-cnLast;if(d>=floor){cnLast=n;cnPut(p);return}if(!cnT)cnT=setTimeout(()=>{cnT=0;cnLast=Date.now();cnPut(p)},floor-d)}
-function bcast(){if(!S.room)return;leadGate(false);const payload={t:"state",seed:S.seed,rev:S.rev,turn:S.turn,phase:S.phase,clue:S.clue,over:S.over&&S.over.t,st:S.page==="game",pg:S.page,tl:{end:S.tEnd,tot:S.tTot},leaders:{red:(lead("red")&&lead("red").name)||"",blue:(lead("blue")&&lead("blue").name)||""},appr:{red:(appr("red")&&appr("red").name)||"",blue:(appr("blue")&&appr("blue").name)||""},roster:S.P.reduce((a,p)=>{if(p.team)a[p.id]=p.team;return a},{}),joined:S.joined,at:Date.now()};SY.tx(payload);if(sb)cnSave(payload)}
+function bcast(){if(!S.room)return;leadGate(false);const payload={t:"state",q:++S.seq,seed:S.seed,rev:S.rev,turn:S.turn,phase:S.phase,clue:S.clue,over:S.over&&S.over.t,st:S.page==="game",pg:S.page,tl:{end:S.tEnd,tot:S.tTot,clue:S.tClue},v:S.votes,mk:S.marks,leaders:{red:(lead("red")&&lead("red").name)||"",blue:(lead("blue")&&lead("blue").name)||""},appr:{red:(appr("red")&&appr("red").name)||"",blue:(appr("blue")&&appr("blue").name)||""},roster:S.P.reduce((a,p)=>{if(p.team)a[p.id]=p.team;return a},{}),joined:S.joined,at:Date.now()};SY.tx(payload);if(sb)cnSave(payload)}
 let hbN=0;setInterval(()=>{if(JOIN||!S.room)return;if(S.page==="game")bcast();else if(++hbN%3===0)bcast()},2000);
 /* ===== منطق اللعبة ===== */
-function startGame(){S.rev=[];S.turn=S.bd.start;S.phase="clue";S.clue=null;S.flips=0;S.votes={};S.uv={};S.over=null;S.all=false;S.log=[];S.P.forEach(p=>{p.c=0;p.v=0});logAdd(S.turn,`بدأت اللعبة · الفريق ${TN[S.turn]} يبدأ (9 بطاقات)`);resetTimer(CFG.clueTime);go("game");bcast()}
+function startGame(){S.rev=[];S.turn=S.bd.start;S.phase="clue";S.clue=null;S.flips=0;S.votes={};S.uv={};S.marks={};S.over=null;S.all=false;S.log=[];S.P.forEach(p=>{p.c=0;p.v=0});logAdd(S.turn,`بدأت اللعبة · الفريق ${TN[S.turn]} يبدأ (9 بطاقات)`);resetTimer(CFG.guessTime);go("game");bcast()}
 function setClue(t,word,num){if(S.page!=="game"||S.over||S.phase!=="clue"||t!==S.turn)return"ليس دور فريقك";word=String(word).trim();if(!word||/\s/.test(word))return"التلميح كلمة واحدة فقط";if(!(num>=0&&num<=9))return"الرقم من 0 إلى 9";
  if(S.bd.words.some((w,i)=>!S.rev.includes(i)&&norm(w)===norm(word)))return"التلميح لا يجب أن يكون من كلمات اللوح";
- S.clue={word,num};S.phase="guess";S.flips=0;S.votes={};S.uv={};logAdd(t,`${TN[t]} · تلميح «${word}» ${num||"∞"}`);resetTimer(CFG.guessTime);sFlip(true);pGame();bcast();return""}
-function endTurn(why){if(S.over)return;const t=S.turn;S.turn=oth(t);S.phase="clue";S.clue=null;S.flips=0;S.votes={};S.uv={};logAdd(S.turn,(why?why+" · ":"")+`الدور على الفريق ${TN[S.turn]}`);resetTimer(CFG.clueTime);pGame();bcast()}
+ /* لا إعادة ضبط للمؤقت: الفريق يخمّن داخل الوقت المتبقي من نفس الجولة */
+ S.clue={word,num};S.phase="guess";S.flips=0;S.votes={};S.uv={};S.marks={};logAdd(t,`${TN[t]} · تلميح «${word}» ${num||"∞"}`);sFlip(true);pGame();bcast();return""}
+function endTurn(why){if(S.over)return;const t=S.turn;S.turn=oth(t);S.phase="clue";S.clue=null;S.flips=0;S.votes={};S.uv={};S.marks={};logAdd(S.turn,(why?why+" · ":"")+`الدور على الفريق ${TN[S.turn]}`);resetTimer(CFG.guessTime);pGame();bcast()}
 function flip(n){const i=n-1;if(S.page!=="game"||S.phase!=="guess"||S.over||!(i>=0&&i<25)||S.rev.includes(i))return false;
- const c=S.bd.keys[i],t=S.turn,o=oth(t);S.rev.push(i);S.newFlip=i;(S.votes[n]||[]).forEach(id=>{const p=pl(id);if(p){p.v++;if(c===t)p.c++}});S.votes={};S.uv={};S.flips++;
+ const c=S.bd.keys[i],t=S.turn,o=oth(t);S.rev.push(i);S.newFlip=i;(S.votes[n]||[]).forEach(id=>{const p=pl(id);if(p){p.v++;if(c===t)p.c++}});
+ /* اعتماد بطاقة لا يمسح بقية أصوات الشات ولا يعيد المؤقت — البطاقات المرشّحة تبقى ظاهرة */
+ delete S.votes[n];delete S.marks[n];Object.keys(S.uv).forEach(id=>{const u=S.uv[id];const k=u.indexOf(n);if(k>=0)u.splice(k,1)});S.flips++;
  logAdd(t,`${TN[t]} قلب «${S.bd.words[i]}» · ${c===t?"صحيحة":c==="neutral"?"محايدة":c==="assassin"?"القاتلة!":"للخصم"}`);sFlip(c===t);
  if(c==="assassin")return win(o,`كشف الفريق ${TN[t]} البطاقة القاتلة`);
  if(rem(t)===0)return win(t,"كشف كل كلماته قبل الخصم");if(rem(o)===0)return win(o,"كشف كل كلماته قبل الخصم");
- if(c===t&&(S.clue.num===0||S.flips<S.clue.num)){resetTimer(CFG.guessTime);pGame();bcast()}else endTurn(c===t?"استنفدوا التخمينات":"");return true}
+ if(c===t&&(S.clue.num===0||S.flips<S.clue.num)){pGame();bcast()}else endTurn(c===t?"استنفدوا التخمينات":"");return true}
 function parentWin(t){try{const ms=team(t).map(p=>({username:p.id,avatar:p.avatar||"",c:p.c||0})).sort((a,b)=>b.c-a.c);if(!ms.length)return;window.parent.postMessage({type:"codenames-win",team:t,token:String(S.room)+":"+S.seed,mvp:ms[0].username,winners:ms},"*")}catch(e){}}
 function win(t,why){S.over={t,why};S.all=true;logAdd(t,`فاز الفريق ${TN[t]}`);why.includes("القاتلة")?sBoom():sWin();pGame();bcast();parentWin(t);setTimeout(()=>{if(S.over&&S.page==="game"&&!S.viewB)go("result")},4500);return true}
+/* زخمة تصويت الشات: تُجمَّع في بث واحد لكل 120ms بدل رسالة لكل رسالة */
+let voteT=0;const bcastSoon=()=>{if(voteT)return;voteT=setTimeout(()=>{voteT=0;bcast()},120)};
 function vote(p,n){const i=n-1;if(S.phase!=="guess"||!(i>=0&&i<25)||S.rev.includes(i))return;const mv=6,u=S.uv[p.id]=S.uv[p.id]||[],a=S.votes[n]=S.votes[n]||[];
- if(u.includes(n)){u.splice(u.indexOf(n),1);a.splice(a.indexOf(p.id),1)}else{if(u.length>=mv)return;u.push(n);a.push(p.id)}pGame()}
+ if(u.includes(n)){u.splice(u.indexOf(n),1);a.splice(a.indexOf(p.id),1)}else{if(u.length>=mv)return;u.push(n);a.push(p.id)}
+ if(!a.length)delete S.votes[n];
+ pGame();bcastSoon()}
+/* Mark الهوست: تحديد كلمة كمرشّحة على اللوحة — لا اعتماد ولا قلب، ولا يمسح أصوات الشات */
+function mark(n){const i=n-1;if(S.page!=="game"||S.phase!=="guess"||S.over||!(i>=0&&i<25)||S.rev.includes(i))return false;
+ if(S.marks[n]){delete S.marks[n]}else{S.marks[n]=1;logAdd(S.turn,`${TN[S.turn]} · تحديد «${S.bd.words[i]}» (مرشّحة — غير معتمدة)`)}
+ sFlip(true);pGame();bcast();return true}
+function clearMarks(){if(!Object.keys(S.marks).length)return;S.marks={};pGame();bcast()}
 function finish(){if(S.phase!=="guess")return"";if(S.flips<1)return"لازم تقلب بطاقة واحدة على الأقل";endTurn("أنهى الفريق دوره");return""}
 window.joinPlayer=addPlayer;
 window.applyAvatar=(user,avatar)=>{const p=pl(user);if(!p||!avatar)return;frameOf(user);if(p.avatar===avatar)return;p.avatar=avatar;
@@ -442,7 +469,10 @@ window.chatMessage=(user,text,avatar)=>{text=ar(text).trim();const tnorm=text.to
 };if(S.page!=="game"||S.over)return;const p=pl(user);if(!p||p.team!==S.turn)return;
  if(avatar&&p&&p.avatar!==avatar){p.avatar=avatar}
  if(S.phase==="clue"&&p.leader){const m=text.match(/^(\S+)\s+(\d)$/)||text.match(/^(\d)\s+(\S+)$/);if(m){const num=/^\d$/.test(m[1])?+m[1]:+m[2],w=/^\d$/.test(m[1])?m[2]:m[1];const e=setClue(p.team,w,num);if(e)toast(e)}return}
- if(S.phase==="guess"&&!p.leader){if(p.appr){if(/^(انتهاء|انتهى|إنهاء|انهاء)$/.test(text)){const e=finish();if(e)toast(e);return}const nums=text.match(/\d{1,2}/g);if(nums){nums.forEach(n=>{if(!S.rev.includes(+n-1))flip(+n)})}return}else{const nums=text.match(/\d{1,2}/g);if(nums){nums.forEach(n=>{if(!S.rev.includes(+n-1))vote(p,+n)})}}}};
+ if(S.phase==="guess"&&!p.leader){if(p.appr){if(/^(انتهاء|انتهى|إنهاء|انهاء)$/.test(text)){const e=finish();if(e)toast(e);return}const nums=text.match(/\d{1,2}/g);
+  /* المعتمد يعتمد بطاقة واحدة لكل رسالة: أول رقم غير مقلوب — حتى لا يقلب ثلاث بطاقات برسالة واحدة */
+  if(nums){const n=nums.map(Number).find(x=>x>=1&&x<=25&&!S.rev.includes(x-1));if(n)flip(n)}
+  return}else{const nums=text.match(/\d{1,2}/g);if(nums){nums.forEach(n=>{if(!S.rev.includes(+n-1))vote(p,+n)})}}}};
 addEventListener("message",e=>{const d=e.data;if(!d)return;if(d.type==="icg:cn:me"){if(JOIN&&joinIdent&&d.source==="icg-shell"&&e.origin===location.origin)joinIdent(d.me);return}if(JOIN)return;if(d.type==="chat")window.chatMessage(d.user,d.text,d.avatar);else if(d.type==="avatar")window.applyAvatar(d.user,d.avatar)});
 const isLeadOf=(t,u)=>{const L=lead(t);return!!(L&&u&&norm(L.id)===norm(String(u).toLowerCase()))};
 function hostRx(m){if(m.t==="join"&&(m.team==="red"||m.team==="blue")&&["qr","approver","game"].includes(S.page)){if(!isLeadOf(m.team,m.user))return;
@@ -452,9 +482,9 @@ function hostRx(m){if(m.t==="join"&&(m.team==="red"||m.team==="blue")&&["qr","ap
 function newRoom(){S.seed=1+Math.floor(Math.random()*9e7);S.bd=board(S.seed);
  /* كود الغرفة ما يتغيّر: الرجوع لصفحة الليدر أو إعادة الجولة يبقي الرابط نفسه شغّال عند الكل */
  const first=!S.room;if(first)S.room=Array.from({length:4},()=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.random()*32|0]).join("");S.joined={red:false,blue:false};SY.fns=[hostRx];if(first)SY.init(S.room);if(sb){try{sb.from("cn_rooms").upsert({room_code:S.room,seed:S.seed,state:{seed:S.seed}}).then(()=>{}).catch(()=>{})}catch(e){}}}
-function resetAll(keep){S.over=null;S.all=false;S.rev=[];S.clue=null;S.log=[];S.viewB=false;if(keep)S.P.forEach(p=>{p.c=0;p.v=0});go("lobby")}
+function resetAll(keep){S.over=null;S.all=false;S.rev=[];S.clue=null;S.log=[];S.viewB=false;S.votes={};S.uv={};S.marks={};if(keep)S.P.forEach(p=>{p.c=0;p.v=0});go("lobby")}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");
- if(!b){const c=e.target.closest(".cd");if(c&&S.page==="game"&&S.manual){if(S.phase!=="guess")toast("انتظر التلميح من الليدر");else if(!S.over)flip(+c.dataset.n)}return}
+ if(!b){const c=e.target.closest(".cd");if(c&&S.page==="game"&&S.manual){if(S.phase!=="guess")toast("انتظر التلميح من الليدر");else if(!S.over){if(S.markMode||e.shiftKey)mark(+c.dataset.n);else flip(+c.dataset.n)}}return}
  const a=b.dataset.a,t=b.dataset.t,id=b.dataset.id;
  if(a==="toLeaders"){S.P.forEach(p=>{if(!p.team){const r=team("red").length,b=team("blue").length;p.team=r<=b?"red":"blue"}});if(!lead("red"))randLead("red",1);if(!lead("blue"))randLead("blue",1);leadGate(true);bcast();go("leaders")}else if(a==="toLobby")go("lobby")
  else if(a==="rl"){randLead(t);leadGate(true);bcast()}else if(a==="sl"){const o1=pl(id);team(o1.team).forEach(p=>p.leader=false);o1.leader=true;o1.appr=false;leadGate(true);render();bcast()}
@@ -466,12 +496,16 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");
  else if(a==="start")startGame();else if(a==="again"){S.seed=1+Math.floor(Math.random()*9e7);S.bd=board(S.seed);startGame()}
  else if(a==="toRes"){S.viewB=false;go("result")}else if(a==="relobby")resetAll(true);else if(a==="board"){S.viewB=true;go("game")}
  else if(a==="tg"){S[t]=!S[t];ctlDraw();if(S.page==="game")pGame()}
+ else if(a==="mkMode"){S.markMode=!S.markMode;ctlDraw();toast(S.markMode?"وضع التحديد: الكليك على البطاقة يعمل Mark — لا يقلبها ولا يعتمدها":"الكليك يرجع للقلب العادي")}
+ else if(a==="clrMk")clearMarks();
  else if(a==="skipT"){if(S.page==="game"&&!S.over)endTurn("تخطى الهوست الدور")}
  else if(a==="mClue"){const e=setClue(S.turn,$("#cw").value,+$("#cnn").value||0);if(e)toast(e)}
  else if(a==="mFlip"){if(!flip(+$("#cfn").value))toast("لا يمكن قلب هذه البطاقة الآن")}
  else if(a==="tm"){CFG[t]=Math.max(20,Math.min(300,CFG[t]+(+b.dataset.d)*10));ctlDraw()}
  else if(a==="addp"){if(addPlayer($("#cpn").value))$("#cpn").value=""}
  });
+/* كليك يمين على البطاقة = Mark سريع من اللوحة، بدون تغيير سلوك الكليك الأيسر */
+document.addEventListener("contextmenu",e=>{const c=e.target.closest(".cd");if(!c||S.page!=="game"||S.over||S.phase!=="guess")return;e.preventDefault();mark(+c.dataset.n)});
 $("#bHost").innerHTML=ic("monitor")+"شاشة الهوست";$("#bFs").innerHTML=ic("max")+"ملء الشاشة";$("#bCtl").innerHTML=ic("sliders")+"التحكم";$("#bAdd").innerHTML=ic("userplus")+"إضافة لاعبين";$("#bEnd").innerHTML=ic("power")+"إنهاء اللعبة";
 $("#bHost").onclick=()=>{S.key=!S.key;$("#bHost").classList.toggle("on",S.key);if(S.page==="game")pGame();toast(S.key?"شاشة الهوست: الألوان ظاهرة (لا تعرضها)":"تم إخفاء الألوان")};
 $("#bFs").onclick=()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}catch(e){}};
@@ -484,19 +518,28 @@ function ctlDraw(){$("#ctl").innerHTML=`<h3>${ic("userplus")}اللاعبون</h
 <h3>${ic("flag")}اللعبة</h3><button class="hb" style="width:100%;margin-bottom:6px" data-a="skipT">${ic("skip")}تخطي الدور</button>
 <div class="row"><input id="cw" placeholder="تلميح يدوي"><input id="cnn" type="number" min="0" max="9" value="1" style="max-width:62px"></div><button class="hb" style="width:100%;margin-bottom:6px" data-a="mClue">${ic("mega")}تعيين التلميح للدور الحالي</button>
 <div class="row"><input id="cfn" type="number" min="1" max="25" placeholder="رقم البطاقة"><button class="hb" data-a="mFlip">قلب</button></div>
-<h3>${ic("clock")}المؤقت (ثانية)</h3><div class="tg2"><span>التلميح</span><div style="display:flex;flex-direction:column;align-items:center;gap:2px"><button class="hb" data-a="tm" data-t="clueTime" data-d="1">▲</button><b>${CFG.clueTime}</b><button class="hb" data-a="tm" data-t="clueTime" data-d="-1">▼</button></div></div><div class="tg2"><span>التخمين</span><div style="display:flex;flex-direction:column;align-items:center;gap:2px"><button class="hb" data-a="tm" data-t="guessTime" data-d="1">▲</button><b>${CFG.guessTime}</b><button class="hb" data-a="tm" data-t="guessTime" data-d="-1">▼</button></div></div>
+<h3>${ic("flag")}التحديد (Mark)</h3>
+${tg("markMode","الكليك يعمل تحديد بدل القلب")}
+<button class="hb" style="width:100%;margin:6px 0" data-a="clrMk">${ic("x")}مسح كل التحديدات</button>
+<p class="tip">التحديد ≠ اعتماد: البطاقة تُعلَّم كمرشّحة وتبقى مقلوبة اللون، وأصوات الشات تبقى ظاهرة عليها. كليك يمين على أي بطاقة = تحديد سريع.</p>
+<h3>${ic("clock")}المؤقت (ثانية)</h3><div class="tg2"><span>مهلة التلميح</span><div style="display:flex;flex-direction:column;align-items:center;gap:2px"><button class="hb" data-a="tm" data-t="clueTime" data-d="1">▲</button><b>${CFG.clueTime}</b><button class="hb" data-a="tm" data-t="clueTime" data-d="-1">▼</button></div></div><div class="tg2"><span>وقت الجولة</span><div style="display:flex;flex-direction:column;align-items:center;gap:2px"><button class="hb" data-a="tm" data-t="guessTime" data-d="1">▲</button><b>${CFG.guessTime}</b><button class="hb" data-a="tm" data-t="guessTime" data-d="-1">▼</button></div></div>
+<p class="tip">عدّاد واحد للجولة: يبدأ مع بداية الدور ويكمل من نفس الرقم بعد التلميح وبعد كل بطاقة معتمدة — لا إعادة ضبط.</p>
 <h3>${ic("sliders")}خيارات</h3>${tg("manual","القلب بالنقر على البطاقة")}`}
 /* ===== صفحة الدخول (الهاتف): رابط واحد للجميع، والهوية من حساب iCG1 ===== */
 let joinIdent=null;
 function joinBoot(){
   const room=String(Q.get("r")||"").toUpperCase();
   let seed=parseInt(Q.get("s")||"0",36)||0,bd=seed?board(seed):null,me=null,sig="",wsig="",bootAt=Date.now(),B=false;
-  const L={rev:[],turn:null,phase:null,clue:null,over:null,st:false,on:false,pg:"",tl:null,leaders:{red:"",blue:""},appr:{red:"",blue:""},roster:{},joined:{red:false,blue:false},myT:"",num:1,err:"",w:"",hadLead:false,demote:false};
+  let L={q:0,rev:[],turn:null,phase:null,clue:null,over:null,st:false,on:false,pg:"",tl:null,v:{},mk:{},leaders:{red:"",blue:""},appr:{red:"",blue:""},roster:{},joined:{red:false,blue:false},myT:"",num:1,err:"",w:"",hadLead:false,demote:false};
   JOIN=true;document.body.classList.add("ldm");
   const hh=()=>String(me&&me.handle||"").toLowerCase().trim();
   const same=(a,b)=>{const x=norm(String(a||"")).toLowerCase(),y=norm(String(b||"")).toLowerCase();return!!x&&x===y};
-  const scr=h=>{$("#pg").innerHTML=h};
-  const head=(t,i)=>`<div class="ld ${t||""}"><div class="lb"><div>${t?"أنت في فريق "+TN[t]:"كود نيمز"}<small>روم ${esc(room)}${me?" · "+esc(me.name||me.handle):""}</small></div>${ic(i||(me?"phone":"users"),i?"":me?"":"spin")}</div>`;
+  /* إعادة الرسم يجب ألا تسرق التركيز: لو الكيبورد مفتوح على حقل داخل الصفحة، يبقى مفتوحاً بنفس النص ومكان المؤشر */
+  const scr=h=>{const a=document.activeElement,keep=!!(a&&a.tagName==="INPUT"&&a.id&&$("#pg")&&$("#pg").contains(a));
+   const val=keep?a.value:"",pos=keep?(a.selectionStart||0):0;
+   $("#pg").innerHTML=h;
+   if(keep){const n=document.getElementById(a.id);if(n){n.value=val;n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}}};
+  const head=(t,i)=>`<div class="ld ${t||""}"><div class="lb"><div>${t?"أنت في فريق "+TN[t]:"كود نيمز"}<small>روم ${esc(room)}${me?" · "+esc(me.name||me.handle):""}</small></div>${ic(i||(me?"phone":"users"),i?"":me?"":"spin")}<button class="lxb" id="lx" title="تخرج الآن، وترجع بنفس الرابط فتكمل من مكانك">خروج</button></div>`;
   const hint=x=>`<p class="tip">${x}</p>`;
   function role(){const h=hh();if(!h||!bd)return null;
     if(same(L.leaders.red,h))return{t:"red",leader:true};
@@ -517,6 +560,13 @@ function joinBoot(){
     if(L.pg!=="game")return"الغرفة تُجهَّز — انتظر بداية اللعب";
     if(L.turn!==t)return"دور الفريق "+TN[oth(t)];
     return L.phase==="guess"?"دور فريقك — اكتب رقم البطاقة في الشات":"انتظر تلميح الليدر"}
+  /* شريط منفصل: ما حدّده الهوست (Mark) ≠ ما صوّت عليه الشات ≠ ما اعتمده المعتمد */
+  const cand=()=>{const mk=Object.keys(L.mk).map(Number).sort((a,b)=>a-b);
+    const vt=Object.keys(L.v).filter(k=>Array.isArray(L.v[k])&&L.v[k].length).map(Number).sort((a,b)=>a-b);
+    if(!mk.length&&!vt.length)return"";
+    const T=L.turn||"",cls=T?"k-"+T:"";
+    const chip=(n,lab,ex)=>`<span class="bf ${cls} ${ex}"><i>${n}</i>${esc(bd&&bd.words[n-1]||"")}<em>${lab}</em></span>`;
+    return `<div class="lf"><h3>${ic("flag")}المحدّدات والمرشّحات</h3><div class="bflip">${mk.map(n=>chip(n,"محدّدة","mk")).join("")}${vt.map(n=>chip(n,(L.v[n]||[]).length+" صوت","")).join("")}</div>${hint("«محدّدة» = علّمها الهوست للتفكير، ليست معتمدة. «صوت» = اختيار اللاعبين من الشات.")}</div>`}
   /* الليدر صفة يُعطيها الهوست، فلا تظهر هنا أبداً لغيره: الشاشة تقول الحقيقة وتحوّله للبث */
   function sWatch(t){
     const appr=isAppr(t),mine=L.turn===t&&!L.over;
@@ -526,6 +576,7 @@ function joinBoot(){
 <div class="rline"><small>الفريق</small><b>${TN[t]}</b></div><div class="rline"><small>الكود</small><b>${esc(room)}</b></div></div>
 <div class="whistat ${mine?"on":""}">${ic(mine?"mega":"clock")} ${esc(statusLine(t))}</div>
 ${appr?hint("أنت <b>المعتمد</b>: فريقك يكتب الأرقام، وأنت تكتب <b>رقم البطاقة</b> لقلبها أو <b>انتهاء</b> لإنهاء الدور."):hint("تكتب <b>رقم</b> البطاقة في شات البث لتصوّت عليها.")}
+${mine?cand():""}
 <div class="lf"><button class="btn p jbtn" id="jbtv">${ic("monitor")} انتقل للبث</button>${hint("البث يعرض اللوحة وأدوار الفرق، ومنه تفتح بث كيك.")}</div></div>`);
     $("#jbtv").onclick=()=>{B=true;sig="";draw(true)}}
   function sBcast(t){
@@ -537,11 +588,15 @@ ${appr?hint("أنت <b>المعتمد</b>: فريقك يكتب الأرقام، 
 <div class="bnum"><span>الوقت المتبقي للدور</span><b id="btlb">—</b></div><div class="btl" id="btl"><i id="btlbar"></i></div>
 <div class="lf"><h3>${ic("users")} الفرق</h3><div class="lcols">${row("red")}${row("blue")}</div>
 <h3 style="margin-top:14px">${ic("shuffle")} البطاقات المقلوبة</h3><div class="bflip">${flips||`<span class="emp2">ما انقلبت بطاقة بعد</span>`}</div></div>
+${cand()}
 <div class="lf"><a class="btn p jbtn" href="${KICK_URL}" target="_blank" rel="noopener noreferrer">${ic("monitor")} افتح بث كيك</a><button class="gh" id="jback">${ic("back")} رجوع</button>${hint("الكود <b>"+esc(room)+"</b> · الحساب: "+esc(hh()))}</div></div>`);
     $("#jback").onclick=()=>{B=false;sig="";draw(true)};tickB()}
   function tickB(){const b=$("#btlb"),bar=$("#btlbar"),wrap=$("#btl");if(!b||!bar||!wrap)return;
-    const tl=L.tl,live=L.pg==="game"&&!L.over&&tl&&tl.tot&&tl.end>Date.now();
-    const s=live?Math.max(0,Math.ceil((tl.end-Date.now())/1000)):0;
+    const tl=L.tl;
+    /* نفس عدّاد الجولة: مهلة التلميح تسبق نهاية العدّاد، والشريط يعرض الأقرب */
+    const e=tl?(L.phase==="clue"&&tl.clue?Math.min(tl.end,tl.clue):tl.end):0;
+    const live=L.pg==="game"&&!L.over&&tl&&tl.tot&&e>Date.now();
+    const s=live?Math.max(0,Math.ceil((e-Date.now())/1000)):0;
     b.textContent=live?s+" ث":"—";bar.style.width=(live?Math.max(0,Math.min(1,s/tl.tot))*100:0)+"%";
     wrap.classList.toggle("low",live&&s<=15)}
   function swap(fn){const pg=$("#pg");if(!pg.firstChild){fn();return}pg.classList.add("gone");
@@ -560,8 +615,10 @@ ${appr?hint("أنت <b>المعتمد</b>: فريقك يكتب الأرقام، 
       if(!w||/\s/.test(w)){L.err="اكتب كلمة واحدة بدون مسافات";sig="";draw();return}
       if(bd.words.some((x,i)=>!L.rev.includes(i)&&norm(x)===norm(w))){L.err="التلميح لا يجب أن يكون من كلمات اللوح";sig="";draw();return}
       L.w="";L.err="تم إرسال التلميح";SY.tx({t:"clue",team:t,word:w,num:L.num,user:hh()});sig="";draw()}}
-  function apply(st){if(!st)return;if(JSON.stringify(st.clue)!==JSON.stringify(L.clue))L.err="";
-    Object.assign(L,{rev:st.rev||L.rev,turn:st.turn,phase:st.phase,clue:st.clue||null,over:st.over||null,st:!!st.st,pg:st.pg||"",tl:st.tl||L.tl,leaders:st.leaders||L.leaders,appr:st.appr||L.appr,joined:st.joined||L.joined,roster:st.roster||L.roster})}
+  /* البث قد يصل متأخراً: حالة أقدم تُتجاهل حتى لا ترتد اللوحة للخلف أمام اللاعبين */
+  function apply(st){if(!st)return;const q=+st.q||0;if(q&&q<=L.q)return;if(q>L.q)L.q=q;
+    if(JSON.stringify(st.clue)!==JSON.stringify(L.clue))L.err="";
+    Object.assign(L,{rev:st.rev||L.rev,turn:st.turn,phase:st.phase,clue:st.clue||null,over:st.over||null,st:!!st.st,pg:st.pg||"",tl:st.tl||L.tl,v:st.v||{},mk:st.mk||{},leaders:st.leaders||L.leaders,appr:st.appr||L.appr,joined:st.joined||L.joined,roster:st.roster||L.roster})}
   function pull(){if(!sb||!room)return;try{sb.from("cn_rooms").select("state,seed").eq("room_code",room).maybeSingle().then(({data})=>{
       if(!data)return;const st=data.state||{},sd=st.seed||data.seed;
       if(sd&&sd!==seed){seed=sd;bd=board(seed)}
@@ -575,11 +632,20 @@ ${appr?hint("أنت <b>المعتمد</b>: فريقك يكتب الأرقام، 
     if(isL)L.demote=false;
     L.hadLead=isL;
     if(r){if(L.myT&&L.myT!==r.t)B=false;L.myT=r.t}
-    const s=[hh(),r?(r.leader?"L":"P")+r.t:"-",L.turn,L.phase,L.rev.length,L.over,L.err,L.clue?L.clue.word+L.clue.num:"",L.num,L.st,L.pg,B?1:0,L.demote?1:0,isAppr("red")?1:0,isAppr("blue")?1:0,(L.joined.red?1:0)+(L.joined.blue?2:0),Object.keys(L.roster).length,(L.leaders.red||"")+(L.leaders.blue||""),!!L.on].join("|");
+    const vs=Object.keys(L.v).filter(k=>(L.v[k]||[]).length).sort((a,b)=>a-b).map(k=>k+":"+(L.v[k]||[]).length).join(",");
+    const ms=Object.keys(L.mk).sort((a,b)=>a-b).join(",");
+    const s=[hh(),r?(r.leader?"L":"P")+r.t:"-",L.turn,L.phase,L.rev.length,L.over,L.err,L.clue?L.clue.word+L.clue.num:"",L.num,L.st,L.pg,B?1:0,L.demote?1:0,isAppr("red")?1:0,isAppr("blue")?1:0,(L.joined.red?1:0)+(L.joined.blue?2:0),Object.keys(L.roster).length,(L.leaders.red||"")+(L.leaders.blue||""),vs,ms,!!L.on].join("|");
     if(s===sig)return;sig=s;
     const paint=()=>{if(!r){L.st?sOut():sPrep();return}if(isL)sLeader(r.t);else if(B)sBcast(r.t);else sWatch(r.t)};
     if(anim||(wasL&&!isL))swap(paint);else paint()}
-  joinIdent=u=>{const h=String(u&&u.handle||"").trim();if(!h||h.length>32||/[\u0000-\u001f\s]/.test(h))return;me={handle:h,name:String(u.name||"").trim().slice(0,32),avatar:String(u.avatar||"").slice(0,512)};sig="";pull();draw()};
+  /* القشرة تعيد إرسال الهوية كل ثانيتين حتى تصل. الإعادة بنفس الهوية يجب ألا تُعيد الرسم
+     ولا تُعيد السحب من القاعدة — وإلا يُهدم حقل التلميح ويُغلق الكيبورد أثناء الكتابة */
+  joinIdent=u=>{const h=String(u&&u.handle||"").trim();if(!h||h.length>32||/[\u0000-\u001f\s]/.test(h))return;
+   const nm=String(u.name||"").trim().slice(0,32),av=String(u.avatar||"").slice(0,512);
+   if(me&&me.handle===h&&me.name===nm){if(av&&me.avatar!==av)me.avatar=av;return}
+   me={handle:h,name:nm,avatar:av};sig="";pull();draw();
+   /* إشعار القشرة أنها أرسلت الهوية وصلت — تتوقف عن الإرسال كل ثانيتين */
+   try{window.parent.postMessage({source:"icg-cn",type:"icg:cn:acked",handle:h},window.location.origin)}catch(e){}};
   SY.init(room);
   SY.fns.push(m=>{if(m.t==="state"){if(m.seed&&m.seed!==seed){seed=m.seed;bd=board(seed);L.w=""}apply(m);L.on=true;draw()}
     else if(m.t==="ack"&&m.err){const r=role();if(r&&m.team===r.t){L.err=m.err;sig="";draw()}}});
@@ -587,6 +653,9 @@ ${appr?hint("أنت <b>المعتمد</b>: فريقك يكتب الأرقام، 
   setInterval(()=>{if(!me)draw()},600);
   setInterval(()=>{if(B)tickB()},500);
   setInterval(()=>{const r=role();if(r&&r.leader&&hh())SY.tx({t:"join",team:r.t,user:hh()})},2500);
+  /* زر الخروج في رأس شاشة الجوال: يرجع لقشرة الموقع، ونفس الرابط يُعيد اللاعب لمقعده */
+  document.addEventListener("click",e=>{if(!e.target.closest||!e.target.closest("#lx"))return;
+    try{window.parent.postMessage({type:"codenames-exit"},"*")}catch(x){}});
   draw();
 }
 if(Q.get("r"))joinBoot();else{S.page="lobby";render()}

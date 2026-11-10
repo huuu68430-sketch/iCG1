@@ -132,6 +132,8 @@ body[data-ph=day] .sc{display:flex}.sc h4{margin:0 0 4px;font:800 15px Tajawal;c
 .ph{position:relative;overflow:hidden}.ph::before{content:"";position:absolute;inset:-20%;pointer-events:none;background:radial-gradient(circle at 20% 30%,#ffffff12 0 8%,transparent 9%),radial-gradient(circle at 80% 60%,#ffffff0d 0 12%,transparent 13%),radial-gradient(circle at 50% 90%,#ffffff10 0 7%,transparent 8%);animation:fl 8s ease-in-out infinite alternate}.ph>*{position:relative}
 .ph h1{background:linear-gradient(180deg,#fff,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 14px #000a)}
 .ph .tp{padding:8px 12px;border-radius:18px;background:#0007;border:1px solid #ffffff22;backdrop-filter:blur(6px)}
+.ph .tp .tbk{flex:none;width:32px;height:32px;padding:0;border-radius:50%;border:1px solid #ffffff33;background:#0008;color:var(--gold);display:grid;place-items:center;margin-inline-start:6px}
+.ph .tp .tbk:active{transform:scale(.92)}
 .tt{min-height:54px;border-radius:18px;background:linear-gradient(160deg,#ffffff14,#ffffff06);box-shadow:0 4px 14px #0006}.tt:active:not(:disabled){transform:scale(.95)}.tt.sel{animation:pu 1.4s ease-in-out infinite}
 @keyframes pu{50%{box-shadow:0 0 30px var(--ac,#d11f33)}}
 .chat{background:#0009;backdrop-filter:blur(6px)}.chat div{padding:5px 10px;border-radius:12px 12px 12px 3px;background:#ffffff0f;width:fit-content;max-width:92%}
@@ -258,25 +260,33 @@ const parentNote=o=>{try{parent&&parent!==window&&parent.postMessage(Object.assi
 addEventListener("message",e=>{const d=e.data;if(!d||d.type!=="icg:mafia:cfg")return;
  if(d.url&&d.key){DB.url=String(d.url).replace(/\/+$/,"");DB.key=String(d.key);DB.ready=true}
  if(d.app)APPU=String(d.app).replace(/\/+$/,"")+"/";
- if(d.me){const pg=BUS.me?String(BUS.me.gk||""):"";const prk=BUS.me?String(BUS.me.rk||""):"";BUS.me=d.me;if(MODE==="p"&&(accId()!==P.pid||String(d.me.gk||"")!==pg||String(d.me.rk||"")!==prk)){P.joined=false;P.nextAt=0}if(MODE==="p"){P.pid=accId()||P.pid;render();syncProf()}}
+ /* الهوية تصل بالتكرار من القشرة (كل ٢.٦ث): لا نُعيد رسم الجوال إلا عند تغيّر حقيقي — الرفرفة المستمرة تُجمّد الواجهة وتُغلق الكيبورد */
+ if(d.me){const pg=BUS.me?String(BUS.me.gk||""):"",prk=BUS.me?String(BUS.me.rk||""):"",pav=BUS.me?profSig():"";BUS.me=d.me;
+  if(MODE==="p"&&(accId()!==P.pid||String(d.me.gk||"")!==pg||String(d.me.rk||"")!==prk)){P.joined=false;P.hard=false;P.nextAt=0}
+  if(MODE==="p"){const id=accId()||P.pid,nw=id!==P.pid||profSig()!==pav;if(nw){P.pid=id;render()}syncProf();
+   /* الهوية وصلت للتو: لا ننتظر نبضة الـ ٤ ثوانٍ — نطلب الحالة فوراً فيُستعاد المقعد في أقل من ثانية */
+   if(nw&&!P.joined){if(P.ck)tryAutoJoin(true);else hello()}}}
  if(!DB.ready)return;
  BUS.wait.splice(0).forEach(f=>{try{f()}catch(x){}});
  rejoin();});
 const hdr=extra=>Object.assign({apikey:DB.key,Authorization:"Bearer "+DB.key,"Content-Type":"application/json"},extra||{});
+/* كل طلب له مهلة: طلب معلّق بلا نهاية يُجمّد الطبقة كلها (الشات يتوقف والقراءة تتوقف) */
+async function req(u,opt,ms){const c=new AbortController();const t=setTimeout(()=>{try{c.abort()}catch(e){}},ms||8000);
+ try{return await fetch(u,Object.assign({signal:c.signal},opt||{}))}finally{clearTimeout(t)}}
 const NET={warn:0,bad:0,stop:0,db:null};
 const stopped=()=>NET.stop&&Date.now()<NET.stop;
 function dbFlag(ok){if(NET.db===ok)return;NET.db=ok;parentNote({type:"icg:mafia:db",ok:ok?1:0})}
-function netBad(msg){NET.bad++;if(NET.bad<4)return;NET.bad=0;NET.stop=Date.now()+30000;dbFlag(0);
+function netBad(msg){NET.bad++;if(NET.bad<4)return;NET.bad=0;NET.stop=Date.now()+8000;dbFlag(0);
  if(NET.warn&&Date.now()-NET.warn<20000)return;NET.warn=Date.now();toast(msg)}
 async function post(table,rows,merge){
  if(!DB.ready||stopped()||!rows||!rows.length)return false;
- try{const r=await fetch(DB.url+"/rest/v1/"+table+(merge?"?on_conflict="+encodeURIComponent(merge):""),
-   {method:"POST",headers:hdr(merge?{Prefer:"resolution=merge-duplicates"}:null),body:JSON.stringify(rows)});
+ try{const r=await req(DB.url+"/rest/v1/"+table+(merge?"?on_conflict="+encodeURIComponent(merge):""),
+   {method:"POST",headers:hdr(merge?{Prefer:"resolution=merge-duplicates"}:null),body:JSON.stringify(rows)},10000);
    if(!r.ok)netBad("تعذّر الحفظ في قاعدة البيانات — تأكد من تنفيذ SQL");else NET.bad=0;
    return r.ok}catch(e){netBad("انقطع الاتصال بالخادم");return false}}
 async function del(table,filt){
  if(!DB.ready||stopped())return false;
- try{const r=await fetch(DB.url+"/rest/v1/"+table+"?"+filt,{method:"DELETE",headers:hdr()});return r.ok}catch(e){return false}}
+ try{const r=await req(DB.url+"/rest/v1/"+table+"?"+filt,{method:"DELETE",headers:hdr()},10000);return r.ok}catch(e){return false}}
 /* روابط اللعبة: المختصر للاعب، كامل للوحة والشاشة */
 const link=m=>m==="h"?APPU+"mahmah-game?r="+ROOM+"&m=h&k="+HK
   :m==="s"?APPU+"mahmah-game?r="+ROOM+"&m=s"
@@ -295,6 +305,8 @@ const chLive=v=>CHQ.some(c=>c.v===v&&Date.now()-c.t<180000);
 const FAILS={};
 const tooMany=h=>{const k=String(h).toLowerCase();const f=FAILS[k]||{n:0,t:Date.now()};if(Date.now()-f.t>60000){f.n=0;f.t=Date.now()}FAILS[k]=f;return f.n>=5};
 const markFail=h=>{const k=String(h).toLowerCase();const f=FAILS[k]||{n:0,t:Date.now()};if(Date.now()-f.t>60000){f.n=0;f.t=Date.now()}f.n++;FAILS[k]=f};
+/* محاولة المستخدم الواضحة (زر إعادة المحاولة) تفتح نافذة جديدة: القفل وُضع ضد الرفرفة الآلية لا ضد صاحب الحساب */
+const clearFail=h=>{delete FAILS[String(h).toLowerCase()]};
 const shaHex=async s=>{try{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(String(s)));
  return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}catch(e){return""}};
 /* التحقق من ملكية الحساب داخل قاعدة البيانات (دالة SQL آمنة لا تُرجع شيئاً من بيانات العضو)
@@ -303,8 +315,8 @@ async function verifyAcc(handle,ch,token){
  if(!DB.ready||stopped())return null;
  if(!chLive(ch))return "stale";
  if(!/^[a-f0-9]{64}$/.test(String(token||"")))return "bad";
- try{const r=await fetch(DB.url+"/rest/v1/rpc/mafia_verify",{method:"POST",headers:hdr({"Content-Type":"application/json"}),
-   body:JSON.stringify({p_handle:String(handle).toLowerCase(),p_room:ROOM.toUpperCase(),p_nonce:ch,p_token:String(token).toLowerCase()})});
+ try{const r=await req(DB.url+"/rest/v1/rpc/mafia_verify",{method:"POST",headers:hdr({"Content-Type":"application/json"}),
+   body:JSON.stringify({p_handle:String(handle).toLowerCase(),p_room:ROOM.toUpperCase(),p_nonce:ch,p_token:String(token).toLowerCase()})},9000);
   if(!r.ok){netBad("تعذّر التحقق من الحسابات — نفّذ ملف supabase/mafia_verify.sql");return null}
   return(await r.json())===true?true:"no"}
  catch(e){netBad("تعذّر التحقق من الحسابات — نفّذ ملف supabase/mafia_verify.sql");return null}}
@@ -317,9 +329,12 @@ function seatAcc(h,nm,m){const p=pl(h);
  const np=addP(nm,h);if(np){applyProf(np,m);drawStage();pubAll();hostSync()}}
 /* الطبقة: جدول mafia_bus — كل رسالة سطر، وكل جهاز يقرأ ما يخصه فقط.
    بدون قاعدة البيانات تبقى القنوات المحلية (نفس الجهاز) حتى لا تموت اللعبة. */
-const SY={id:rid(6),fns:[],bc:null,q:[],busy:false,pending:false,timer:0,tickN:0,last:0,lastRow:0,lastFetch:0,
+const SY={id:rid(6),fns:[],bc:null,q:[],busy:false,busyAt:0,pending:false,timer:0,tickN:0,last:0,lastRow:0,lastFetch:0,
  init(){
   try{this.bc=new BroadcastChannel("icg1mf"+ROOM);this.bc.onmessage=e=>{const m=e.data;if(m&&m.f!==this.id&&!seen(m.u))this.rx(m)}}catch(e){}
+  /* العودة من النوم/انقطاع الشبكة: لا ننتظر انتهاء فترة الإيقاف، نستأنف فوراً */
+  addEventListener("online",()=>this.resume());
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)this.resume()});
   whenDb(()=>{if(this.timer)return;this.lastRow=Date.now();this.timer=setInterval(()=>this.tick(),700);this.tick();
    if(MODE==="s")dbRoom();
    parentNote({type:"icg:mafia:ready",mode:MODE,room:ROOM,db:1})});
@@ -331,15 +346,19 @@ const SY={id:rid(6),fns:[],bc:null,q:[],busy:false,pending:false,timer:0,tickN:0
   if(!this.busy&&!stopped()){
    /* كبح استهلاك Supabase: في الخمول (لوبي ساكن أو تبويب مخفي) استطلاع كل ٢.٥ث بدل ٧٠٠م.ث، وأي رسالة جديدة أو طور نشط يُرجع السرعة فوراً */
    if(!this.wake()&&Date.now()-this.lastFetch<2500)return;
-   this.busy=true;this.lastFetch=Date.now();
+   this.busy=true;this.busyAt=Date.now();this.lastFetch=Date.now();
    try{const u=DB.url+"/rest/v1/mafia_bus?select=id,msg&room_code=eq."+encodeURIComponent(ROOM)+"&"+this.mine()+"&id=gt."+this.last+"&order=id.asc&limit=300";
-    const r=await fetch(u,{headers:hdr()});
-    if(r.ok){NET.bad=0;dbFlag(1);const rows=await r.json();if(rows.length)this.lastRow=Date.now();for(const row of rows){if(row.id>this.last)this.last=row.id;const m=row.msg;if(m&&m.f!==this.id&&!seen(m.u))this.rx(m)}}
-    else netBad("تعذّر قراءة غرفة اللعبة — تأكد من تشغيل SQL الخاص بها")}
-   catch(e){netBad("تعذّر قراءة غرفة اللعبة — تأكد من تشغيل SQL الخاص بها")}
+    const r=await req(u,{headers:hdr()},7000);
+    if(r.ok){NET.bad=0;dbFlag(1);const rows=await r.json();if(rows.length)this.lastRow=Date.now();for(const row of rows){if(row.id>this.last)this.last=row.id;const m=row.msg;if(m&&m.f!==this.id&&!seen(m.u))this.rx(m)}
+     /* صفوف تنتظر الدور: لا تنتظر الدورة القادمة، اسحبها فوراً */
+     if(rows.length>=300)this.lastFetch=0}
+    else{this.lastFetch=0;netBad("تعذّر قراءة غرفة اللعبة — تأكد من تشغيل SQL الخاص بها")}}
+   catch(e){this.lastFetch=0;netBad("تعذّر قراءة غرفة اللعبة — تأكد من تشغيل SQL الخاص بها")}
    this.busy=false;}
-  if(MODE==="s"&&++this.tickN%60===0)del("mafia_bus","room_code=eq."+encodeURIComponent(ROOM)+"&created_at=lt."+new Date(Date.now()-120000).toISOString());
+  else if(this.busy&&Date.now()-this.busyAt>20000)this.busy=false;
+  if(MODE==="s"&&++this.tickN%60===0)del("mafia_bus","room_code=eq."+encodeURIComponent(ROOM)+"&created_at=lt."+new Date(Date.now()-300000).toISOString());
   this.flush()},
+ resume(){NET.stop=0;NET.bad=0;this.lastFetch=0;this.lastRow=Date.now();if(DB.ready&&!this.busy)this.tick()},
  wake(){
   if(document.hidden)return false;
   if(this.q.length)return true;
@@ -364,12 +383,11 @@ const SY={id:rid(6),fns:[],bc:null,q:[],busy:false,pending:false,timer:0,tickN:0
 const ROOMSTATE={t:0};
 function dbRoom(){if(!DB.ready||Date.now()-ROOMSTATE.t<2500)return;ROOMSTATE.t=Date.now();
  post("mafia_rooms",[{code:ROOM,host_handle:null,state:pubObj(),updated_at:new Date().toISOString()}],"code")}
-function dbRoles(){if(!DB.ready)return;
- post("mafia_roles",G.P.map(p=>({room_code:ROOM,user_id:p.id,username:p.name,role:p.role})),"room_code,user_id")}
+/* الأدوار تبقى سرية: لا تُكتب أي هوية لاعب في قاعدة البيانات — الجدول القديم يُنظف عند كل لوبي جديد */
 function dbEvents(kind,payload){if(!DB.ready)return;post("mafia_events",[{room_code:ROOM,kind,payload:payload||{}}])}
 function dbMatch(){if(!DB.ready)return;
  post("mafia_matches",[{room_code:ROOM,winner:G.win||"",rounds:G.rd,
-   players:G.P.map(p=>({id:p.id,name:p.name,alive:!!p.alive,role:p.role}))}])}
+   players:G.P.map(p=>({id:p.id,name:p.name,alive:!!p.alive}))}])}
 function announceRoom(){parentNote({type:"icg:mafia:room",room:ROOM,playerLink:link("p"),hostLink:link("h")})}
 /* ===== الصوت ===== */
 let AC,amb,crk;
@@ -382,9 +400,9 @@ let hb;const heart=on=>{clearInterval(hb);if(on)hb=setInterval(()=>{tone(62,.16,
 const fan=()=>[523,659,784,1047,1319].forEach((f,i)=>tone(f,.5,i*.13,.12,"triangle")),sting=()=>{tone(110,1,0,.2,"sawtooth");tone(116,1,0,.15,"sawtooth")};
 
 /* ===== المنصة: منطق اللعبة ===== */
-var G={ph:"join",st:"",rd:0,P:[],cfg:{auto:true,mafia:1,doctor:1,elder:1,tMafia:60,tDoc:20,tElder:20,tDay:120,tVote:40,invest:true,reveal:false},nt:{mv:{}},logs:[],chat:[],mchat:[],votes:{},tEnd:0,tTot:0,win:null,res:null,pause:false,crit:false,fresh:new Set(),hit:null,usedInv:false};
+var G={ph:"join",st:"",rd:0,P:[],cfg:{auto:true,mafia:1,doctor:1,elder:1,tDec:25,tDay:120,tVote:40,manual:0,invest:true,reveal:false},nt:{mv:{}},logs:[],chat:[],mchat:[],votes:{},out:[],tEnd:0,tTot:0,win:null,res:null,pause:false,crit:false,fresh:new Set(),hit:null,usedInv:false};
 const pl=id=>G.P.find(p=>p.id===id),alive=()=>G.P.filter(p=>p.alive),ofr=r=>alive().filter(p=>p.role===r);
-const NIGHT=["nightfall","mafia","m_sleep","doctor","d_sleep","elder","e_sleep","op1","op2","op3"],DUR={nightfall:4,m_sleep:3,d_sleep:2.5,e_sleep:2.5,op1:6,op2:5,op3:6,res:6};
+const NIGHT=["nightfall","mafia","m_sleep","doctor","d_sleep","elder","e_sleep","op1","op2","op3"],DUR={nightfall:2.2,m_sleep:1,d_sleep:1,e_sleep:1,op1:2.4,op2:2,op3:5,res:4};
 function qrImg(u){try{const q=qrcode(0,"M");q.addData(u);q.make();return`<img alt="QR" src="${q.createDataURL(6,2)}">`}catch(e){return`<span style="color:#111;font-weight:800;padding:8px">استخدم الرابط</span>`}}
 const tx=(to,m)=>{m.to=to;SY.tx(m)};
 function plan(){const n=G.P.length,c=G.cfg;let m=c.mafia,d=c.doctor,e=c.elder;if(c.auto){m=Math.max(1,Math.round(n/3.5));d=1;e=1}const ct=n-m-d-e;let err="";
@@ -394,7 +412,7 @@ function addP(name,pid){name=String(name||"").trim().slice(0,16);if(!name)return
 function check(){const m=ofr("mafia").length,o=alive().length-m;if(m===0)return"town";if(m>=o)return"mafia";return null}
 /* --- النشر --- */
 const vcount=()=>{const c={};Object.values(G.votes).forEach(t=>{if(t!=="skip")c[t]=(c[t]||0)+1});return c};
-function pubObj(){return{t:"pub",ph:G.ph,st:G.st,rd:G.rd,tl:Math.max(0,G.tEnd-Date.now())/1000,tt:G.tTot,pa:G.pause?1:0,pl:G.P.map(p=>({i:p.id,n:p.name,c:p.col,a:p.alive?1:0,r:p.ready?1:0,av:p.av||"",fr:p.fr||"",fu:p.fu||""})),res:G.res,win:G.win,crit:G.crit?1:0,vc:vcount(),rl:G.ph==="end"?Object.fromEntries(G.P.map(p=>[p.id,p.role])):null}}
+function pubObj(){return{t:"pub",ph:G.ph,st:G.st,rd:G.rd,tl:Math.max(0,G.tEnd-Date.now())/1000,tt:G.tTot,pa:G.pause?1:0,pl:G.P.map(p=>({i:p.id,n:p.name,c:p.col,a:p.alive?1:0,r:p.ready?1:0,av:p.av||"",fr:p.fr||"",fu:p.fu||""})),res:G.res,win:G.win,crit:G.crit?1:0,vc:vcount(),vs:Object.keys(G.votes).length,out:G.out,rl:G.ph==="end"?Object.fromEntries(G.P.map(p=>[p.id,p.role])):null}}
 const pubAll=()=>tx(null,pubObj());
 function privFor(p){const o={t:"priv",to:p.id,role:p.role,muted:p.muted?1:0,alive:p.alive?1:0};if(p.role==="mafia")o.mates=G.P.filter(x=>x.role==="mafia"&&x.id!==p.id).map(x=>x.name);
  if(p.alive){const tg=a=>a.map(x=>({i:x.id,n:x.name,c:x.col}));
@@ -403,11 +421,21 @@ function privFor(p){const o={t:"priv",to:p.id,role:p.role,muted:p.muted?1:0,aliv
   else if(G.ph==="night"&&G.st==="elder"&&p.role==="elder")o.act={k:"elder",tg:tg(alive().filter(x=>x.id!==p.id)),inv:G.cfg.invest&&!G.usedInv?1:0,my:G.nt.silence||G.nt.invest};
   else if(G.ph==="day"&&G.st==="vote")o.act={k:"vote",tg:tg(alive().filter(x=>x.id!==p.id)),my:G.votes[p.id]||null}}return o}
 const privSend=p=>SY.tx(privFor(p));
-function hostSync(){tx("host",{t:"hv",ph:G.ph,st:G.st,rd:G.rd,tl:Math.max(0,G.tEnd-Date.now())/1000,pa:G.pause?1:0,cfg:G.cfg,pn:plan(),min:CFG.min,mx:CFG.max,P:G.P.map(p=>({i:p.id,n:p.name,r:p.role,a:p.alive?1:0,b:p.bot?1:0,rd:p.ready?1:0,m:p.muted?1:0,av:p.av||"",fr:p.fr||"",fu:p.fu||""})),nt:G.nt,mc:G.mchat.slice(-30),lg:G.logs.slice(-40),win:G.win,link:link("p")})}
+/* اللوحة لا تستقبل الحالة إلا بعد أن تُثبت نفسها بمفتاح الغرفة — لا تُبث هوية أي لاعب لمجرد من يملك الرابط */
+let HOSTOK=0;
+function hostSync(){if(!HOSTOK)return;tx("host",{t:"hv",k:HK,ph:G.ph,st:G.st,rd:G.rd,tl:Math.max(0,G.tEnd-Date.now())/1000,pa:G.pause?1:0,cfg:G.cfg,pn:plan(),min:CFG.min,mx:CFG.max,P:G.P.map(p=>({i:p.id,n:p.name,r:p.role,a:p.alive?1:0,b:p.bot?1:0,rd:p.ready?1:0,m:p.muted?1:0})),nt:G.nt,mc:G.mchat.slice(-30),dc:G.chat.slice(-40),out:G.out,vv:G.votes,vc:vcount(),due:G.cfg.manual&&G.due===G.rd+G.st?1:0,lg:G.logs.slice(-40),win:G.win,link:link("p")})}
 const lg=x=>{G.logs.push(x)};
 /* --- المراحل --- */
+/* النقاش لا يُمحى بين الجولات: اللوحة تُعيد رسم السجل المحفوظ بدل أن تُفرَّغ */
+function chatRestore(){const c=$("#chat");if(!c)return;c.innerHTML="";
+ G.chat.slice(-14).forEach(x=>{const d=document.createElement("div");d.className="ms";
+  d.innerHTML=av({c:col(x[0])},26)+`<span><b>${esc(x[0])}</b> ${esc(x[1])}</span>`;c.appendChild(d)});
+ c.scrollTop=c.scrollHeight}
 function setStep(ph,st){G.ph=ph;G.st=st;const s=dur(ph,st);G.tTot=s;G.tEnd=Date.now()+s*1000;enter(ph,st);drawStage();pubAll();hostSync()}
-function dur(ph,st){const c=G.cfg;if(st==="mafia")return c.tMafia;if(st==="doctor")return ofr("doctor").length?c.tDoc:6+rnd(5);if(st==="elder")return ofr("elder").length?c.tElder:6+rnd(5);if(st==="talk")return c.tDay;if(st==="vote")return c.tVote;return DUR[st]||5}
+/* لا مؤقت طويل لكل دور: خطوة القرار تُصرَف فور اكتمال، وتنتهي بمهلة واحدة فقط */
+const DEC={mafia:"mafia",doctor:"doctor",elder:"elder",detective:"detective"};
+function dur(ph,st){const c=G.cfg;if(st==="talk")return c.tDay;if(st==="vote")return c.tVote;
+ const r=DEC[st];if(r)return ofr(r).length?Math.max(10,Math.min(180,+c.tDec||25)):6+rnd(5);return DUR[st]||5}
 function enter(ph,st){const A=alive();
  if(st==="nightfall"){drone(true);G.hit=null;lg("— الليلة "+G.rd+" —")}
  if(st==="mafia"){ofr("mafia").forEach(privSend)}
@@ -417,61 +445,99 @@ function enter(ph,st){const A=alive();
  if(st==="op1"){sting()}
  if(st==="op2")heart(true);
  if(st==="op3"){heart(false);drone(false);resolveOp()}
- if(ph==="day"&&st==="talk"){const s=G.nt.silence&&pl(G.nt.silence);if(s&&s.alive){s.muted=true;privSend(s);lg("أُسكِت "+s.name+" هذه الجولة")}A.forEach(p=>{if(!p.muted)privSend(p)});const c=$("#chat");if(c)c.innerHTML=""}
+ if(ph==="day"&&st==="talk"){const s=G.nt.silence&&pl(G.nt.silence);if(s&&s.alive){s.muted=true;privSend(s);lg("أُسكِت "+s.name+" هذه الجولة")}A.forEach(p=>{if(!p.muted)privSend(p)});chatRestore()}
  if(st==="vote"){G.votes={};A.forEach(privSend)}
  if(st==="res")resolveVote()}
 function resolveKill(){const mv=Object.values(G.nt.mv).filter(t=>pl(t)&&pl(t).alive);let t;if(mv.length){const c={};mv.forEach(x=>c[x]=(c[x]||0)+1);const mx=Math.max(...Object.values(c));t=sh(Object.keys(c).filter(k=>c[k]===mx))[0]}else{const c=alive().filter(p=>p.role!=="mafia");t=c[rnd(c.length)].id}
- G.nt.kill=t;G.hit=t;lg("المافيا اختارت: "+pl(t).name);const i=G.P.indexOf(pl(t)),n=G.P.length;killSnd(seatPos(i,n).pan)}
-function resolveOp(){const k=pl(G.nt.kill),saved=G.nt.kill===G.nt.protect;G.res={ok:!saved,id:k.id,name:k.name};if(!saved){k.alive=false;lg(k.name+" قُتل")}else lg("الدكتور أنقذ "+k.name);saved?tone(660,.4,0,.1,"triangle"):tone(110,.8,0,.2,"sawtooth")}
+ /* لا أثر للضحية على اللوحة ليلاً: لا وميض ولا صوت — النتيجة تُكشف في op3 فقط */
+ G.nt.kill=t;lg("المافيا اختارت: "+pl(t).name)}
+function resolveOp(){const k=pl(G.nt.kill),saved=G.nt.kill===G.nt.protect;G.res=saved?{ok:false}:{ok:true,id:k.id,name:k.name};
+ if(!saved){k.alive=false;G.hit=k.id;G.out.push({n:k.name,d:G.rd,w:"قتل"});privSend(k);lg(k.name+" قُتل");const i=G.P.indexOf(k),n=G.P.length;killSnd(seatPos(i,n).pan);tone(110,.8,0,.2,"sawtooth")}else{G.hit=null;lg("الدكتور أنقذ "+k.name);tone(660,.4,0,.1,"triangle")}}
 function resolveVote(){const c={};let sk=0;Object.values(G.votes).forEach(t=>{if(t==="skip")sk++;else c[t]=(c[t]||0)+1});const mx=Math.max(0,...Object.values(c)),tops=Object.keys(c).filter(k=>c[k]===mx);
- if(mx>0&&tops.length===1&&sk<mx){const p=pl(tops[0]);p.alive=false;G.res={ej:true,name:p.name,id:p.id,role:G.cfg.reveal?p.role:null};lg("أُقصي بالتصويت: "+p.name);tone(90,.8,0,.25,"sawtooth")}else{G.res={ej:false,tie:mx>0};lg("لم يُقصَ أحد")}}
-function next(){const{ph,st}=G;if(ph==="deal")return afterDeal();if(ph==="reveal")return startNight();
- if(ph==="night"){const i=NIGHT.indexOf(st);return i<NIGHT.length-1?setStep("night",NIGHT[i+1]):afterNight()}
+ if(mx>0&&tops.length===1&&sk<mx){const p=pl(tops[0]);p.alive=false;G.out.push({n:p.name,d:G.rd,w:"تصويت"});privSend(p);G.res={ej:true,name:p.name,id:p.id,role:G.cfg.reveal?p.role:null};lg("أُقصي بالتصويت: "+p.name);tone(90,.8,0,.25,"sawtooth")}else{G.res={ej:false,tie:mx>0};lg("لم يُقصَ أحد")}}
+/* خطوة لا صاحب لها (دكتور/شايب خرجا): تُلغى من الليل فلا ينتظر أحد مؤثراً بلا معنى */
+function idleStep(s){if(s==="doctor"||s==="d_sleep")return!ofr("doctor").length;
+ if(s==="elder"||s==="e_sleep")return!ofr("elder").length;
+ if(s==="detective"||s==="t_sleep")return!ofr("detective").length;
+ return false}
+const FXS=["nightfall","m_sleep","d_sleep","e_sleep","t_sleep","op1","op2"];
+function next(){if(G.cfg.manual&&!G.force){/* الوضع اليدوي: لا تنتقل مرحلة وحدها — انتهاء الوقت تنبيه للمدير لا قرار */
+  if(G.due!==G.rd+G.st){G.due=G.rd+G.st;lg("انتهى وقت المرحلة: النقل بيد المدير");pubAll();hostSync()}return}
+ const{ph,st}=G;if(ph==="deal")return afterDeal();if(ph==="reveal")return startNight();
+ if(ph==="night"){let i=NIGHT.indexOf(st)+1;while(i<NIGHT.length-1&&idleStep(NIGHT[i]))i++;
+  return i<NIGHT.length&&!idleStep(NIGHT[i])?setStep("night",NIGHT[i]):afterNight()}
  if(ph==="day")return st==="talk"?setStep("day","vote"):st==="vote"?setStep("day","res"):afterDay()}
+/* التخطي: يعبر المؤثرات فقط إلى أقرب خطوة فيها قرار حقيقي — لا يقفز فوق قرار أبداً */
+function skipStep(){if(G.pause||G.ph==="end")return;G.force=1;try{
+ if(G.ph==="deal"||G.ph==="reveal"||!FXS.includes(G.st))return next();
+ let g=0;do{next();g++}while(g<6&&G.ph==="night"&&FXS.includes(G.st))}finally{G.force=0}}
 function deal(){const pn=plan();if(pn.err)return pn.err;const roles=sh([...Array(pn.m).fill("mafia"),...Array(pn.d).fill("doctor"),...Array(pn.e).fill("elder"),...Array(pn.ct).fill("citizen")]);
- sh(G.P);G.P.forEach((p,i)=>{p.role=roles[i];p.alive=true;p.ready=false;p.muted=false});G.rd=0;G.win=null;G.res=null;G.usedInv=false;G.logs=[];G.chat=[];G.mchat=[];G.ph="deal";G.st="";G.tTot=5;G.tEnd=Date.now()+5000;G.P.forEach(p=>lg(p.name+": "+RL[p.role].n));drawStage();pubAll();hostSync();return""}
-function afterDeal(){G.P.forEach(privSend);G.ph="reveal";G.tTot=45;G.tEnd=Date.now()+45000;drawStage();pubAll();hostSync();if(G.P.every(p=>p.ready))setTimeout(()=>{if(G.ph==="reveal")next()},2000)}
+ sh(G.P);G.P.forEach((p,i)=>{p.role=roles[i];p.alive=true;p.ready=false;p.muted=false});G.rd=0;G.win=null;G.res=null;G.usedInv=false;G.logs=[];G.chat=[];G.mchat=[];G.out=[];G.ph="deal";G.st="";G.tTot=5;G.tEnd=Date.now()+5000;G.P.forEach(p=>lg(p.name+": "+RL[p.role].n));drawStage();pubAll();hostSync();return""}
+function afterDeal(){G.P.forEach(privSend);G.ph="reveal";G.tTot=30;G.tEnd=Date.now()+30000;drawStage();pubAll();hostSync();if(G.P.every(p=>p.ready))setTimeout(()=>{if(G.ph==="reveal")next()},1200)}
 function startNight(){G.rd++;G.nt={mv:{},protect:null,silence:null,invest:null,kill:null};G.P.forEach(p=>p.muted=false);G.votes={};G.res=null;G.crit=false;setStep("night","nightfall")}
 function afterNight(){const w=check();if(w)return endGame(w);const m=ofr("mafia").length,o=alive().length-m;G.crit=o===m+1;setStep("day","talk")}
 function afterDay(){const w=check();w?endGame(w):startNight()}
 function endGame(w){G.ph="end";G.st="";G.win=w;G.tEnd=0;heart(false);drone(false);w==="town"?fan():sting();drawStage();pubAll();hostSync()}
-function resetGame(){G.ph="join";G.st="";G.rd=0;G.win=null;G.res=null;G.tEnd=0;G.nt={mv:{}};G.votes={};G.hit=null;G.P.forEach(p=>{p.role=null;p.alive=true;p.ready=false;p.muted=false});heart(false);drone(false);drawStage();pubAll();hostSync()}
+function resetGame(){G.ph="join";G.st="";G.rd=0;G.win=null;G.res=null;G.tEnd=0;G.nt={mv:{}};G.votes={};G.out=[];G.hit=null;G.P.forEach(p=>{p.role=null;p.alive=true;p.ready=false;p.muted=false});heart(false);drone(false);drawStage();pubAll();hostSync()}
 /* --- الرسائل الواردة --- */
 function onMsg(m){if(m.to&&m.to!=="stage")return;
 if(m.t==="join"){const h=safeId(m.pid);if(!h||h.length<3)return;const nm=String(m.name||"").trim().slice(0,16)||h;
   /* بلا قاعدة بيانات لا يوجد ما نتحقق منه — تبقى اللعبة على الجهاز نفسه فقط */
   if(!DB.ready)return seatAcc(h,nm,m);
   if(!m.c||!m.k||!m.a)return tx(h,{t:"rej",x:"الدخول بحساب Kick فقط — سجّل الدخول ثم أعد المحاولة",h:1});
+  /* تحدي منتهي = جوال نام، ليس إغراقاً: نرسل تحدياً جديداً ولا نُفعّل قفل المحاولات */
+  if(!chLive(m.k)){SY.tx({t:"ch",k:CH,to:h});return tx(h,{t:"rej",x:"انتهت صلاحية التحقق — أعد المحاولة",stale:1})}
+  if(m.r)clearFail(h);
   if(tooMany(h))return tx(h,{t:"rej",x:"محاولات كثيرة — انتظر دقيقة ثم أعد الدخول",h:1});
-  if(!chLive(m.k))return tx(h,{t:"rej",x:"انتهت صلاحية التحقق — أعد المحاولة"});
   verifyAcc(h,m.k,m.a).then(v=>{
    if(v===null)return tx(h,{t:"rej",x:"تعذّر التحقق من الحسابات الآن — جرّب بعد لحظات"});
    if(v==="stale")return tx(h,{t:"rej",x:"انتهت صلاحية التحقق — أعد المحاولة"});
-   if(v==="bad")return tx(h,{t:"rej",x:"الإثبات لم يكتمل على جوالك — سجّل الخروج وادخل من جديد (١)",h:1});
-   if(v!==true){markFail(h);return tx(h,{t:"rej",x:"مفتاح حسابك على جوالك لا يطابق حسابك في الموقع — سجّل الخروج وادخل من جديد (٢)",h:1})}
+   if(v==="bad")return tx(h,{t:"rej",x:"الإثبات لم يكتمل على جوالك — سجّل الخروج وادخل من جديد (١)",h:1,hard:1});
+   if(v!==true){markFail(h);return tx(h,{t:"rej",x:"مفتاح حسابك على جوالك لا يطابق حسابك في الموقع — سجّل الخروج وادخل من جديد (٢)",h:1,hard:1})}
    seatAcc(h,nm,m)})}
  else if(m.t==="hello"){SY.tx({t:"ch",k:CH,to:m.pid});const p=pl(m.pid);if(!p)return tx(m.pid,{t:"unk"});pubAll();SY.tx(privFor(p))}
- else if(m.t==="ready"){const p=pl(m.pid);if(p&&G.ph==="reveal"){p.ready=true;drawStage();pubAll();hostSync();if(G.P.every(x=>x.ready))setTimeout(()=>{if(G.ph==="reveal")next()},1500)}}
- else if(m.t==="chat")onChat(m);else if(m.t==="act")onAct(m);else if(m.t==="hh"&&m.k===HK)hostSync();else if(m.t==="cmd"&&m.k===HK)onCmd(m)}
-function onChat(m){const p=pl(m.pid);if(!p||!p.alive)return;const x=String(m.x||"").trim().slice(0,140);if(!x)return;const now=Date.now();if(p.lc&&now-p.lc<700)return;p.lc=now;
- if(m.ch==="m"){if(G.ph==="night"&&G.st==="mafia"&&p.role==="mafia"){G.mchat.push([p.name,x]);ofr("mafia").forEach(q=>{tx(q.id,{t:"mchat",n:p.name,x,pid:p.id,mid:m.mid})});hostSync()}}
- else if(G.ph==="day"&&G.st!=="res"){if(p.muted){tx(p.id,{t:"priv",muted:1,role:p.role,alive:1});return}G.chat.push([p.name,x]);const c=$("#chat");if(c){const d=document.createElement("div");d.className="ms";d.innerHTML=av(p,26)+`<span><b>${esc(p.name)}</b> ${esc(x)}</span>`;c.appendChild(d);while(c.children.length>14)c.firstChild.remove();c.scrollTop=c.scrollHeight}tx(null,{t:"chat",n:p.name,c:p.col,x,pid:p.id,mid:m.mid})}}
+ else if(m.t==="ready"){const p=pl(m.pid);if(p&&G.ph==="reveal"){p.ready=true;drawStage();pubAll();hostSync();if(G.P.every(x=>x.ready))setTimeout(()=>{if(G.ph==="reveal")next()},900)}}
+ else if(m.t==="chat")onChat(m);else if(m.t==="act")onAct(m);else if(m.t==="hh"&&m.k===HK){HOSTOK=1;hostSync()}else if(m.t==="cmd"&&m.k===HK)onCmd(m)}
+/* لا تُرسَل الرسالة إلى المجهول: كل رفض يعود للجوال بسبب واضح حتى لا تختفي الفقاعة بصمت */
+function nack(m,p,x){const id=p?p.id:m.pid;if(id)tx(id,{t:"nack",mid:m.mid,x:x})}
+function onChat(m){const p=pl(m.pid);if(!p)return nack(m,null,"دخولك غير مسجّل في هذه الجولة");if(!p.alive)return nack(m,p,"دورك انتهى — تابع اللعبة بصمت");
+ const x=String(m.x||"").trim().slice(0,140);if(!x)return;const now=Date.now();if(p.lc&&now-p.lc<700)return nack(m,p,"على مهلك… رسالة كل لحظة");p.lc=now;
+ if(m.ch==="m"){if(G.ph==="night"&&G.st==="mafia"&&p.role==="mafia"){G.mchat.push([p.name,x]);ofr("mafia").forEach(q=>{tx(q.id,{t:"mchat",n:p.name,x,pid:p.id,mid:m.mid})});hostSync()}
+  else nack(m,p,"شات المافيا يعمل ليلاً فقط")}
+ else if(G.ph==="day"&&G.st!=="res"){if(p.muted){tx(p.id,{t:"priv",muted:1,alive:1});return nack(m,p,"أُسكِتّ هذه الجولة — لا يمكنك الكلام")}
+  G.chat.push([p.name,x]);const c=$("#chat");if(c){const d=document.createElement("div");d.className="ms";d.innerHTML=av(p,26)+`<span><b>${esc(p.name)}</b> ${esc(x)}</span>`;c.appendChild(d);while(c.children.length>14)c.firstChild.remove();c.scrollTop=c.scrollHeight}tx(null,{t:"chat",n:p.name,c:p.col,x,pid:p.id,mid:m.mid})}
+ else nack(m,p,"الكلام متاح في نقاش النهار فقط")}
 function mafSys(x){G.mchat.push(["•",x]);ofr("mafia").forEach(q=>{tx(q.id,{t:"mchat",sys:1,x})})}
 function onAct(m){const p=pl(m.pid);if(!p||!p.alive)return;const t=pl(m.target),k=m.kind;
- if(k==="kill"&&G.ph==="night"&&G.st==="mafia"&&p.role==="mafia"&&t&&t.alive&&t.role!=="mafia"){G.nt.mv[p.id]=t.id;mafSys(p.name+" اقترح قتل "+t.name);const ms=ofr("mafia");if(ms.every(x=>G.nt.mv[x.id])&&new Set(ms.map(x=>G.nt.mv[x.id])).size===1)setTimeout(()=>{if(G.st==="mafia")next()},1800);hostSync()}
- else if(k==="protect"&&G.ph==="night"&&G.st==="doctor"&&p.role==="doctor"&&t&&t.alive){G.nt.protect=t.id;hostSync();tx(p.id,{t:"ack",x:"سيحميه الدكتور: "+t.name})}
+ if(k==="kill"&&G.ph==="night"&&G.st==="mafia"&&p.role==="mafia"&&t&&t.alive&&t.role!=="mafia"){G.nt.mv[p.id]=t.id;mafSys(p.name+" اقترح قتل "+t.name);const ms=ofr("mafia");if(ms.every(x=>G.nt.mv[x.id])&&new Set(ms.map(x=>G.nt.mv[x.id])).size===1)setTimeout(()=>{if(G.st==="mafia")next()},700);hostSync()}
+ else if(k==="protect"&&G.ph==="night"&&G.st==="doctor"&&p.role==="doctor"&&t&&t.alive){G.nt.protect=t.id;hostSync();tx(p.id,{t:"ack",x:"سيحميه الدكتور: "+t.name});
+  /* قرار الدكتور واحد: لا يُنتظر بقية الوقت بعد أن يختار */
+  if(ofr("doctor").length)setTimeout(()=>{if(G.st==="doctor")next()},800)}
  else if((k==="silence"||k==="invest")&&G.ph==="night"&&G.st==="elder"&&p.role==="elder"&&t&&t.alive&&t.id!==p.id){
   if(k==="invest"){if(!G.cfg.invest||G.usedInv)return;G.usedInv=true;G.nt.invest=t.id;G.nt.silence=null;tx(p.id,{t:"priv",role:p.role,alive:1,note:"نتيجة التحقيق: "+t.name+(t.role==="mafia"?" من المافيا!":" ليس من المافيا")});lg("الشايب حقّق في "+t.name)}
-  else{G.nt.silence=t.id;tx(p.id,{t:"ack",x:"سيُسكَت: "+t.name})}hostSync()}
- else if(k==="vote"&&G.ph==="day"&&G.st==="vote"){if(m.target==="skip")G.votes[p.id]="skip";else if(t&&t.alive&&t.id!==p.id)G.votes[p.id]=t.id;else return;drawStage();pubAll();hostSync();if(alive().every(x=>G.votes[x.id]))setTimeout(()=>{if(G.st==="vote")next()},1500)}}
+  else{G.nt.silence=t.id;tx(p.id,{t:"ack",x:"سيُسكَت: "+t.name});if(!G.cfg.invest||G.usedInv)setTimeout(()=>{if(G.st==="elder")next()},800)}hostSync()}
+ else if(k==="vote"&&G.ph==="day"&&G.st==="vote"){if(m.target==="skip")G.votes[p.id]="skip";
+  /* الصوت غير الصالح يُرد بصريح السبب: تجاهله بصمت يعني أن القرية «لم تُقصِ أحداً» دون أن تعرف لماذا */
+  else if(t&&t.alive&&t.id!==p.id)G.votes[p.id]=t.id;
+  else{tx(p.id,{t:"nack",x:t&&!t.alive?"«"+t.name+"» خرج من اللعبة — اختر لاعباً حياً":t&&t.id===p.id?"لا تصوّت لنفسك":"لم يُحسب صوتك — اختر من القائمة ثم أكّد"});privSend(p);return}
+  drawStage();pubAll();hostSync();if(alive().every(x=>G.votes[x.id]))setTimeout(()=>{if(G.st==="vote")next()},800)}
+ /* اختيار وصل متأخراً أو غير مسموح: أعد مزامنة الجوال بدل تجاهله بصمت */
+ else SY.tx(privFor(p))}
 function onCmd(m){const c=m.c;
- if(c==="cfg"){["auto","invest","reveal"].forEach(k=>{if(k in m.v)G.cfg[k]=!!m.v[k]});["mafia","doctor","elder","tMafia","tDoc","tElder","tDay","tVote"].forEach(k=>{if(k in m.v)G.cfg[k]=Math.max(k.length<=6&&k[0]!=="t"?0:10,Math.min(k[0]==="t"?300:8,+m.v[k]||0))});hostSync()}
- else if(c==="deal"&&G.ph==="join"){const e=deal();if(e)tx("host",{t:"err",x:e})}
- else if(c==="next"&&!["join","end"].includes(G.ph))next();
+ if(c==="cfg"){["auto","invest","reveal"].forEach(k=>{if(k in m.v)G.cfg[k]=!!m.v[k]});["mafia","doctor","elder","tDec","tDay","tVote"].forEach(k=>{if(k in m.v)G.cfg[k]=Math.max(k.length<=6&&k[0]!=="t"?0:10,Math.min(k[0]==="t"?300:8,+m.v[k]||0))});hostSync()}
+ /* رسالة المدير: تدخل شات المافيا وحدها، أو تصل للاعب واحد في الخاص — لا يقرأها أحد غير ذلك
+    «who» هو المستقبِل، ولا يجوز استعمال m.to: الحقل محجوز لتوجيه الرسالة إلى المنصة */
+ else if(c==="mchat"){const x=String(m.x||"").trim().slice(0,140);if(!x)return;
+  if(m.who){const p=pl(m.who);if(p){tx(p.id,{t:"priv",role:p.role,alive:1,note:"من الإدارة: "+x});lg("المدير أرسل إلى "+p.name+" في الخاص")}hostSync();return}
+  G.mchat.push(["المدير",x]);ofr("mafia").forEach(q=>tx(q.id,{t:"mchat",n:"المدير",c:"#e8be6e",x,pid:"admin",mid:rid(8)}));lg("المدير كلّم المافيا");hostSync()}
+ else if(c==="deal"&&G.ph==="join"){const e=deal();if(e)tx("host",{t:"err",k:HK,x:e})}
+ else if(c==="next"&&!["join","end"].includes(G.ph))skipStep();
  else if(c==="pause"){G.pause=!G.pause;pubAll();hostSync()}
  else if(c==="kick"&&G.ph==="join"){G.P=G.P.filter(p=>p.id!==m.id);tx(m.id,{t:"unk"});drawStage();pubAll();hostSync()}
  else if(c==="reset")resetGame()}
-SY.fns.push(onMsg);
+/* منطق المنصة للمنفذ الوحيد: بدون هذا القيد يقرأ كل هاتف رسائل "stage"
+   ويُعيد بث pub من نسخته القديمة من G → يرجع الجميع للوبي ويجمد الشات */
+if(MODE==="s")SY.fns.push(onMsg);
 /* --- العرض --- */
 const seatPos=(i,n)=>{const a=2*Math.PI*i/n;return{x:50+44*Math.sin(a),y:50-41*Math.cos(a),pan:Math.sin(a)}};
 const PN={join:"اللوبي",deal:"توزيع الأدوار",reveal:"كشف الأدوار",night:"الليل",day:"النهار",end:"النهاية"};
@@ -490,15 +556,18 @@ function coreH(){const ph=G.ph,st=G.st,n=G.P.length,r=G.res;
  return""}
 function drawStage(){if(MODE!=="s")return;const n=G.P.length,sz=Math.max(40,Math.min(86,128-n*4)),ph=G.ph,st=G.st,night=ph==="night"&&st!=="op3";
  document.body.classList.toggle("night",night);document.body.dataset.ph=ph;document.body.dataset.g=({mafia:"mafia",doctor:"doctor",elder:"elder",op1:"op",op2:"op"})[st]||"";
- const vc=vcount();let h=ph==="end"?"":G.P.map((p,i)=>{const s=seatPos(i,n);return`<div class="seat ${p.alive?"":"dead"} ${G.fresh.has(p.id)?"new":""} ${G.hit===p.id&&night?"hit":""}" style="left:${s.x}%;top:${s.y}%;--sz:${sz}px">${ph==="deal"?`<i class="cb" style="--i:${i};--dx:${(50-s.x)*9}px;--dy:${(50-s.y)*5}px"></i>`:""}${av(p,sz)}${ph==="reveal"&&p.ready?'<i class="ok">✓</i>':""}${vc[p.id]?`<i class="bd">${vc[p.id]}</i>`:""}<span class="nm">${esc(p.name)}</span></div>`}).join("");
+ /* وميض الضحية لا يظهر إلا لحظة كشف النتيجة (op3) — لا قبلها */
+ const showHit=ph==="night"&&st==="op3";
+ const vc=vcount();let h=ph==="end"?"":G.P.map((p,i)=>{const s=seatPos(i,n);return`<div class="seat ${p.alive?"":"dead"} ${G.fresh.has(p.id)?"new":""} ${showHit&&G.hit===p.id?"hit":""}" style="left:${s.x}%;top:${s.y}%;--sz:${sz}px">${ph==="deal"?`<i class="cb" style="--i:${i};--dx:${(50-s.x)*9}px;--dy:${(50-s.y)*5}px"></i>`:""}${av(p,sz)}${ph==="reveal"&&p.ready?'<i class="ok">✓</i>':""}${vc[p.id]?`<i class="bd">${vc[p.id]}</i>`:""}<span class="nm">${esc(p.name)}</span></div>`}).join("");
  h+=`<div class="core ${ph==="end"?"wide":""}">${coreH()}</div>`;$("#tbl").innerHTML=h;G.fresh.clear();
+ const o=$("#out");if(o)o.innerHTML=G.out.length?G.out.map(x=>`<span class="ou"><b>${esc(x.n)}</b><i>${x.w} · ليلة/يوم ${x.d}</i></span>`).join(""):'<i class="no">لا أحد خرج بعد</i>';
  $("#chRd").style.display=G.rd?"":"none";$("#chRd").innerHTML=ic("moon")+" الجولة "+G.rd;$("#chPh").textContent=PN[ph]+(ph==="day"?(st==="vote"?" · التصويت":st==="res"?" · النتيجة":" · النقاش"):"");$("#tmr").style.visibility=G.tEnd?"visible":"hidden";}
 setInterval(()=>{if(MODE!=="s")return;if(G.pause&&G.tEnd){G.tEnd+=250}const left=Math.max(0,(G.tEnd-Date.now())/1000),v=$("#tmv");if(v&&G.tEnd){v.textContent=Math.ceil(left);const c=$("#tmc");c.style.strokeDashoffset=125.66*(1-left/(G.tTot||1));c.style.stroke=left<10?"#ff6b5a":"#e8be6e"}
  if(G.tEnd&&left<=0&&!G.pause&&!["join","end"].includes(G.ph))next()},250);
 function stageMain(){SY.init();$("#app").innerHTML=`<div class="stg"><div class="bgx bm"></div><div class="bgx bd"></div><div class="bgx be"></div><div class="sky"><div class="stars"></div><div class="moon"></div><div class="fog"></div><div class="fog b"></div></div><div class="glow"></div>
 <header class="sh"><div class="brand"><img src="mafia/brand.png" alt="">المافيا<small>iCG1</small></div><span class="chip" id="chRd"></span><span class="chip" id="chPh"></span><div class="tmr" id="tmr"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="4"/><circle id="tmc" cx="24" cy="24" r="20" fill="none" stroke="#e8be6e" stroke-width="4" stroke-linecap="round" stroke-dasharray="125.66" stroke-dashoffset="0"/></svg><b id="tmv"></b></div>
 <button class="tl" id="bSnd" title="الصوت"></button><button class="tl" id="bFs" title="ملء الشاشة"></button><button class="tl" id="bHost" title="لوحة الإدارة — نافذة جديدة"></button></header>
-<main class="sm"><div class="tbl" id="tbl"></div><aside class="sc"><h4>نقاش القرية</h4><div id="chat" style="display:flex;flex-direction:column;gap:6px;overflow:auto"></div></aside></main></div>
+<main class="sm"><div class="tbl" id="tbl"></div><aside class="sc"><div class="outs"><h4>خرجوا من اللعبة</h4><div id="out" class="outl"></div></div><h4>نقاش القرية</h4><div id="chat" style="display:flex;flex-direction:column;gap:6px;overflow:auto"></div></aside></main></div>
 <div class="dp" id="dp"><div class="bx"><h3 style="margin:0;color:var(--gold)">رابط الهوست (سرّي)</h3><p>افتحه على جهازك للتحكم باللعبة. لا تعرضه على البث.</p><div class="lk" id="hl"></div><div style="display:flex;gap:8px;justify-content:center"><button class="btn p" id="hc">نسخ الرابط</button><a class="btn" id="ho" target="_blank" rel="noopener">فتح</a><button class="btn" id="hx">إغلاق</button></div></div></div>`;
  window.SND=true;$("#bSnd").innerHTML=ic("vol");$("#bFs").innerHTML=ic("max");$("#bHost").innerHTML=ic("shield");
  $("#bSnd").onclick=()=>{window.SND=!window.SND;$("#bSnd").innerHTML=ic(window.SND?"vol":"off");if(!window.SND)drone(false)};$("#bFs").onclick=()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}catch(e){}};
@@ -511,21 +580,24 @@ function stageMain(){SY.init();$("#app").innerHTML=`<div class="stg"><div class=
  setInterval(()=>{if(!CHQ.length||Date.now()-CHQ[CHQ.length-1].t>30000){newCh();tx(null,{t:"ch",k:CH})}},4000)}
 
 /* ===== الهاتف ===== */
-const P={pid:null,name:"",joined:false,pub:null,role:null,mates:[],act:null,alive:1,muted:0,notes:[],dchat:[],mchat:[],end:0,flip:false,tab:"silence",rej:""};
+const P={pid:null,name:"",joined:false,pub:null,role:null,mates:[],act:null,alive:1,muted:0,notes:[],dchat:[],mchat:[],end:0,flip:false,tab:"silence",rej:"",hard:false,pick:null,pickK:"",editing:false,nextAt:0};
 const hello=()=>SY.tx({t:"hello",pid:P.pid,to:"stage"});
 const me=()=>P.pub&&P.pub.pl.find(x=>x.i===P.pid);
 function accId(){return BUS.me?safeId(BUS.me.handle||BUS.me.id):""}
 function profSig(){const m=BUS.me;if(!m)return "";return [String(m.name||""),avUrl(m.avatar),frId(m.fr),frUrl(m.fu)].join("|")}
 let PSIG="";
 function joinProof(){const g=BUS.me&&BUS.me.gk;return g&&P.ck?shaHex(g+"|"+ROOM.toUpperCase()+"|"+P.ck):Promise.resolve("")}
-function tryAutoJoin(force){if(MODE!=="p"||!BUS.me||!BUS.me.gk||!P.ck)return;const id=accId();if(!id)return;
+function tryAutoJoin(force,man){if(MODE!=="p"||!BUS.me||!BUS.me.gk||!P.ck)return;const id=accId();if(!id)return;
  if(P.joined&&P.pid===id&&!force)return;P.pid=id;P.name=String(BUS.me.name||id).trim().slice(0,16)||id;P.joined=true;P.rej="";
  joinProof().then(a=>{if(!a){P.joined=false;return render()}
-  PSIG=profSig();SY.tx({t:"join",pid:P.pid,name:P.name,av:avUrl(BUS.me.avatar),fr:frId(BUS.me.fr),fu:frUrl(BUS.me.fu),k:P.ck,c:1,a,to:"stage"});render()})}
+  PSIG=profSig();SY.tx({t:"join",pid:P.pid,name:P.name,av:avUrl(BUS.me.avatar),fr:frId(BUS.me.fr),fu:frUrl(BUS.me.fu),k:P.ck,c:1,a,r:man?1:0,to:"stage"});render()})}
 function syncProf(){if(MODE!=="p"||!P.joined||!BUS.me)return;const s=profSig();if(!s||s===PSIG)return;tryAutoJoin(true)}
-function rejoin(){if(MODE==="p"&&BUS.me&&BUS.me.gk&&(!P.joined||!P.pub)&&Date.now()>(P.nextAt||0))tryAutoJoin()}
+/* رفض «سببي» (مفتاح لا يطابق): إعادة المحاولة الآلية لا تغيّر شيئاً وتُحسب محاولات — نتوقف حتى يلمس اللاعب الزر أو يتغيّر حسابه */
+function rejoin(){if(MODE==="p"&&BUS.me&&BUS.me.gk&&(!P.joined||!P.pub)&&!P.hard&&Date.now()>(P.nextAt||0))tryAutoJoin()}
 function pBoot(){SY.init();SY.fns.push(pRx);P.pid=accId()||rid(6);render();
  setInterval(()=>{if(P.joined&&!P.pub)hello();else if(!P.joined&&!P.ck&&BUS.me&&BUS.me.gk)hello()},4000);
+ /* نام الجوال أو انقطع عنه البث: لو انتهت عدّادته ولم يصله جديد خلال ٨ث اطلب الحالة */
+ setInterval(()=>{if(P.joined&&P.pub&&P.pub.tt>0&&P.pub.ph!=="end"&&Date.now()>P.end+8000)hello()},6000);
  setInterval(rejoin,2600);
  setInterval(ptick,500)}
 function ptick(){const e=$("#pt");if(e&&P.pub&&P.pub.tt>0&&!P.pub.pa){const s=Math.max(0,Math.ceil((P.end-Date.now())/1000));e.textContent=s+"ث";e.style.display=""}else if(e)e.style.display="none"}
@@ -535,13 +607,19 @@ function pRx(m){if(m.to&&m.to!==P.pid)return;
  else if(m.t==="priv"){if(m.role)P.role=m.role;if(m.mates)P.mates=m.mates;P.alive=m.alive;P.muted=m.muted;P.act=m.act||null;if(m.note){P.notes.push(m.note);toast(m.note)}render()}
  else if(m.t==="chat"){let i=m.mid?P.dchat.findIndex(x=>x.mid===m.mid):-1;if(i<0&&!m.mid)i=P.dchat.findIndex(x=>x.pe&&x.x===m.x&&x.n===m.n);if(i>=0){if(!m.mid){m.mid=P.dchat[i].mid;m.pid=P.pid}P.dchat[i]=m}else{P.dchat.push(m);P.dchat=P.dchat.slice(-60)}lineAdd(m)}
  else if(m.t==="mchat"){let i=m.mid?P.mchat.findIndex(x=>x.mid===m.mid):-1;if(i<0&&!m.mid)i=P.mchat.findIndex(x=>x.pe&&x.x===m.x&&x.n===m.n);if(i>=0){if(!m.mid){m.mid=P.mchat[i].mid;m.pid=P.pid}P.mchat[i]=m}else{P.mchat.push(m);P.mchat=P.mchat.slice(-60)}lineAdd(m)}
- else if(m.t==="rej"){P.rej=m.x;P.joined=false;P.ck="";P.nextAt=Date.now()+(m.h?12000:6000);parentNote({type:"icg:mafia:needkey"});render()}
+ else if(m.t==="rej"){P.rej=m.x;P.joined=false;P.ck="";P.hard=!!m.hard;
+  /* مرفوض لسبب ثابت: الرفرفة الآلية لا تصلح شيئاً وتُحسب محاولات — نتوقف حتى زر «إعادة المحاولة» أو تغيّر الحساب */
+  P.nextAt=m.hard?1/0:Date.now()+(m.stale?900:m.h?12000:6000);
+  parentNote({type:"icg:mafia:needkey"});render()}
  else if(m.t==="unk"){P.pub=null;P.joined=false;render()}
- else if(m.t==="ack")toast(m.x)}
+ else if(m.t==="ack")toast(m.x)
+ else if(m.t==="nack"){[P.dchat,P.mchat].forEach(a=>{const i=a.findIndex(y=>y.pe&&y.mid===m.mid);if(i>=0)a.splice(i,1)});
+  const el=m.mid?$('#cl [data-mid="'+esc(m.mid)+'"]'):null;if(el)el.remove();if(m.x)toast(m.x)}}
 const line=m=>m.sys?`<div class="sy">${esc(m.x)}</div>`:`<div class="ms${m.pid===P.pid?" me":""}${m.pe?" pe":""}"${m.mid?` data-mid="${esc(m.mid)}"`:""}>${av({n:m.n,c:m.c||col(m.n)},30)}<div class="bb"><b>${esc(m.n)}</b><span>${esc(m.x)}</span></div></div>`;
 function lineAdd(m){const c=$("#cl");if(!c)return;const old=m.mid?c.querySelector('[data-mid="'+m.mid+'"]'):null;if(old)old.outerHTML=line(m);else c.insertAdjacentHTML("beforeend",line(m));c.scrollTop=c.scrollHeight}
 function render(){if(MODE!=="p")return;const k=$("#ci"),v=k?k.value:"",f=document.activeElement===k;$("#app").innerHTML=view();const n=$("#ci");if(n){n.value=v;if(f)n.focus()}const c=$("#cl");if(c)c.scrollTop=c.scrollHeight;ptick()}
-const tbar=()=>{const m=me()||{n:P.name,c:col(P.name||"?")};return`<div class="tp">${av(m,34)}<b>${esc(m.n||P.name)}</b><span class="chip" id="pt"></span></div>`};
+function reconn(){P.nextAt=0;P.hard=false;if(P.joined)hello();else if(P.ck)tryAutoJoin(true,true);else hello()}
+const tbar=()=>{const m=me()||{n:P.name,c:col(P.name||"?")};return`<div class="tp">${av(m,34)}<b>${esc(m.n||P.name)}</b><span class="chip" id="pt"></span><button class="tbk" data-a="home" aria-label="خروج" title="خروج">${ic("x")}</button></div>`};
 const wrap=(c,b)=>`<div class="ph ${c||""}">${b}</div>`;
 const tgs=(a,k,my)=>`<div class="tg">${a.tg.map(t=>`<button class="tt ${my===t.i?"sel":""}" style="--ac:${t.c}" data-a="act" data-k="${k}" data-t="${t.i}">${av(t,28)}<span>${esc(t.n)}</span></button>`).join("")}</div>`;
 function view(){const s=P.pub;
@@ -550,9 +628,9 @@ function view(){const s=P.pub;
  ${who?`<div class="acc">${av(who,74)}<div><b>${esc(acc.name||acc.handle)}</b><span>@${esc(acc.handle)} · Kick</span></div></div>`:""}
  <p>${who?"ثوانٍ ويكتمل دخولك تلقائياً":"المافيا للأعضاء المسجّلين فقط — سجّل دخولك بحساب Kick"}</p>
  <div class="big" style="color:var(--gold)">${ic("load","spin")}</div>
- <div class="pb"><button class="howbtn" data-how>📖 كيف ألعب؟</button></div>
+ <div class="pb"><button class="howbtn" data-how>📖 كيف ألعب؟</button><button class="howbtn" data-a="home">🏠 العودة للرئيسية</button></div>
  ${P.rej?`<p style="color:#ff9aa6;font-size:14px;max-width:520px;margin:14px auto 8px">${esc(P.rej)}</p><button class="btn" data-a="join">إعادة المحاولة</button>`:""}`)}
- if(!s)return wrap("",`<h1>${ic("load","spin")}</h1><p>جاري الاتصال بالشاشة…</p>`);
+ if(!s)return wrap("",`${P.joined?tbar():""}<h1>${ic("load","spin")}</h1><p>جاري الاتصال بالشاشة…</p><p style="font-size:13px;color:var(--mut)">لو تأخر، اضغط إعادة الاتصال — مقعدك محفوظ ودورك لن يضيع</p><div class="pb"><button class="btn p" data-a="re">إعادة الاتصال</button><button class="howbtn" data-a="home">🏠 العودة للرئيسية</button></div>`);
  if(s.ph==="join")return wrap("",`${tbar()}<h1>أنت داخل اللعبة!</h1><p>انتظر حتى يبدأ المدير التوزيع</p><button class="howbtn" data-how>📖 مشاهدة طريقة اللعب</button><div class="lst">${s.pl.map(p=>av(p,40)).join("")}</div><p>${s.pl.length} لاعبين</p>`);
  if(s.ph==="deal")return wrap("",`${tbar()}<h1>${ic("shuffle")}</h1><p>تُخلط البطاقات… استعد لدورك</p>`);
  if(s.ph==="reveal")return reveal();if(s.ph==="end")return endV();
@@ -572,7 +650,10 @@ function reveal(){const r=P.role;if(!r)return wrap("",`${tbar()}<h1>${ic("load",
 function deadV(){const s=P.pub;return wrap("dead",`${tbar()}<h1>${ic("skull")}</h1><h1>خرجت من اللعبة</h1><p>تابع الشاشة… دورك انتهى لكن اللعبة مستمرة</p>${s.ph==="day"?`<div class="chat" id="cl" data-empty="لا رسائل بعد — ابدأ النقاش">${P.dchat.map(line).join("")}</div>`:""}`)}
 function endV(){const s=P.pub,town=s.win==="town",mine=P.role==="mafia"?"mafia":"town",won=s.win==="joker"?P.role==="joker":mine===s.win;return wrap("",`${tbar()}<h1 style="color:${won?"var(--gold)":"#ff6b7b"}">${won?"فزت! "+"🏆":"خسرت"}</h1><p>${s.win==="joker"?"فاز الجوكر! طردتموه بالتصويت 🃏":town?"فاز المواطنون":"فازت المافيا"}</p><div class="pb"><div class="tg">${s.pl.map(p=>`<div class="tt" style="--ac:${p.c};${p.a?"":"opacity:.5"}">${av(p,28)}<span>${esc(p.n)}</span><span class="n">${RL[(s.rl||{})[p.i]||"citizen"].n}</span></div>`).join("")}</div></div>`)}
 document.addEventListener("click",e=>{if(MODE==="h"){hClick(e);return}if(MODE!=="p")return;const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a;
- if(a==="join"){P.rej="";P.nextAt=0;tryAutoJoin(true)}
+ if(a==="join"){P.rej="";P.hard=false;P.nextAt=0;if(P.ck)tryAutoJoin(true,true);else hello()}
+ else if(a==="re")reconn();
+ else if(a==="home"){const m=me();if(m&&P.pub&&!/^(join|end)$/.test(P.pub.ph)&&!confirm("تريد الخروج من المباراة؟\n\nمقعدك ودورك محفوظان: عند العودة تدخل نفس الغرفة ببطاقتك وحالتك."))return;
+  parentNote({type:"icg:mafia:home"});setTimeout(()=>{try{location.href=APPU}catch(e){}},800)}
  else if(a==="flip"){const f=$("#fi");f&&f.classList.add("on");tone(200,.8,0,.1,"triangle");setTimeout(()=>{P.flip=true;render()},1300)}
  else if(a==="ready")SY.tx({t:"ready",pid:P.pid,to:"stage"});
  else if(a==="tab"){P.tab=b.dataset.t;render()}
@@ -585,7 +666,18 @@ document.addEventListener("click",e=>{if(MODE==="h"){hClick(e);return}if(MODE!==
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="ci"){const b=document.querySelector("[data-a=sendM],[data-a=sendD]");b&&b.click()}});
 /* ===== الهوست ===== */
 const H={hv:null,end:0,at:0};
-function hBoot(){SY.init();SY.fns.push(m=>{if(m.to!=="host")return;if(m.t==="hv"){H.hv=m;H.end=Date.now()+m.tl*1000;H.at=Date.now();hRender()}else if(m.t==="err")toast(m.x)});const hi=()=>SY.tx({t:"hh",k:HK,to:"stage"});hi();setInterval(()=>{if(!H.hv||Date.now()-H.at>9000)hi()},3000);setInterval(()=>{const e=$("#ht");if(e&&H.hv)e.textContent=H.hv.tl>0?Math.max(0,Math.ceil((H.end-Date.now())/1000))+"ث":""},500);hRender()}
+/* اللوحة لا تُعاد رسمها إلا عند تغيّر حقيقي، والنبضات المتتابعة تُدمج في رسم واحد */
+const hvSig=v=>JSON.stringify([v.ph,v.st,v.rd,v.pa,v.cfg,v.pn,v.P,v.win,v.link,v.min,v.mx,(v.nt||{}).mv,(v.nt||{}).kill,(v.nt||{}).protect,(v.nt||{}).silence,(v.nt||{}).invest,(v.nt||{}).det,v.vv,v.vc,v.out,v.dc,v.mc,v.lg,v.due]);
+let HRT=0,HSIG="";
+function hPush(){clearTimeout(HRT);HRT=setTimeout(()=>{HRT=0;hRender()},140)}
+function hBoot(){SY.init();SY.fns.push(m=>{if(m.to!=="host")return;
+ /* المنصة تُختم الحالة بمفتاح الغرفة: لوحة بمفتاح خاطئ تسمع البث ولا تفهمه */
+ if(m.k!==HK)return;
+ if(m.t==="hv"){const same=H.hv&&hvSig(m)===HSIG;H.hv=m;H.end=Date.now()+m.tl*1000;H.at=Date.now();if(!same){HSIG=hvSig(m);hPush()}}
+ else if(m.t==="err")toast(m.x)});
+ const hi=()=>SY.tx({t:"hh",k:HK,to:"stage"});hi();
+ setInterval(()=>{if(!H.hv||Date.now()-H.at>9000)hi()},3000);
+ setInterval(()=>{const e=$("#ht");if(e&&H.hv)e.textContent=H.hv.tl>0?Math.max(0,Math.ceil((H.end-Date.now())/1000))+"ث":""},500);hRender()}
 const cmd=(c,x)=>SY.tx(Object.assign({t:"cmd",k:HK,c,to:"stage"},x||{}));
 const HN={join:"اللوبي",deal:"توزيع",reveal:"كشف الأدوار",night:"الليل",day:"النهار",end:"النهاية"},SN={nightfall:"حلول الليل",mafia:"المافيا تقرر",m_sleep:"المافيا تنام",doctor:"الدكتور",d_sleep:"الدكتور ينام",elder:"الشايب",e_sleep:"الشايب ينام",op1:"العملية",op2:"التشويق",op3:"النتيجة",talk:"النقاش",vote:"التصويت",res:"نتيجة التصويت"};
 function hRender(){if(MODE!=="h")return;const v=H.hv;if(!v){$("#app").innerHTML=`<div class="hs"><h1>لوحة الهوست</h1><p>${ic("load","spin")} جاري الاتصال بالمنصة… تأكد أن صفحة المنصة مفتوحة.</p></div>`;return}
@@ -601,8 +693,10 @@ ${v.ph==="night"||v.ph==="day"?`<div class="cd"><h3>${ic("knife")} كواليس 
 function hClick(e){const b=e.target.closest("[data-a]");if(!b||!H.hv)return;const a=b.dataset.a,v=H.hv;
  if(a==="deal")cmd("deal");else if(a==="next")cmd("next");else if(a==="pause")cmd("pause");else if(a==="reset")cmd("reset");else if(a==="kick")cmd("kick",{id:b.dataset.id});
  else if(a==="cp"){navigator.clipboard&&navigator.clipboard.writeText(v.link).then(()=>toast("تم نسخ الرابط")).catch(()=>toast("انسخه يدوياً"))}
- else if(a==="sw"){const k=b.dataset.k;cmd("cfg",{v:{[k]:!v.cfg[k]}})}
- else if(a==="st"){const k=b.dataset.k,d=+b.dataset.d,s=k[0]==="t"?10:1;cmd("cfg",{v:{[k]:(+v.cfg[k]||0)+d*s}})}}
+ /* استجابة فورية للزر: يعدّل حالته محلياً ثم يصحّحها بث المنصة عند وصولها */
+ else if(a==="sw"){const k=b.dataset.k,nv=!v.cfg[k];v.cfg[k]=nv;HSIG="";b.classList.toggle("on",nv);cmd("cfg",{v:{[k]:nv}})}
+ else if(a==="st"){const k=b.dataset.k,d=+b.dataset.d,s=k[0]==="t"?10:1,nv=Math.max(0,Math.min(300,(+v.cfg[k]||0)+d*s));
+  v.cfg[k]=nv;HSIG="";const bb=b.parentElement&&b.parentElement.querySelector("b");if(bb)bb.textContent=nv+(k[0]==="t"?"ث":"");cmd("cfg",{v:{[k]:nv}})}}
 if(MODE==="s")stageMain();else if(MODE==="h")hBoot();else pBoot();
 
 </script>
@@ -640,7 +734,7 @@ const _chr=chr;chr=function(r){return r==="joker"?JK:_chr(r)};
 plan=function(){const n=G.P.length,c=G.cfg,m=c.auto?Math.max(1,Math.round(n/3.5)):c.mafia,d=c.doctor?1:0,e=c.elder?1:0,j=c.joker?1:0,ct=n-m-d-e-j;let err="";
  if(n<CFG.min)err="الحد الأدنى "+CFG.min+" لاعبين";else if(m<1)err="يلزم مافيا واحد على الأقل";else if(m*2>=n)err="عدد المافيا كبير: يجب أن يكون أقل من نصف اللاعبين";else if(ct<0)err="الأدوار الخاصة أكثر من اللاعبين: عطّل دوراً أو زد اللاعبين";return{m,d,e,j,ct,err}};
 deal=function(){const pn=plan();if(pn.err)return pn.err;const roles=sh([...Array(pn.m).fill("mafia"),...Array(pn.d).fill("doctor"),...Array(pn.e).fill("elder"),...Array(pn.j).fill("joker"),...Array(pn.ct).fill("citizen")]);
- sh(G.P);G.P.forEach((p,i)=>{p.role=roles[i];p.alive=true;p.ready=false;p.muted=false});G.rd=0;G.win=null;G.res=null;G.usedInv=false;G.logs=[];G.chat=[];G.mchat=[];G.ph="deal";G.st="";G.tTot=5;G.tEnd=Date.now()+5000;G.P.forEach(p=>lg(p.name+": "+RL[p.role].n));drawStage();pubAll();hostSync();return""};
+ sh(G.P);G.P.forEach((p,i)=>{p.role=roles[i];p.alive=true;p.ready=false;p.muted=false});G.rd=0;G.win=null;G.res=null;G.usedInv=false;G.logs=[];G.chat=[];G.mchat=[];G.out=[];G.ph="deal";G.st="";G.tTot=5;G.tEnd=Date.now()+5000;G.P.forEach(p=>lg(p.name+": "+RL[p.role].n));drawStage();pubAll();hostSync();return""};
 const _ad=afterDay;afterDay=function(){const r=G.res,p=r&&r.ej?pl(r.id):null;if(p&&p.role==="joker"){lg("الجوكر طُرد بالتصويت: انتهت اللعبة");endGame("joker");try{fan()}catch(e){}return}return _ad()};
 const _oc=onCmd;onCmd=function(m){if(m.c==="cfg"&&m.v&&"joker" in m.v)G.cfg.joker=m.v.joker?1:0;return _oc(m)};
 function lobbyH(){const n=G.P.length,l=link("p"),c=G.cfg,rs=["mafia"];if(c.doctor)rs.push("doctor");if(c.elder)rs.push("elder");if(c.joker)rs.push("joker");rs.push("citizen");
@@ -651,7 +745,7 @@ if(MODE==="p"){const _v=view;view=function(){let h=_v();if(P.joined&&P.pub&&P.pu
 hRender=function(){if(MODE!=="h")return;document.body.classList.add("hostpg");const v=H.hv;
  if(!v){$("#app").innerHTML=`<div class="hs2"><div class="hh"><h1>لوحة التحكم</h1><div class="sub">${ic("load","spin")} جاري الاتصال بالمنصة… تأكد أن صفحة المنصة مفتوحة.</div></div></div>`;return}
  const join=v.ph==="join",c=v.cfg,pn=v.pn,nm=id=>{const p=v.P.find(x=>x.i===id);return p?esc(p.n):"—"},PH=["join","deal","reveal","night","day","end"],pi=PH.indexOf(v.ph),n=v.P.length;
- const sw=(k,on)=>`<button class="sw ${on?"on":""}" data-a="sw" data-k="${k}" ${join?"":"disabled"} aria-label="تبديل"></button>`,stp=(k,val,u,dis)=>`<span class="stp2"><button data-a="st" data-k="${k}" data-d="-1" ${dis?"disabled":""}>−</button><b>${val}${u||""}</b><button data-a="st" data-k="${k}" data-d="1" ${dis?"disabled":""}>+</button></span>`;
+ const sw=(k,on,free)=>`<button class="sw ${on?"on":""}" data-a="sw" data-k="${k}" ${free||join?"":"disabled"} aria-label="تبديل"></button>`,stp=(k,val,u,dis)=>`<span class="stp2"><button data-a="st" data-k="${k}" data-d="-1" ${dis?"disabled":""}>−</button><b>${val}${u||""}</b><button data-a="st" data-k="${k}" data-d="1" ${dis?"disabled":""}>+</button></span>`;
  const tile=(r,d,ctl,off)=>`<div class="rt2 ${r} ${off?"off":""}"><div class="av2">${chr(r)}</div><div class="tx"><b>${RL[r].n}</b><small>${d}</small></div><div class="ctl2">${ctl}</div></div>`;
  const seg=[["#d11f33",pn.m,"مافيا"],["#20c9a6",pn.d,"دكتور"],["#f0c25a",pn.e,"شايب"],["#c77dff",pn.j,"جوكر"],["#4fa3ff",Math.max(0,pn.ct),"مواطنون"]];
  const tm=(l,k)=>`<div class="tm2"><span>${l}</span>${stp(k,c[k],"ث",false)}</div>`;
@@ -751,8 +845,8 @@ body[data-lb=mafia]{--gc:#ff3b4e}body[data-lb=doctor]{--gc:#2ff3d0}body[data-lb=
 (function(){
 const DT="<svg class=\"ch\" viewBox=\"0 0 200 240\" aria-hidden=\"true\"><defs><linearGradient id=\"dC\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#cc9b5e\"/><stop offset=\"1\" stop-color=\"#85592f\"/></linearGradient><linearGradient id=\"dH\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#6f4f2e\"/><stop offset=\"1\" stop-color=\"#2a1e14\"/></linearGradient><radialGradient id=\"dL\" cx=\".35\" cy=\".3\" r=\".8\"><stop offset=\"0\" stop-color=\"#fff\" stop-opacity=\".9\"/><stop offset=\".5\" stop-color=\"#bfe6ff\" stop-opacity=\".35\"/><stop offset=\"1\" stop-color=\"#7fc4f0\" stop-opacity=\".25\"/></radialGradient></defs>\n<path d=\"M6 240C6 194 48 174 100 174s94 20 94 66z\" fill=\"url(#dC)\"/>\n<path d=\"M80 176L100 220 120 176z\" fill=\"#f3eee6\"/><path d=\"M100 186l-6 9 6 38 6-38z\" fill=\"#7a1f2e\"/><path d=\"M94 192h12l-3-7h-6z\" fill=\"#5a1421\"/>\n<g stroke=\"#5e3f20\" stroke-width=\"2.5\" stroke-linejoin=\"round\"><path d=\"M80 176L100 220 66 240 30 206 52 184zM120 176L100 220 134 240 170 206 148 184z\" fill=\"#a9763f\"/><path d=\"M52 184L64 158 84 176 78 198z\" fill=\"#cc9b5e\"/><path d=\"M148 184L136 158 116 176 122 198z\" fill=\"#cc9b5e\"/></g>\n<circle cx=\"84\" cy=\"228\" r=\"3.5\" fill=\"#4a3220\"/><circle cx=\"116\" cy=\"228\" r=\"3.5\" fill=\"#4a3220\"/>\n<path d=\"M62 197l3 7 7.500.7-5.600 5 1.700 7.400-6.600-3.900-6.600 3.900 1.700-7.400-5.600-5 7.500-.7z\" fill=\"#f0c25a\" stroke=\"#7a5a1a\" stroke-width=\"1.500\" stroke-linejoin=\"round\"/>\n<rect x=\"84\" y=\"140\" width=\"32\" height=\"40\" rx=\"12\" fill=\"#c68f66\"/>\n<path d=\"M55 100C55 62 75 50 100 50s45 12 45 50c0 34-20 60-45 60S55 134 55 100z\" fill=\"#e3ad83\"/><ellipse cx=\"55\" cy=\"108\" rx=\"7\" ry=\"12\" fill=\"#d29a70\"/><ellipse cx=\"145\" cy=\"108\" rx=\"7\" ry=\"12\" fill=\"#d29a70\"/>\n<path d=\"M66 124q34 40 68 0\" stroke=\"#6e4a36\" stroke-width=\"5\" stroke-dasharray=\"1 5\" stroke-linecap=\"round\" fill=\"none\" opacity=\".45\"/>\n<g class=\"bk\"><path d=\"M70 103q12-8 24 0q-12 6-24 0zM106 103q12-8 24 0q-12 6-24 0z\" fill=\"#fff\"/><circle cx=\"88\" cy=\"103\" r=\"3.600\" fill=\"#2a1a10\"/><circle cx=\"124\" cy=\"103\" r=\"3.600\" fill=\"#2a1a10\"/></g>\n<path d=\"M70 102q12-9 24 0M106 102q12-9 24 0\" stroke=\"#2b1a10\" stroke-width=\"3.200\" fill=\"none\" stroke-linecap=\"round\"/>\n<path d=\"M68 94l28 5M104 98l26-13\" stroke=\"#2a1a10\" stroke-width=\"5\" stroke-linecap=\"round\"/>\n<path d=\"M100 103c-5 12-7 18 0 20 7-2 5-8 0-20z\" fill=\"#cf9a70\"/>\n<path d=\"M76 130q12-8 24-3 12-5 24 3-10 7-24 3-14 4-24-3z\" fill=\"#3a2418\"/><path d=\"M88 142q14 6 26-4\" stroke=\"#6a2a22\" stroke-width=\"3\" fill=\"none\" stroke-linecap=\"round\"/>\n<ellipse cx=\"100\" cy=\"72\" rx=\"89\" ry=\"16\" fill=\"#2a1e14\"/><path d=\"M24 70q76 22 152 0\" stroke=\"#5a4128\" stroke-width=\"2\" fill=\"none\"/>\n<path d=\"M58 72C54 30 74 14 100 14s46 16 42 58z\" fill=\"url(#dH)\"/><path d=\"M84 19q16 14 32 0\" stroke=\"#17100a\" stroke-width=\"3\" fill=\"none\"/>\n<path d=\"M57 58h86l1 13H56z\" fill=\"#1c1612\"/><path d=\"M57 59h86\" stroke=\"#e8be6e\" stroke-width=\"2\"/>\n<path d=\"M132 60c14-4 26-18 30-34-8 6-18 8-26 16z\" fill=\"#c4152a\" stroke=\"#7d0f1c\" stroke-width=\"1.500\"/>\n<path d=\"M58 78q42 20 84 0l-4 12q-38 12-76 0z\" fill=\"#000\" opacity=\".35\"/>\n<path d=\"M162 168l22 28\" stroke=\"#4a2f16\" stroke-width=\"10\" stroke-linecap=\"round\"/><path d=\"M162 168l22 28\" stroke=\"#9a6a38\" stroke-width=\"4\" stroke-linecap=\"round\"/>\n<circle cx=\"183\" cy=\"195\" r=\"9\" fill=\"#e3ad83\" stroke=\"#a9763f\" stroke-width=\"2\"/>\n<circle cx=\"148\" cy=\"150\" r=\"26\" fill=\"url(#dL)\" stroke=\"#e8be6e\" stroke-width=\"6\"/><circle cx=\"148\" cy=\"150\" r=\"29\" fill=\"none\" stroke=\"#7a5a1a\" stroke-width=\"1.500\"/>\n<path d=\"M133 142q6-11 19-11\" class=\"glr\" stroke=\"#fff\" stroke-width=\"4\" fill=\"none\" stroke-linecap=\"round\"/></svg>";
 RL.detective={n:"المحقق",d:"كل ليلة تحقق مع لاعب واحد (ولا تكرر نفس اللاعب). النتيجة تصلك وحدك وتُحفظ في ملاحظاتك: «مافيا» أو «بريء» أو «مشبوه» (هذا الجوكر). لا دليل عندك بالنهار، فأقنع القرية بالكلام. لكن احذر: إن كشفت نفسك بدري قتلتك المافيا، وإن قلت «فلان مشبوه» فقد تصوّت القرية عليه ويفوز الجوكر!",team:"المواطنون"};
-Object.assign(G.cfg,{detective:1,jokerD1:0,det2:0,tDet:20});
-NIGHT.splice(NIGHT.indexOf("op1"),0,"detective","t_sleep");DUR.t_sleep=2.5;
+Object.assign(G.cfg,{detective:1,jokerD1:0,det2:0});
+NIGHT.splice(NIGHT.indexOf("op1"),0,"detective","t_sleep");DUR.t_sleep=1.5;
 Object.assign(SN,{detective:"المحقق يحقق",t_sleep:"المحقق ينام"});
 const _chr=chr;chr=function(r){return r==="detective"?DT:_chr(r)};
 const isJk=id=>{const p=pl(id);return p&&p.role==="joker"};
@@ -760,9 +854,8 @@ const resetD=()=>{G.dInv=new Set();G.dlog=[]};resetD();
 plan=function(){const n=G.P.length,c=G.cfg,m=c.auto?Math.max(1,Math.round(n/3.5)):c.mafia,d=c.doctor?1:0,e=c.elder?1:0,j=c.joker&&n>=6?1:0,t=c.detective&&n>=7?1:0,ct=n-m-d-e-j-t;let err="";
  if(n<CFG.min)err="الحد الأدنى "+CFG.min+" لاعبين";else if(m<1)err="يلزم مافيا واحد على الأقل";else if(m*2>=n)err="عدد المافيا كبير: يجب أن يكون أقل من نصف اللاعبين";else if(ct<0)err="الأدوار الخاصة أكثر من اللاعبين";return{m,d,e,j,t,ct,err}};
 deal=function(){const pn=plan();if(pn.err)return pn.err;resetD();const roles=sh([...Array(pn.m).fill("mafia"),...Array(pn.d).fill("doctor"),...Array(pn.e).fill("elder"),...Array(pn.t).fill("detective"),...Array(pn.j).fill("joker"),...Array(pn.ct).fill("citizen")]);
- sh(G.P);G.P.forEach((p,i)=>{p.role=roles[i];p.alive=true;p.ready=false;p.muted=false});G.rd=0;G.win=null;G.res=null;G.usedInv=false;G.logs=[];G.chat=[];G.mchat=[];G.ph="deal";G.st="";G.tTot=5;G.tEnd=Date.now()+5000;G.P.forEach(p=>lg(p.name+": "+RL[p.role].n));drawStage();pubAll();hostSync();return""};
+ sh(G.P);G.P.forEach((p,i)=>{p.role=roles[i];p.alive=true;p.ready=false;p.muted=false});G.rd=0;G.win=null;G.res=null;G.usedInv=false;G.logs=[];G.chat=[];G.mchat=[];G.out=[];G.ph="deal";G.st="";G.tTot=5;G.tEnd=Date.now()+5000;G.P.forEach(p=>lg(p.name+": "+RL[p.role].n));drawStage();pubAll();hostSync();return""};
 const _rg=resetGame;resetGame=function(){resetD();_rg()};
-const _du=dur;dur=function(ph,st){return st==="detective"?(ofr("detective").length?(G.cfg.tDet||20):6+rnd(5)):_du(ph,st)};
 const _en=enter;enter=function(ph,st){_en(ph,st);if(st==="detective"){ofr("detective").forEach(privSend)}};
 const _pf=privFor;privFor=function(p){const o=_pf(p);
  if(p.role==="detective"){o.dn=G.dlog||[];if(p.alive&&G.ph==="night"&&G.st==="detective"){const rest=G.cfg.det2&&G.rd%2===0,tg=alive().filter(x=>x.id!==p.id&&!G.dInv.has(x.id)).map(x=>({i:x.id,n:x.name,c:x.col}));o.act={k:"detective",tg:rest?[]:tg,my:G.nt.det||null,done:G.nt.det?1:0,rest:rest?1:0}}}return o};
@@ -770,7 +863,7 @@ const RS={mafia:["مافيا","#ff4a5e","🔪"],sus:["مشبوه","#c77dff","�
 const _oa=onAct;onAct=function(m){if(m.kind==="probe"){const p=pl(m.pid),t=pl(m.target);
   if(!p||!p.alive||p.role!=="detective"||G.ph!=="night"||G.st!=="detective"||G.nt.det||!t||!t.alive||t.id===p.id||G.dInv.has(t.id)||(G.cfg.det2&&G.rd%2===0))return;
   G.nt.det=t.id;G.dInv.add(t.id);const r=t.role==="mafia"?"mafia":t.role==="joker"?"sus":"clean";G.dlog.push({n:t.name,r,d:G.rd});lg("المحقق حقّق في "+t.name+" ← "+RS[r][0]);
-  privSend(p);hostSync();setTimeout(()=>{if(G.st==="detective")next()},3500);return}
+  privSend(p);hostSync();setTimeout(()=>{if(G.st==="detective")next()},1200);return}
  return _oa(m)};
 const _oc=onCmd;onCmd=function(m){if(m.c==="cfg"&&m.v){["detective","jokerD1","det2"].forEach(k=>{if(k in m.v)G.cfg[k]=m.v[k]?1:0});if("tDet" in m.v)G.cfg.tDet=Math.max(10,Math.min(300,+m.v.tDet||20))}return _oc(m)};
 const _ad=afterDay;afterDay=function(){const r=G.res,p=r&&r.ej?pl(r.id):null;
@@ -799,13 +892,25 @@ const BG={mafia:"bgm",doctor:"bgd",elder:"bge",joker:"bgj",detective:"bgt"};
 hRender=function(){if(MODE!=="h")return;document.body.classList.add("hostpg");const v=H.hv;
  if(!v){$("#app").innerHTML=`<div class="hs2"><div class="ah"><h1>لوحة التحكم</h1><div class="sub">${ic("load","spin")} جاري الاتصال بالمنصة… تأكد أن صفحة المنصة مفتوحة.</div></div></div>`;return}
  const join=v.ph==="join",c=v.cfg,pn=v.pn,n=v.P.length,al=v.P.filter(p=>p.a).length,nm=id=>{const p=v.P.find(x=>x.i===id);return p?esc(p.n):"—"},PH=["join","deal","reveal","night","day","end"],pi=PH.indexOf(v.ph);
- const sw=(k,on)=>`<button class="sw ${on?"on":""}" data-a="sw" data-k="${k}" ${join?"":"disabled"} aria-label="تبديل"></button>`,stp=(k,val,u,dis)=>`<span class="stp2"><button data-a="st" data-k="${k}" data-d="-1" ${dis?"disabled":""}>−</button><b>${val}${u||""}</b><button data-a="st" data-k="${k}" data-d="1" ${dis?"disabled":""}>+</button></span>`;
+ const sw=(k,on,free)=>`<button class="sw ${on?"on":""}" data-a="sw" data-k="${k}" ${free||join?"":"disabled"} aria-label="تبديل"></button>`,stp=(k,val,u,dis)=>`<span class="stp2"><button data-a="st" data-k="${k}" data-d="-1" ${dis?"disabled":""}>−</button><b>${val}${u||""}</b><button data-a="st" data-k="${k}" data-d="1" ${dis?"disabled":""}>+</button></span>`;
  const tile=(r,d,ctl,off,tag)=>`<div class="at ${r} ${off?"off":""}" style="--bi:${BG[r]?"var(--"+BG[r]+")":"linear-gradient(#10243f,#0a1424)"}"><div class="aa">${chr(r)}</div><div class="ax"><b>${RL[r].n}</b>${tag?`<em>${tag}</em>`:""}<small>${d}</small></div><div class="ac">${ctl}</div></div>`;
  const seg=[["#d11f33",pn.m,"مافيا"],["#20c9a6",pn.d,"دكتور"],["#f0c25a",pn.e,"شايب"],["#ff9248",pn.t,"محقق"],["#c77dff",pn.j,"جوكر"],["#4fa3ff",Math.max(0,pn.ct),"مواطنون"]];
- const tm=(l,k)=>`<div class="tm2"><span>${l}</span>${stp(k,c[k],"ث",false)}</div>`,rl=(l,k)=>`<div class="tm2"><span>${l}</span>${sw(k,!!c[k])}</div>`;
+ const tm=(l,k)=>`<div class="tm2"><span>${l}</span>${stp(k,c[k],"ث",false)}</div>`,rl=(l,k)=>`<div class="tm2"><span>${l}</span>${sw(k,!!c[k],1)}</div>`;
+ /* حالة القرارات الحيّة: من قرّر ومن لم يقرّر — تُحسب من الحالة الحقيقية لا من الأزرار */
+ const NEED={mafia:"mafia",doctor:"doctor",elder:"elder",detective:"detective"},nt=v.nt||{},vv=v.vv||{},vc=v.vc||{};
+ const role=v.ph==="night"?NEED[v.st]:"",need=role?v.P.filter(p=>p.a&&p.r===role):[];
+ const tgt=role==="mafia"?null:role==="doctor"?nt.protect:role==="elder"?nt.silence||nt.invest:role==="detective"?nt.det:null;
+ const dcs=(()=>{
+  if(v.ph==="day"&&v.st==="vote"){const A=v.P.filter(p=>p.a);
+   return`<div class="dcs">${A.map(p=>`<div class="dc ${vv[p.i]?"ok":""}"><span>${esc(p.n)}</span><b>${vv[p.i]?"→ "+(vv[p.i]==="skip"?"تجاوز":nm(vv[p.i])):"لم يقرّر"}</b></div>`).join("")||"<i>لا أحد حيّاً</i>"}</div>
+   <div class="vcs">${Object.keys(vc).length?Object.entries(vc).sort((a,b)=>b[1]-a[1]).map(x=>`<span class="vcp">${nm(x[0])} <b>${x[1]}</b></span>`).join(""):"<i>لا أصوات بعد</i>"}<span class="vcp sk">تجاوز <b>${A.filter(p=>vv[p.i]==="skip").length}</b></span><span class="vcp tot">${A.filter(p=>vv[p.i]).length}/${A.length} صوّتوا</span></div>`}
+  if(need.length){const M=nt.mv||{};
+   return`<div class="dcs">${need.map(p=>`<div class="dc ${(role==="mafia"?M[p.i]:tgt)?"ok":""}"><span>${esc(p.n)}</span><b>${(role==="mafia"?M[p.i]:tgt)?(role==="mafia"?"→ "+nm(M[p.i]):"✓ "+nm(tgt)):"لم يقرّر"}</b></div>`).join("")}</div>`}
+  return""})();
  $("#app").innerHTML=`<div class="hs2"><div class="ah"><h1>لوحة تحكم المافيا</h1><div class="sub">أنت المدير: وزّع الأدوار وتحكّم بسير اللعبة</div>
 <div class="trk" style="margin-top:12px">${PH.map((k,i)=>`<span class="${i<pi?"dn":i===pi?"on":""}">${HN[k]}</span>`).join("")}</div>
 <div class="stt"><div><b>${n}</b><small>اللاعبون</small></div><div><b>${al}</b><small>الأحياء</small></div><div><b>${v.rd||"—"}</b><small>الجولة</small></div><div><b id="ht" style="color:#fff">—</b><small>${v.st?SN[v.st]||v.st:HN[v.ph]}</small></div></div>
+${v.due?`<div class="msg2 er">انتهى وقت المرحلة — الوضع يدوي: اضغط «تخطي المرحلة» للانتقال</div>`:""}
 <div class="acts">${join?`<button class="hb2 go" data-a="deal" ${pn.err?"disabled":""}>${ic("shuffle")} ابدأ اللعبة ووزّع الأدوار</button>`:""}${!["join","end"].includes(v.ph)?`<button class="hb2" data-a="next">${ic("skip")} تخطي المرحلة</button><button class="hb2" data-a="pause">${ic("pause")} ${v.pa?"استئناف":"إيقاف مؤقت"}</button>`:""}<button class="hb2 dg" data-a="reset">${ic("refresh")} لوبي جديد</button>${join?`<button class="hb2" data-a="cp">${ic("copy")} نسخ رابط الدخول</button>`:""}</div></div>
 <div class="pn2"><h3>${ic("shuffle")} الأدوار ${join?"":"(مقفلة بعد البدء)"}</h3><div class="rg2">
 ${tile("mafia","القتلة. يقتلون كل ليلة ويتخفّون نهاراً.",`${sw("auto",c.auto)}<span>عدد تلقائي</span>${stp("mafia",pn.m,"",c.auto||!join)}`)}
@@ -816,9 +921,13 @@ ${tile("joker","إذا طُرد بالتصويت يفوز وحده. وإذا ق�
 ${tile("citizen","الباقون. يبحثون عن المافيا بالنقاش والتصويت.",`<b style="font:800 30px var(--dsp)">${Math.max(0,pn.ct)}</b><span>لاعب</span>`)}
 </div><div class="dst">${seg.map(s=>`<i style="width:${n?s[1]/n*100:0}%;background:${s[0]}"></i>`).join("")}</div><div class="lgd2">${seg.map(s=>`<span style="--c:${s[0]}">${s[2]} ${s[1]}</span>`).join("")}<span style="--c:#fff">الحد الأدنى ${v.min} لاعبين</span></div>
 ${join?(pn.err?`<div class="msg2 er">${pn.err}</div>`:`<div class="msg2 ok">التوزيع جاهز: ${n} لاعبين</div>`):""}</div>
-<div class="pn2"><h3>${ic("clock")} الأوقات والقواعد</h3><div class="g3">${tm("وقت المافيا","tMafia")}${tm("وقت الدكتور","tDoc")}${tm("وقت الشايب","tElder")}${tm("وقت المحقق","tDet")}${tm("وقت النقاش","tDay")}${tm("وقت التصويت","tVote")}${rl("تحقيق الشايب (مرة)","invest")}${rl("كشف دور المُقصى","reveal")}${rl("الجوكر لا يفوز في اليوم الأول","jokerD1")}${rl("التحقيق كل ليلتين","det2")}</div></div>
-<div class="pn2"><h3>${ic("users")} اللاعبون (${n})</h3><div class="pls2">${v.P.map(p=>`<div class="pc2 ${p.r||""} ${p.a?"":"d"}"><span class="nn">${esc(p.n)}</span>${v.ph==="reveal"&&p.rd?ic("check"):""}${p.m?ic("mute"):""}<span class="rl">${p.r?RL[p.r].n:"—"}</span>${join?`<button class="kk" data-a="kick" data-id="${p.i}" aria-label="طرد">${ic("x")}</button>`:""}</div>`).join("")||"<p>لا يوجد لاعبون بعد</p>"}</div></div>
-${v.ph==="night"||v.ph==="day"?`<div class="pn2"><h3>${ic("knife")} كواليس الليلة (للمدير فقط)</h3><p>اقتراحات المافيا: ${Object.entries(v.nt.mv||{}).map(([a,b])=>nm(a)+" ← "+nm(b)).join(" · ")||"—"}<br>الضحية: <b>${v.nt.kill?nm(v.nt.kill):"—"}</b> · يحميه الدكتور: <b>${v.nt.protect?nm(v.nt.protect):"—"}</b> · إسكات الشايب: <b>${v.nt.silence?nm(v.nt.silence):"—"}</b> · تحقيق الشايب: <b>${v.nt.invest?nm(v.nt.invest):"—"}</b> · تحقيق المحقق: <b>${v.nt.det?nm(v.nt.det):"—"}</b></p><div class="lg">${v.mc.map(l=>`<span><b>${esc(l[0])}</b> ${esc(l[1])}</span>`).join("")}</div></div>`:""}
+<div class="pn2"><h3>${ic("clock")} سير اللعبة والأوقات</h3><div class="g3">${tm("مهلة القرار لكل دور","tDec")}${tm("وقت النقاش","tDay")}${tm("وقت التصويت","tVote")}<div class="tm2"><span>تقدّم يدوي (المدير ينقل المراحل)</span>${sw("manual",!!c.manual,1)}</div>${rl("تحقيق الشايب (مرة)","invest")}${rl("كشف دور المُقصى","reveal")}${rl("الجوكر لا يفوز في اليوم الأول","jokerD1")}${rl("التحقيق كل ليلتين","det2")}</div>
+<div class="hint">${c.manual?"وضع يدوي: لا تنتقل أي مرحلة تلقائياً — تنقلها أنت، وتظهر المهلة كتنبيه فقط.":"وضع تلقائي: تنتقل المرحلة فور اكتمال كل القرارات المطلوبة، ومهلة القرار تحمي من لاعب لا يقرر."} لم تعد هناك أوقات طويلة لكل دور: بقي وقت النقاش ووقت التصويت.</div></div>
+<div class="pn2"><h3>${ic("users")} اللاعبون (${n}) — أحياء ${al} · خارج ${n-al}</h3><div class="pls2">${v.P.map(p=>`<div class="pc2 ${p.r||""} ${p.a?"":"d"}"><span class="nn">${esc(p.n)}</span>${v.ph==="reveal"&&p.rd?ic("check"):""}${p.m?ic("mute"):""}${p.a?"":'<em class="outb">خرج</em>'}<span class="rl">${p.r?RL[p.r].n:"—"}</span>${join?`<button class="kk" data-a="kick" data-id="${p.i}" aria-label="طرد">${ic("x")}</button>`:""}</div>`).join("")||"<p>لا يوجد لاعبون بعد</p>"}</div>${v.out&&v.out.length?`<div class="outsum">${v.out.map(o=>`<span>${esc(o.n)}<i>${o.w} · ${o.d}</i></span>`).join("")}</div>`:""}</div>
+${dcs?`<div class="pn2"><h3>${ic("vote")} القرارات الآن</h3>${dcs}</div>`:""}
+${v.ph==="night"||v.ph==="day"?`<div class="pn2"><h3>${ic("knife")} كواليس الليلة (للمدير فقط)</h3><p>اقتراحات المافيا: ${Object.entries(v.nt.mv||{}).map(([a,b])=>nm(a)+" ← "+nm(b)).join(" · ")||"—"}<br>الضحية: <b>${v.nt.kill?nm(v.nt.kill):"—"}</b> · يحميه الدكتور: <b>${v.nt.protect?nm(v.nt.protect):"—"}</b> · إسكات الشايب: <b>${v.nt.silence?nm(v.nt.silence):"—"}</b> · تحقيق الشايب: <b>${v.nt.invest?nm(v.nt.invest):"—"}</b> · تحقيق المحقق: <b>${v.nt.det?nm(v.nt.det):"—"}</b></p><div class="lg">${(v.mc||[]).slice().reverse().map(l=>`<span><b>${esc(l[0])}</b> ${esc(l[1])}</span>`).join("")||"<i>لا رسائل بعد</i>"}</div>
+<div class="mcp"><input class="mcx" id="mx" maxlength="140" placeholder="رسالة إلى شات المافيا — لا يقرأها غيرهم"><select id="mto" aria-label="المستقبِل"><option value="">شات المافيا</option>${v.P.filter(p=>p.a).map(p=>`<option value="${p.i}">خاص: ${esc(p.n)}</option>`).join("")}</select><button class="hb2" data-a="msnd">${ic("send")} إرسال</button><button class="hb2 qk" data-a="msnd" data-x="خلصتوا؟">خلصتوا؟</button></div></div>
+<div class="pn2"><h3>${ic("users")} نقاش القرية (مباشر)</h3><div class="lg">${(v.dc||[]).slice(-20).reverse().map(l=>`<span><b>${esc(l[0])}</b> ${esc(l[1])}</span>`).join("")||"<i>لم يتكلم أحد بعد</i>"}</div></div>`:""}
 <div class="pn2"><h3>${ic("clock")} السجل</h3><div class="lg">${v.lg.slice().reverse().map(x=>`<span>${esc(x)}</span>`).join("")||"—"}</div></div></div>`};
 })();
 /* ===== V6: لوبي متتابع + بدء يدوي + إدارة ===== */
@@ -856,10 +965,10 @@ if(MODE==="h"){
 /* ===== التجديد إلى قاعدة البيانات + نهاية اللعبة ===== */
 (function(){
 if(MODE!=="s")return;
-const _deal=deal;deal=function(){const e=_deal();if(!e){dbRoles();dbEvents("deal",{players:G.P.length,m:plan().m})}return e};
+const _deal=deal;deal=function(){const e=_deal();if(!e){dbEvents("deal",{players:G.P.length,m:plan().m})}return e};
 const _rg=resetGame;resetGame=function(){if(DB.ready)del("mafia_roles","room_code=eq."+encodeURIComponent(ROOM));_rg()};
-const _op=resolveOp;resolveOp=function(){_op();if(G.res&&G.res.id)dbEvents("kill",{id:G.res.id,name:G.res.name,saved:G.res.ok===false})};
-const _rv=resolveVote;resolveVote=function(){_rv();if(G.res&&G.res.ej)dbEvents("exile",{id:G.res.id,name:G.res.name})};
+const _op=resolveOp;resolveOp=function(){_op();if(G.res)dbEvents("kill",{saved:G.res.ok!==false})};
+const _rv=resolveVote;resolveVote=function(){_rv();if(G.res&&G.res.ej)dbEvents("exile",{})};
 const _eg=endGame;endGame=function(w){const r=_eg(w);dbMatch();dbEvents("end",{win:w,rounds:G.rd});
  parentNote({type:"icg:mafia:end",room:ROOM,winner:w,rounds:G.rd,
    players:G.P.map(p=>({id:p.id,name:p.name,alive:!!p.alive,role:p.role,av:p.av||"",ap:p.ap?1:0}))});return r};
@@ -944,24 +1053,26 @@ if(MODE==="s"){
  afterDeal=function(){G.P.forEach(p=>{if(p.bot)p.ready=true});return _ad()};
  const pk=a=>a.length?a[Math.floor(Math.random()*a.length)]:null;
  const _en=enter;
+ const allBot=a=>a.length&&a.every(p=>p.bot);
+ const soon=(st,ms)=>setTimeout(()=>{if(G.ph==="night"&&G.st===st)next()},ms);
  enter=function(ph,st){
   _en(ph,st);
   const B=G.P.filter(p=>p.bot&&p.alive);
   if(!B.length)return;
   if(ph==="night"&&st==="mafia"){
-   const maf=B.filter(p=>p.role==="mafia");
-   maf.forEach(p=>{const t=pk(alive().filter(x=>x.role!=="mafia"));if(t)G.nt.mv[p.id]=t.id});
-   if(maf.length){const ms=ofr("mafia");
-    if(ms.every(x=>G.nt.mv[x.id])&&new Set(ms.map(x=>G.nt.mv[x.id])).size===1)
-     setTimeout(()=>{if(G.st==="mafia")next()},1800)}
+   /* البوتات تتفق على ضحية واحدة وإلا انتظر الليل كامل المدة */
+   const maf=B.filter(p=>p.role==="mafia"),t=pk(alive().filter(x=>x.role!=="mafia"));
+   if(t)maf.forEach(p=>{G.nt.mv[p.id]=t.id});
+   if(maf.length&&ofr("mafia").every(x=>G.nt.mv[x.id]))soon("mafia",700);
   }else if(ph==="night"&&st==="doctor"){
    const d=B.find(p=>p.role==="doctor"),t=d&&pk(alive());
-   if(t)G.nt.protect=t.id;
+   if(t){G.nt.protect=t.id;if(allBot(ofr("doctor")))soon("doctor",800)}
   }else if(ph==="night"&&st==="elder"){
    const e=B.find(p=>p.role==="elder"),t=e&&pk(alive().filter(x=>x.id!==e.id));
-   if(t)G.nt.silence=t.id;
+   if(t){G.nt.silence=t.id;if(allBot(ofr("elder"))&&(!G.cfg.invest||G.usedInv))soon("elder",800)}
   }else if(ph==="day"&&st==="vote"){
-   B.forEach(p=>{const t=pk(alive().filter(x=>x.id!==p.id));G.votes[p.id]=t?t.id:"skip"});
+   B.forEach(p=>{const t2=pk(alive().filter(x=>x.id!==p.id));G.votes[p.id]=t2?t2.id:"skip"});
+   if(alive().every(x=>G.votes[x.id]))setTimeout(()=>{if(G.st==="vote")next()},800);
   }
  };
 }
@@ -1027,3 +1138,93 @@ if(MODE==="h"){
 .pb .row .inp::placeholder{color:#8d8194}
 .pb .row .btn{padding:11px 14px;border-radius:14px;min-width:50px;box-shadow:none}
 </style>
+
+<style>
+/* ===== V7: قائمة الخارجين + شريط التأكيد + لوحات المدير ===== */
+.outs{margin:0 0 10px}.outs h4{margin:0 0 6px;font:800 13px Tajawal;color:#ff9aa6;letter-spacing:.4px}
+.outl{display:flex;flex-wrap:wrap;gap:5px}.outl .ou{display:flex;flex-direction:column;gap:1px;padding:4px 9px;border-radius:10px;
+ background:#ff4a5e14;border:1px solid #ff4a5e3d}.outl .ou b{font:800 12.5px Tajawal;color:#ffd0d6}.outl .ou i{font-style:normal;font-size:10.5px;color:#c79aa2;font-weight:700}
+.outl .no{font-style:normal;color:#8d8194;font:700 12px Tajawal}
+.cfmb{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9999;display:none;align-items:center;gap:10px;
+ max-width:min(94vw,620px);padding:11px 14px;border-radius:18px;background:linear-gradient(180deg,#1b1224f2,#0a0710f2);
+ border:1px solid #e8be6e77;box-shadow:0 18px 44px #000b,0 0 26px #e8be6e22;font:700 14.5px Tajawal;color:#f4eef8}
+.cfmb.on{display:flex;animation:cin .3s cubic-bezier(.2,1,.3,1) both}
+.cfmb .lb{flex:1;min-width:0;text-align:center}.cfmb .lb b{color:#ffe9b8}
+.cfmb .yes{padding:10px 20px;border-radius:13px;border:0;cursor:pointer;font:800 15px Tajawal;color:#1a1006;
+ background:linear-gradient(180deg,#f9e0a4,#c08b3a);box-shadow:0 0 22px #e8be6e55}
+.cfmb .no2{padding:9px 14px;border-radius:13px;border:1px solid #ffffff3a;background:#ffffff12;color:#e5dced;font:800 14px Tajawal;cursor:pointer}
+.cfmb.ok{border-color:#2fe0a077}.cfmb.ok .lb b{color:#7dffb0}
+.pv2{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0}.pv2 span{padding:3px 10px;border-radius:99px;background:#00000055;border:1px solid #ffffff22;font:700 12.5px Tajawal;color:#e5dced}
+.pv2 span b{color:#ffe9b8}
+.dcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.dc{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;border-radius:14px;background:#00000045;border:1px solid #ff4a5e4d;font-weight:700;font-size:13.5px}
+.dc.ok{border-color:#2fa86a88;background:#2fa86a1a}.dc b{color:#ff9aa6;font-weight:800}.dc.ok b{color:#7dffb0}
+.vcs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.vcp{padding:5px 12px;border-radius:999px;background:#00000050;border:1px solid #e8be6e4d;font-weight:800;font-size:13px}
+.vcp b{color:var(--gold)}.vcp.sk{border-color:#ffffff26}.vcp.tot{border-color:#4fa3ff66;color:#9ccfff}
+.outsum{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.outsum span{display:flex;gap:6px;align-items:center;padding:4px 10px;border-radius:99px;background:#ff4a5e18;border:1px solid #ff4a5e44;font-weight:800;font-size:12.5px}
+.outsum span i{font-style:normal;color:#c79aa2;font-weight:700}.outb{font-style:normal;font-size:11px;font-weight:800;padding:2px 9px;border-radius:99px;background:#ff4a5e;color:#fff}
+.mcp{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.mcx{flex:1;min-width:180px;padding:10px 12px;border-radius:12px;background:#00000055;border:1px solid #e8be6e4d;color:#f4eef8;font:700 14px Tajawal}
+.mcp select{padding:10px 12px;border-radius:12px;background:#0d0a14;border:1px solid #ffffff2a;color:#e5dced;font:700 13.5px Tajawal}
+.hb2.qk{border-color:#e8be6e66;color:#ffe9b8}
+.hint{margin-top:10px;padding:9px 12px;border-radius:12px;background:#00000038;border:1px solid #ffffff16;color:#c9bcc9;font-weight:600;font-size:13px;line-height:1.6}
+</style>
+<script>
+/* ===== V7: تأكيد القرار + الخارجون + لوحة المدير الحيّة ===== */
+(function(){
+/* ---------- الجوال: شريط التأكيد (اختيار الهدف وحده لا يسجّل قراراً) ---------- */
+if(MODE==="p"){
+ const VERB={kill:"قتل",protect:"حماية",silence:"إسكات",invest:"تحقيق مع",probe:"تحقيق مع",vote:"تصويت"};
+ const bar=document.createElement("div");bar.id="cfm";bar.className="cfmb";document.body.appendChild(bar);
+ const nm=id=>{const t=((P.pub||{}).pl||[]).find(x=>x.i===id);return t?t.n:"?"};
+ /* P.act.k هو نوع المرحلة، ونوع القرار على الشبكة يأتي من الزر نفسه (kill/protect/vote…) */
+ function drawBar(){const a=P.act;if(!a||!a.k){bar.classList.remove("on");return}
+  const done=a.my&&!P.editing;
+  bar.className="cfmb"+(done?" ok":"");
+  if(done){bar.classList.add("on");
+   bar.innerHTML=`<div class="lb">✓ قرارك مسجّل: <b>${esc(a.my==="skip"?"التجاوز":nm(a.my))}</b><small style="display:block;color:#a79a9a;font-size:11.5px">بانتظار بقية القرارات</small></div>`+
+    (a.k==="detective"?"":`<button class="no2" data-a="cfmno">تغيير</button>`);return}
+  if(P.pick==null){
+   if(P.editing){bar.classList.add("on");
+    bar.innerHTML=`<div class="lb">اختر لاعباً جديداً ثم أكّد — قرارك الحالي <b>${esc(a.my==="skip"?"التجاوز":nm(a.my))}</b> يبقى محسوباً حتى يُبدَّل</div><button class="no2" data-a="cfmcn">إلغاء التغيير</button>`}
+   else bar.classList.remove("on");return}
+  bar.classList.add("on");
+  bar.innerHTML=`<div class="lb">تأكيد ${VERB[P.pickK]||""}: <b>${esc(P.pick==="skip"?"التجاوز":nm(P.pick))}</b></div><button class="yes" data-a="cfmyes">تأكيد</button><button class="no2" data-a="cfmcn">إلغاء</button>`}
+ const commit=()=>{if(P.pick==null||!P.pickK)return;
+  if(P.act)P.act.my=P.pick;P.editing=false;
+  SY.tx({t:"act",pid:P.pid,kind:P.pickK,target:P.pick,to:"stage"});P.pick=null;P.pickK="";drawBar();render()};
+ /* يلتقط الضغط قبل بقية المستمعين: لا يُرسَل أي قرار بلا تأكيد */
+ window.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest('[data-a="act"],[data-k="probe"]');
+  if(!b){const y=e.target.closest&&e.target.closest('[data-a="cfmyes"],[data-a="cfmno"],[data-a="cfmcn"]');
+   if(!y)return;e.stopPropagation();e.preventDefault();
+   if(y.dataset.a==="cfmyes")commit();
+   else if(y.dataset.a==="cfmno"){P.editing=true;P.pick=null;P.pickK="";drawBar()}
+   else{P.editing=false;P.pick=null;P.pickK="";drawBar()}return}
+  e.stopPropagation();e.preventDefault();
+  P.editing=false;P.pickK=b.dataset.k||"probe";P.pick=b.dataset.t;
+  document.querySelectorAll(".tg .tt").forEach(x=>x.classList.toggle("sel",x===b));drawBar()},true);
+ /* كل مرحلة جديدة تُسقط الاختيار المعلّق وقرار المرحلة السابقة */
+ SY.fns.push(m=>{if(m.t!=="pub")return;
+  if(m.ph+":"+m.st!==P.step7){P.step7=m.ph+":"+m.st;P.pick=null;P.pickK="";P.editing=false;if(P.act)P.act.my=null}
+  drawBar()});
+ const outH=s=>((s.out||[]).length?`<div class="pv2"><span style="opacity:.7">خرجوا:</span>${s.out.map(x=>`<span>${esc(x.n)} <b>${x.w}</b></span>`).join("")}</div>`:"");
+ /* الأصوات الحيّة + الخارجون على شاشة الجوال: تُحقن فقط في شاشة القرار نفسها، لا في اللوبي */
+ const _v7=view;view=function(){const h=_v7(),s=P.pub;if(!s||!P.joined)return h;
+  if(s.ph==="day"&&s.st==="vote"&&P.act&&P.act.k==="vote"){const pl=s.pl||[],vc=s.vc||{},A=pl.filter(p=>p.a),n=Object.keys(vc).length;
+   const panel=`<div class="pv2">${n?Object.entries(vc).sort((a,b)=>b[1]-a[1]).map(x=>`<span>${esc((pl.find(p=>p.i===x[0])||{}).n||"?")} <b>${x[1]}</b></span>`).join(""):'<span style="opacity:.7">لا أصوات بعد</span>'}<span style="border-color:#4fa3ff66;color:#9ccfff">${s.vs||0}/${A.length} صوّتوا</span></div>`;
+   return h.replace('<div class="pb">','<div class="pb">'+panel)}
+  if(s.out&&s.out.length&&/^(day|night)$/.test(s.ph)&&P.role&&h.indexOf('class="pv2"')<0)return h.replace('</h1>','</h1>'+outH(s));
+  return h};
+}
+/* ---------- لوحة المدير: حقل الرسالة + الحفاظ على ما كُتب + تمييز الأزرار ---------- */
+if(MODE==="h"){
+ let MX="";
+ document.addEventListener("input",e=>{if(e.target&&e.target.id==="mx")MX=e.target.value});
+ document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target&&e.target.id==="mx"){e.preventDefault();const b=document.querySelector('.hb2[data-a="msnd"]:not(.qk)');b&&b.click()}});
+ const _hr7=hRender;hRender=function(){_hr7();const i=$("#mx");if(i&&MX)i.value=MX};
+ const _hc7=hClick;hClick=function(e){const b=e.target.closest&&e.target.closest('[data-a="msnd"]');
+  if(!b){if(e.target&&e.target.id==="mx")return;return _hc7(e)}
+  if(!H.hv)return;const sel=$("#mto"),x=(b.dataset.x||($("#mx")&&$("#mx").value)||"").trim();
+  if(!x)return;cmd("mchat",sel&&sel.value?{x,who:sel.value}:{x});const i=$("#mx");if(i)i.value="";MX=""}};
+})();
+</script>

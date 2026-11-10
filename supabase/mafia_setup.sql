@@ -102,6 +102,20 @@ create policy mafia_events_all on public.mafia_events for all using (true) with 
 drop policy if exists mafia_matches_all on public.mafia_matches;
 create policy mafia_matches_all on public.mafia_matches for all using (true) with check (true);
 
+-- سياسات RLS وحدها لا تكفي: بدون grant على الجدول ومسلسلاته يرفض PostgREST
+-- الكتابة من المتصفح (مفتاح anon) حتى مع using (true).
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on public.mafia_rooms    to anon, authenticated;
+grant select, insert, update, delete on public.mafia_roles    to anon, authenticated;
+grant select, insert, update, delete on public.mafia_actions  to anon, authenticated;
+grant select, insert, update, delete on public.mafia_messages to anon, authenticated;
+grant select, insert, update, delete on public.mafia_events   to anon, authenticated;
+grant select, insert, update, delete on public.mafia_matches  to anon, authenticated;
+grant usage, select, update on sequence public.mafia_actions_id_seq,
+                                public.mafia_messages_id_seq,
+                                public.mafia_events_id_seq,
+                                public.mafia_matches_id_seq     to anon, authenticated;
+
 -- ---------------------------------------------------------------------------
 -- تحديث ختم الوقت تلقائياً
 -- ---------------------------------------------------------------------------
