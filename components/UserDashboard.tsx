@@ -35,6 +35,16 @@ interface UserDashboardProps {
 type DashView = 'home' | 'store' | 'locker' | 'rank' | 'settings';
 type Filter = 'all' | 'free' | FrameRarity;
 
+/* التبويب من الرابط: /user-dashboard?tab=store أو /#store — لتُفتح صفحة المتجر مباشرةً */
+const TABS: DashView[] = ['home', 'store', 'locker', 'rank', 'settings'];
+const readDashTab = (): DashView | null => {
+    try {
+        const q = (new URLSearchParams(window.location.search).get('tab') || '').toLowerCase() as DashView;
+        const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase() as DashView;
+        return TABS.includes(q) ? q : TABS.includes(h) ? h : null;
+    } catch { return null; }
+};
+
 const NAV: { id: DashView; label: string; icon: React.ElementType }[] = [
     { id: 'home', label: 'الرئيسية', icon: Home },
     { id: 'store', label: 'المتجر', icon: ShoppingBag },
@@ -284,7 +294,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
     const username = String(userData.kick_username || (userData as any).kickUsername || '').toLowerCase();
     const userId = userData.id;
 
-    const [view, setView] = useState<DashView>('home');
+    const [view, setView] = useState<DashView>(() => readDashTab() || 'home');
     const [points, setPoints] = useState(Number(userData.points) || 0);
     const [displayName, setDisplayName] = useState(userData.display_name || username);
     const [nameDraft, setNameDraft] = useState(userData.display_name || username);
@@ -800,10 +810,32 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
         notify('تم حفظ التعديلات', 'ok');
     };
 
-    const go = (v: DashView) => {
+    const go = (v: DashView, fromUrl = false) => {
         setView(v);
+        if (!fromUrl) {
+            try {
+                const q = new URLSearchParams(window.location.search);
+                q.set('tab', v);
+                window.history.pushState({}, '', `${window.location.pathname}?${q.toString()}`);
+            } catch { /* رابط غير قابل للتعديل */ }
+        }
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
+
+    /* التبويب جزء من العنوان: رجوع المتصفح يبدّل التبويب، ونداء الموقع يفتحه مباشرةً */
+    useEffect(() => {
+        /* بدون باراميتر التبويب = الرئيسية، حتى يبدّل زر رجوع المتصفح التبويب فعلاً */
+        const sync = () => go(readDashTab() || 'home', true);
+        const pick = (e: Event) => { const v = (e as CustomEvent).detail as DashView; if (TABS.includes(v)) go(v, true); };
+        window.addEventListener('popstate', sync);
+        window.addEventListener('hashchange', sync);
+        window.addEventListener('icg:dashtab', pick as EventListener);
+        return () => {
+            window.removeEventListener('popstate', sync);
+            window.removeEventListener('hashchange', sync);
+            window.removeEventListener('icg:dashtab', pick as EventListener);
+        };
+    }, []);
 
     /* ---------- البلاغات والدعم والبطولات ---------- */
     const setSupBusy = (k: string) => setSupport(s => ({ ...s, busy: k }));

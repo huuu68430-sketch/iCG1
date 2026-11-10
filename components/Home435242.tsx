@@ -9,6 +9,7 @@ interface Home435242Props {
   onSelectGame: (viewId: string) => void;
   onOpenTutorial?: (viewId: string) => void;
   onOpenLeaderboard: () => void;
+  onOpenStore?: () => void;
   isAuthorized?: boolean;
   userRole?: 'admin' | 'user';
   isEditMode?: boolean;
@@ -46,6 +47,7 @@ export const Home435242: React.FC<Home435242Props> = ({
   onSelectGame,
   onOpenTutorial,
   onOpenLeaderboard,
+  onOpenStore,
   isAuthorized,
   userRole,
   isEditMode,
@@ -195,6 +197,9 @@ export const Home435242: React.FC<Home435242Props> = ({
           <a href="#new" onClick={(e) => { e.preventDefault(); scrollToSection('new'); }}>ألعاب جديدة</a>
           <a href="#games" onClick={(e) => { e.preventDefault(); scrollToSection('games'); }}>كل الألعاب</a>
           <button type="button" onClick={onOpenLeaderboard}>لوحة الصدارة</button>
+          {onOpenStore && (
+            <button type="button" onClick={onOpenStore} title="متجر الأوسمة والإطارات">المتجر</button>
+          )}
           {onOpenAdmin && (
             <button type="button" onClick={openAdmin} className="admin-nav" disabled={isAdminChecking}
               title="مركز تحكم الإدارة">

@@ -513,6 +513,17 @@ useEffect(() => {
     }
   };
 
+  /* المتجر تبويب موجود داخل لوحة العضو — الزر يفتحه مباشرةً بدل أن يبحث عنه الزائر */
+  const handleOpenStore = () => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      q.set('tab', 'store');
+      window.history.replaceState({}, '', `${window.location.pathname}?${q.toString()}`);
+    } catch { /* المسار غير قابل للتعديل */ }
+    window.dispatchEvent(new CustomEvent('icg:dashtab', { detail: 'store' }));
+    setCurrentView('USER_DASHBOARD');
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('site_access_granted');
     localStorage.removeItem('iabs_user');
@@ -663,6 +674,7 @@ useEffect(() => {
         <PersonalSitePage
           onPlayNow={() => setCurrentView('HOME')}
           onOpenLeaderboard={() => setCurrentView('LEADERBOARD')}
+          onOpenStore={handleOpenStore}
         />
       );
 
@@ -744,6 +756,7 @@ useEffect(() => {
             onSelectGame={(viewId) => setCurrentView(viewId as any)}
             onOpenTutorial={setTutView}
             onOpenLeaderboard={() => setCurrentView('LEADERBOARD')}
+            onOpenStore={handleOpenStore}
             isAuthorized={isAuthorized}
             userRole={userRole}
             isEditMode={isEditMode}
@@ -822,7 +835,11 @@ useEffect(() => {
           setUserRole(role);
           setIsAuthorized(true);
           const roomLink = new URLSearchParams(window.location.search).get('r') || readShortRoomCode();
-          setCurrentView(readCnRoomCode() ? 'EMOJI_CODE' : roomLink ? 'MAHMAH_GAME' : 'HOME');
+          /* الرابط الذي جلب الزائر (لوحة العضو ومنها المتجر) يبقى وجهته بعد الدخول */
+          const wanted = (initialParams.view !== 'ABOUT' && initialParams.view !== 'HOME')
+            ? initialParams.view
+            : (/^\/user-dashboard/i.test(window.location.pathname) ? 'USER_DASHBOARD' as ViewState : 'HOME');
+          setCurrentView(readCnRoomCode() ? 'EMOJI_CODE' : roomLink ? 'MAHMAH_GAME' : wanted);
         }}
       />
     );
