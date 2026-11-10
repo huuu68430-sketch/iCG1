@@ -8,6 +8,7 @@ import { ViewState } from './types';
 import { GlobalPasswordPage } from './components/GlobalPasswordPage';
 import { PersonalSitePage } from './components/PersonalSitePage';
 import { adminApi } from './services/adminCenter';
+import { memberApi } from './services/memberApi';
 
 /* كل شاشة ثقيلة تُحمَّل عند الطلب — الواجهة الأولى (الموقع الشخصي) ما عاد فيها أن تُحلِّل
    ثلاثين لعبة دفعة واحدة. Fallback شفاف: لا لمحة ولا تغيير في التصميم. */
@@ -180,6 +181,15 @@ const App: React.FC = () => {
   const [adminStaff, setAdminStaff] = useState<{ staff_name: string; role: string } | null>(null);
   const [adminChecked, setAdminChecked] = useState(false);
 
+  /* باب «الإدارة»: لا يظهر لأي عضو — فقط لمن كتب كلمة سر الإدارة فعلاً في هذا المتصفح:
+     جلسة موقع بدور أدمن، أو جلسة مشرف تحقّق منها السيرفر (نتيجة واحدة لكل تبويب).
+     التخزين المحلي لا يمنح صلاحية — اللوحة نفسها ما زالت تُفتح بالسيرفر وحده. */
+  const [adminDoor, setAdminDoor] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    if (readSession('site_access_granted')?.role === 'admin') return true;
+    return sessionStorage.getItem('icg1_admin_session') === '1';
+  });
+
 
   const [activeAnnouncement, setActiveAnnouncement] = useState<string | null>(null);
 
@@ -342,24 +352,29 @@ const App: React.FC = () => {
   }, [isOBSMode]);
 
   // Restore server-side session (Kick OAuth) on mount
+  // جلسة الأدمن المحلية لا تُستبدل بحساب عضو: بدون هذا الحارس يُعيد /api/me
+  // تصنيف الأدمن كـ«مستخدم» بعد تسجيل الخروج أو بعد إعادة التحميل.
   useEffect(() => {
+    if (readSession('site_access_granted')?.role === 'admin') return;
+    let alive = true;
     fetch('/api/me', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data?.user) {
-          const u = data.user;
-          localStorage.setItem('iabs_user', JSON.stringify({
-            id: u.id,
-            display_name: u.display_name || u.kick_username,
-            kick_username: u.kick_username,
-            avatar: u.avatar || '',
-            points: u.points || 0,
-          }));
-          setIsAuthorized(true);
-          setUserRole('user');
-        }
+        if (!alive || !data?.user) return;
+        if (readSession('site_access_granted')?.role === 'admin') return;
+        const u = data.user;
+        localStorage.setItem('iabs_user', JSON.stringify({
+          id: u.id,
+          display_name: u.display_name || u.kick_username,
+          kick_username: u.kick_username,
+          avatar: u.avatar || '',
+          points: u.points || 0,
+        }));
+        setIsAuthorized(true);
+        setUserRole(prev => (prev === 'admin' ? 'admin' : 'user'));
       })
       .catch(() => {});
+    return () => { alive = false; };
   }, []);
 
   // Global Chat Connection
@@ -466,11 +481,33 @@ useEffect(() => {
     adminApi.me().then(r => {
         if (!alive) return;
         setAdminChecked(true);
-        if (r.ok && r.staff) setAdminStaff(r.staff);
-        else setCurrentView('ADMIN_LOGIN');
+        if (r.ok && r.staff) {
+          setAdminStaff(r.staff);
+          sessionStorage.setItem('icg1_admin_session', '1');
+          setAdminDoor(true);
+        } else {
+          sessionStorage.removeItem('icg1_admin_session');
+          setCurrentView('ADMIN_LOGIN');
+        }
     });
     return () => { alive = false; };
 }, [currentView, adminChecked]);
+
+  /* باب «الإدارة» في صفحة الألعاب: تحقق واحد لكل تبويب. بلا كوكي إدارية لا يُلمس
+     قاعدة البيانات إطلاقاً (السيرفر يرفض قبل أي استعلام)، فلا كلفة على الزوّار.
+     الطلب محفوظ في ref: إعادة تركيب StrictMode لا تُلغيه ولا تكرّره. */
+  const adminProbe = useRef<Promise<boolean> | null>(null);
+  useEffect(() => {
+    if (adminDoor) return;
+    if (!adminProbe.current) adminProbe.current = adminApi.me().then(r => !!r.ok).catch(() => false);
+    let alive = true;
+    adminProbe.current.then(ok => {
+      if (!alive || !ok) return;
+      sessionStorage.setItem('icg1_admin_session', '1');
+      setAdminDoor(true);
+    });
+    return () => { alive = false; };
+  }, [adminDoor]);
 
   // الصفحة الشخصية (/about) هي الرئيسية للموقع كاملًا للجميع:
   // «ادخل العب الآن» يدخل مباشرة إلى شبكة الألعاب (HOME) وحسابه معه.
@@ -485,6 +522,9 @@ useEffect(() => {
     await adminApi.logout();
     setAdminStaff(null);
     setAdminChecked(false);
+    sessionStorage.removeItem('icg1_admin_session');
+    adminProbe.current = null;
+    setAdminDoor(false);
     // الخروج يُرجِع لصفحة الألعاب مباشرة: لا سبب لإبقاء من غادر اللوحة أمام بوابة فارغة.
     setCurrentView('HOME');
   };
@@ -496,6 +536,8 @@ useEffect(() => {
     if (r.ok && r.staff) {
       setAdminStaff({ staff_name: r.staff.staff_name, role: r.staff.role });
       setAdminChecked(true);
+      sessionStorage.setItem('icg1_admin_session', '1');
+      setAdminDoor(true);
       setCurrentView('ADMIN_PANEL');
     } else {
       setAdminStaff(null);
@@ -514,22 +556,37 @@ useEffect(() => {
     }
   };
 
-  /* المتجر تبويب موجود داخل لوحة العضو — الزر يفتحه مباشرةً بدل أن يبحث عنه الزائر */
-  const handleOpenStore = () => {
-    try {
-      const q = new URLSearchParams(window.location.search);
-      q.set('tab', 'store');
-      window.history.replaceState({}, '', `${window.location.pathname}?${q.toString()}`);
-    } catch { /* المسار غير قابل للتعديل */ }
-    window.dispatchEvent(new CustomEvent('icg:dashtab', { detail: 'store' }));
-    setCurrentView('USER_DASHBOARD');
-  };
+  /* المتجر بقي داخل لوحة العضو (?tab=store) — لا زر له في شريط صفحة الألعاب */
 
-  const handleLogout = () => {
+  /* الخروج الحقيقي: كوكي الجلسة HttpOnly لا يُمسح بمسح التخزين المحلي — لو بقي
+     فإن /api/me يُعيد تسجيله عضواً ويُلغي دخول الأدمن. لذا نُلغي الجلسة في
+     السيرفر (كيك + جلسة المتجر) أولًا، ثم ننظّف الحالة المحلية ونُعيد التحميل. */
+  const handleLogout = async () => {
+    let csrf = '';
+    try {
+      const m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+      if (m) csrf = decodeURIComponent(m[1]);
+    } catch { /* لا كوكي — نكتفي بالمسح المحلي */ }
+
+    const revoke = async () => {
+      await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: csrf ? { 'x-csrf-token': csrf } : {},
+      }).catch(() => { });
+      await memberApi.end();
+      // جلسة مركز التحكم تُلغاء هي الأخرى: خروج العضو لا يترك باب الإدارة مفتوحاً في المتصفح
+      await adminApi.logout();
+    };
+    // زر الخروج لا ينتظر السيرفر إلى ما لا نهاية: 2.5 ثانية ثم نتابع
+    await Promise.race([revoke(), new Promise(resolve => setTimeout(resolve, 2500))]);
+
     localStorage.removeItem('site_access_granted');
     localStorage.removeItem('iabs_user');
+    sessionStorage.removeItem('icg1_admin_session');
     setIsAuthorized(false);
-    setUserRole('admin');
+    setUserRole('user');
+    setAdminDoor(false);
     setCurrentView('HOME');
     window.location.reload(); // Refresh to ensure clean state
   };
@@ -636,6 +693,8 @@ useEffect(() => {
         <AdminLogin onBack={() => setCurrentView('HOME')} onSuccess={(staffName, role) => {
           setAdminStaff({ staff_name: staffName, role });
           setAdminChecked(true);
+          sessionStorage.setItem('icg1_admin_session', '1');
+          setAdminDoor(true);
           setCurrentView('ADMIN_PANEL');
         }} />
       );
@@ -675,7 +734,6 @@ useEffect(() => {
         <PersonalSitePage
           onPlayNow={() => setCurrentView('HOME')}
           onOpenLeaderboard={() => setCurrentView('LEADERBOARD')}
-          onOpenStore={handleOpenStore}
         />
       );
 
@@ -757,7 +815,6 @@ useEffect(() => {
             onSelectGame={(viewId) => setCurrentView(viewId as any)}
             onOpenTutorial={setTutView}
             onOpenLeaderboard={() => setCurrentView('LEADERBOARD')}
-            onOpenStore={handleOpenStore}
             isAuthorized={isAuthorized}
             userRole={userRole}
             isEditMode={isEditMode}
@@ -765,7 +822,7 @@ useEffect(() => {
             saveGamesOrder={saveGamesOrder}
             isSavingGames={isSavingGames}
             handleLogout={handleLogout}
-            onOpenAdmin={handleOpenAdmin}
+            onOpenAdmin={adminDoor || userRole === 'admin' ? handleOpenAdmin : undefined}
           />
         );
       }
