@@ -5,10 +5,19 @@ import { env, isProduction } from './env';
 
 // 🔒 Fail-closed: في الإنتاج، غياب السر يمنع التوقيع/التحقق — لكنه لا يُسقط وحدة الدالة
 // (وإلا عطّل مسارات لا تحتاجه مثل وسيط Creators). لذلك يُرمى عند الاستخدام فقط.
-const _sessionSecret = env('SESSION_SECRET');
-const _hmacSecret = env('CODE_HMAC_SECRET');
+// الأسرار الصريحة لها الأولوية. وإن غابت من بيئة النشر نشتق مفتاحاً من سر خدمة
+// Supabase الموجود أصلاً في السيرفر: HMAC لا يكشف الأصل، وفصل التسمية يعطي كل غرض
+// مفتاحاً مستقلاً. بلا أي سرّ يبقى الرفض قائماً — لا توقيع بمفتاح تطوير في الإنتاج.
+const rootSecret = env('SUPABASE_SECRET_KEY') || env('SUPABASE_SERVICE_ROLE_KEY');
+const derived = (label: string) =>
+  rootSecret ? crypto.createHmac('sha256', rootSecret).update(`icg1/${label}/v1`).digest('base64url') : '';
+const _sessionSecret = env('SESSION_SECRET') || derived('session-jwt');
+const _hmacSecret = env('CODE_HMAC_SECRET') || derived('code-hmac');
 const SESSION_SECRET = _sessionSecret || 'dev-insecure-secret-change-me';
 const CODE_HMAC_SECRET = _hmacSecret || 'dev-insecure-hmac-change-me';
+
+/** السر الفعلي لتوقيع الجلسات — تستعمله مسارات العضو أيضاً كي يبقى التجزئة موحّدة */
+export const sessionSecret = (): string => SESSION_SECRET;
 
 function requireSecrets() {
   if (isProduction() && (!_sessionSecret || !_hmacSecret)) {

@@ -22540,8 +22540,10 @@ var supabaseAdmin = new Proxy({}, {
 var isSupabaseConfigured = !!(url && key && /^https?:\/\//.test(url));
 
 // api/_lib/auth.ts
-var _sessionSecret = env("SESSION_SECRET");
-var _hmacSecret = env("CODE_HMAC_SECRET");
+var rootSecret = env("SUPABASE_SECRET_KEY") || env("SUPABASE_SERVICE_ROLE_KEY");
+var derived = (label) => rootSecret ? crypto2.createHmac("sha256", rootSecret).update(`icg1/${label}/v1`).digest("base64url") : "";
+var _sessionSecret = env("SESSION_SECRET") || derived("session-jwt");
+var _hmacSecret = env("CODE_HMAC_SECRET") || derived("code-hmac");
 var SESSION_SECRET = _sessionSecret || "dev-insecure-secret-change-me";
 var CODE_HMAC_SECRET = _hmacSecret || "dev-insecure-hmac-change-me";
 function requireSecrets() {
@@ -22593,8 +22595,8 @@ function legacySha256(pin) {
 }
 function hashPasswordNew(pin) {
   const salt = crypto2.randomBytes(16).toString("hex");
-  const derived = crypto2.scryptSync(pin, salt, 64).toString("hex");
-  return `scrypt$${salt}$${derived}`;
+  const derived2 = crypto2.scryptSync(pin, salt, 64).toString("hex");
+  return `scrypt$${salt}$${derived2}`;
 }
 async function verifyBcrypt(pin, hash) {
   try {
@@ -22612,9 +22614,9 @@ async function verifyPassword(pin, stored) {
     return { ok: ok4, needsUpgrade: false };
   }
   if (stored.startsWith("scrypt$")) {
-    const [, salt, derived] = stored.split("$");
+    const [, salt, derived2] = stored.split("$");
     const check = crypto2.scryptSync(pin, salt, 64).toString("hex");
-    const ok4 = crypto2.timingSafeEqual(Buffer.from(check, "hex"), Buffer.from(derived, "hex"));
+    const ok4 = crypto2.timingSafeEqual(Buffer.from(check, "hex"), Buffer.from(derived2, "hex"));
     return { ok: ok4, needsUpgrade: false };
   }
   const a = Buffer.from(legacySha256(pin));

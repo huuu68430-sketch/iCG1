@@ -4,8 +4,8 @@
 // إذا وُجدت جلسة حساب حقيقي (تسجيل دخول فعلي) تُقدَّم وتُسجَّل البلاغات موثّقة.
 import crypto from 'crypto';
 import { supabaseAdmin } from './supabase';
-import { signJwt, verifyJwt, generateJti, requireSession } from './auth';
-import { env, isProduction } from './env';
+import { signJwt, verifyJwt, generateJti, requireSession, sessionSecret } from './auth';
+import { isProduction } from './env';
 
 export const MEMBER_COOKIE = 'icg1_member';
 const MEMBER_TTL = 7 * 24 * 3600;
@@ -19,7 +19,7 @@ export interface Member {
 const clean = (v: any) => String(v ?? '').trim().toLowerCase().slice(0, 64);
 
 export function memberSecret(): string {
-    return env('SESSION_SECRET') || 'dev-insecure-secret-change-me';
+    return sessionSecret();
 }
 
 export async function requireMember(req: any): Promise<Member | null> {
