@@ -358,9 +358,9 @@ const S={page:"lobby",P:[],seed:0,bd:null,rev:[],turn:"red",phase:"clue",clue:nu
 const pl=id=>S.P.find(p=>p.id===String(id).toLowerCase()),team=t=>S.P.filter(p=>p.team===t),lead=t=>S.P.find(p=>p.team===t&&p.leader),appr=t=>S.P.find(p=>p.team===t&&p.appr);
 const rem=t=>S.bd.keys.filter((k,i)=>k===t&&!S.rev.includes(i)).length;
 const logAdd=(t,m)=>{S.log.unshift([t,m]);S.log=S.log.slice(0,9)};
-function addPlayer(name,avatar){name=String(name||"").replace(/[<>&"']/g,"").trim().slice(0,18);if(!name)return false;
+function addPlayer(name,avatar,host){name=String(name||"").replace(/[<>&"']/g,"").trim().slice(0,18);if(!name)return false;
  const ex=pl(name);if(ex){if(avatar){ex.avatar=avatar;render()}return false}
- if(S.page!=="lobby"&&S.page!=="leaders"&&S.page!=="approver"&&S.page!=="qr"){toast("اللعبة بدأت — الإضافة متاحة قبل بدء اللعب فقط");return false}
+ if(!host&&S.page!=="lobby"&&S.page!=="leaders"&&S.page!=="approver"&&S.page!=="qr"){toast("اللعبة بدأت — الإضافة متاحة قبل بدء اللعب فقط");return false}
  if(S.P.length>=CFG.maxPlayers){toast("اللعبة ممتلئة ("+CFG.maxPlayers+" لاعباً)");return false}
  const p={id:name.toLowerCase(),name,team:null,leader:false,appr:false,c:0,v:0,col:COLS[[...name].reduce((a,c)=>a+c.charCodeAt(0),0)%COLS.length],avatar:avatar||""};
  S.P.push(p);if(S.page!=="lobby"){const r=team("red").length,b=team("blue").length;p.team=r<=b?"red":"blue"}tone(740,.1,0,.07,'triangle');render();frameOf(p.name);return true}
@@ -461,7 +461,7 @@ window.chatMessage=(user,text,avatar)=>{text=ar(text).trim();const tnorm=text.to
   const isJoin=text===CFG.joinWord||/دخول|عشوائي|join/.test(nt);
   if(ex){frameOf(user);if(avatar&&ex.avatar!==avatar){ex.avatar=avatar;render()}}
   let player=ex;
-  if(!player && (isJoin||isRed||isBlue)){player=addPlayer(user,avatar)?pl(user):pl(user);}
+  if(!player && (isJoin||isRed||isBlue)){if(S.ban.has(String(user).toLowerCase().trim()))return;player=addPlayer(user,avatar)?pl(user):pl(user);}
   if(!player) return;
   if(isRed){const r=team("red").length,b=team("blue").length;if(!player.team){player.team=r<=b?"red":"blue"}else if(player.team!=="red"){player.team="red"}render();return true}
   if(isBlue){const r=team("red").length,b=team("blue").length;if(!player.team){player.team=b<=r?"blue":"red"}else if(player.team!=="blue"){player.team="blue"}render();return true}
@@ -482,10 +482,40 @@ const _aa0=window.applyAvatar;window.applyAvatar=(u,a)=>{noteChat(u,a);return _a
 /* إضافة لاعب حقيقي من الشات: يُسنَد لفريق متوازن فوراً ليعرفه النظام من حسابه عند الدخول */
 function addChatPlayer(handle,avatar){const h=String(handle||"").toLowerCase().trim();if(!h)return false;
  const c=CHAT[h],disp=(c&&c.name)||String(handle);
- const ok=addPlayer(disp,avatar||(c&&c.avatar)),p=pl(h);
- if(p&&!p.team){const r=team("red").length,b=team("blue").length;p.team=r<=b?"red":"blue"}
- if(p){render();bcast()}
+ const ok=hostAdd(disp,avatar||(c&&c.avatar)),p=pl(h);
+ if(p&&!p.team){const r=team("red").length,b=team("blue").length;p.team=r<=b?"red":"blue";rosterChanged()}
  return ok}
+/* ===== إدارة اللاعبين من التحكم — تعمل أثناء اللعب أيضاً: إضافة لفريق محدد، نقل، طرد ===== */
+S.addT="auto";S.ban=new Set();let kickC="",kickT=0;
+const live=()=>S.page==="game"&&!S.over;
+/* كل فريق يبقى له ليدر، وأثناء اللعب معتمد غير الليدر */
+function fixRoles(){["red","blue"].forEach(x=>{if(!lead(x))randLead(x,1);const L=lead(x);if(L&&L.appr)L.appr=false;
+ if(S.page==="approver"||S.page==="game"){if(!appr(x))randAppr(x,1)}})}
+function dropVotes(id){const u=S.uv[id];if(!u)return;u.forEach(n=>{const a=S.votes[n];if(!a)return;const k=a.indexOf(id);if(k>=0)a.splice(k,1);if(!a.length)delete S.votes[n]});delete S.uv[id]}
+function rosterChanged(){fixRoles();leadGate(true);render();bcast()}
+function hostAdd(name,avatar){const ok=addPlayer(name,avatar,true),p=ok?S.P[S.P.length-1]:pl(name);
+ if(!ok){if(p)toast(p.name+" موجود في اللعبة");return false}
+ S.ban.delete(p.id);
+ if(S.addT==="red"||S.addT==="blue")p.team=S.addT;
+ if(live())logAdd(p.team,`أضاف الهوست ${p.name} للفريق ${TN[p.team]}`);
+ rosterChanged();return true}
+function kickPlayer(id){const p=pl(id);if(!p)return"";
+ if(live()&&p.team&&team(p.team).length<=2)return"الفريق "+TN[p.team]+" يحتاج لاعبين على الأقل أثناء اللعب — أضف لاعباً أولاً";
+ dropVotes(p.id);S.P.splice(S.P.indexOf(p),1);S.ban.add(p.id);
+ if(live())logAdd(p.team,`طرد الهوست ${p.name}`);
+ rosterChanged();return""}
+function setTeam(id,t){const p=pl(id);if(!p||(t!=="red"&&t!=="blue")||p.team===t)return"";
+ if(live()&&p.team&&team(p.team).length<=2)return"الفريق "+TN[p.team]+" يحتاج لاعبين على الأقل أثناء اللعب";
+ dropVotes(p.id);p.team=t;p.leader=false;p.appr=false;
+ if(live())logAdd(t,`${p.name} انتقل إلى الفريق ${TN[t]}`);
+ rosterChanged();return""}
+function drawRoster(){const box=$("#ctlRoster");if(!box)return;
+ const cnt=$("#cpCnt");if(cnt)cnt.textContent=S.P.length+"/"+CFG.maxPlayers;
+ const row=p=>{const k=kickC===p.id,id=esc(p.id);return`<div class="rr ${p.team||""}">${av(p,26)}<span class="rn">${esc(p.name)}${p.leader?`<i title="الليدر">${ic("crown")}</i>`:p.appr?`<i title="المعتمد">${ic("shield")}</i>`:""}</span><div class="seg"><button data-a="pT" data-id="${id}" data-t="red" class="r ${p.team==="red"?"on":""}">أحمر</button><button data-a="pT" data-id="${id}" data-t="blue" class="b ${p.team==="blue"?"on":""}">أزرق</button></div><button class="kx ${k?"cf":""}" data-a="pK" data-id="${id}" title="طرد ${esc(p.name)}">${k?"تأكيد":ic("x")}</button></div>`};
+ const grp=(t,l)=>{const m=S.P.filter(p=>(p.team||"")===t);return m.length?`<div class="rg"><small>${l} · ${m.length}</small>${m.map(row).join("")}</div>`:""};
+ box.innerHTML=S.P.length?grp("red","الفريق الأحمر")+grp("blue","الفريق الأزرق")+grp("","بلا فريق بعد"):`<span class="emp3">${ic("users")} لا يوجد لاعبون بعد</span>`;
+ drawChatPick()}
+const _rd0=render;render=function(){_rd0();drawRoster()};
 let cpT=0;function chatPickSoon(){if(cpT)return;cpT=setTimeout(()=>{cpT=0;drawChatPick()},400)}
 function drawChatPick(){const box=$("#chatPick");if(!box)return;
  const full=S.P.length>=CFG.maxPlayers;
@@ -520,8 +550,13 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-a]");
  else if(a==="mClue"){const e=setClue(S.turn,$("#cw").value,+$("#cnn").value||0);if(e)toast(e)}
  else if(a==="mFlip"){if(!flip(+$("#cfn").value))toast("لا يمكن قلب هذه البطاقة الآن")}
  else if(a==="tm"){CFG[t]=Math.max(20,Math.min(300,CFG[t]+(+b.dataset.d)*10));ctlDraw()}
- else if(a==="addp"){if(addPlayer($("#cpn").value))$("#cpn").value=""}
+ else if(a==="addp"){if(hostAdd($("#cpn").value))$("#cpn").value=""}
  else if(a==="addchat"){const h=b.dataset.h,c=CHAT[h];if(addChatPlayer(h,c&&c.avatar))toast("أُضيف "+(c?c.name:h)+" — يدخل بحسابه من نفس الرابط");ctlDraw()}
+ else if(a==="addT"){S.addT=t;$("#ctl").querySelectorAll('[data-a="addT"]').forEach(x=>x.classList.toggle("on",x.dataset.t===t))}
+ else if(a==="pT"){const e=setTeam(id,t);if(e)toast(e)}
+ else if(a==="pK"){clearTimeout(kickT);
+  if(kickC!==id){kickC=id;kickT=setTimeout(()=>{kickC="";drawRoster()},3000);drawRoster();return}
+  kickC="";const p=pl(id),n=p?p.name:"";const e=kickPlayer(id);toast(e||"تم طرد "+n);drawRoster()}
  });
 /* كليك يمين على البطاقة = Mark سريع من اللوحة، بدون تغيير سلوك الكليك الأيسر */
 document.addEventListener("contextmenu",e=>{const c=e.target.closest(".cd");if(!c||S.page!=="game"||S.over||S.phase!=="guess")return;e.preventDefault();mark(+c.dataset.n)});
@@ -533,8 +568,10 @@ $("#bAdd").onclick=()=>{$("#ctl").classList.add("on");ctlDraw();setTimeout(()=>$
 $("#bEnd").onclick=()=>{if(!S.endC){S.endC=true;$("#bEnd").innerHTML=ic("power")+"تأكيد الإنهاء؟";setTimeout(()=>{S.endC=false;$("#bEnd").innerHTML=ic("power")+"إنهاء اللعبة"},3000)}else{S.endC=false;$("#bEnd").innerHTML=ic("power")+"إنهاء اللعبة";resetAll(true)}};
 $("#bExit").onclick=()=>{try{window.parent.postMessage({type:"codenames-exit"},"*")}catch(e){}};
 const tg=(k,l)=>`<div class="tg2"><span>${l}</span><button class="${S[k]?"on":""}" data-a="tg" data-t="${k}" aria-label="${l}"></button></div>`;
-function ctlDraw(){$("#ctl").innerHTML=`<h3>${ic("userplus")}اللاعبون</h3><div class="row"><input id="cpn" placeholder="اسم لاعب / بوت" maxlength="18"><button class="hb" data-a="addp">إضافة</button></div>
-<h3>${ic("users")}لاعبون من الشات (حقيقيون)</h3><div id="chatPick" class="cpick"></div><p class="tip">أضف لاعباً حقيقياً من الشات بحسابه — يدخل من نفس الرابط ويعرفه النظام تلقائياً. الإضافة اليدوية أعلاه تبقى للأسماء/البوتات. (${S.P.length}/${CFG.maxPlayers})</p>
+function ctlDraw(){$("#ctl").innerHTML=`<h3>${ic("userplus")}إضافة لاعب</h3><div class="row"><input id="cpn" placeholder="اسم لاعب / بوت" maxlength="18"><button class="hb" data-a="addp">إضافة</button></div>
+<div class="seg3"><span>يدخل إلى</span>${["auto","red","blue"].map(x=>`<button data-a="addT" data-t="${x}" class="${x} ${S.addT===x?"on":""}">${{auto:"تلقائي",red:"الأحمر",blue:"الأزرق"}[x]}</button>`).join("")}</div>
+<h3>${ic("users")}لاعبون من الشات (حقيقيون)</h3><div id="chatPick" class="cpick"></div><p class="tip">أضف لاعباً حقيقياً من الشات بحسابه — يدخل من نفس الرابط ويعرفه النظام تلقائياً. الإضافة اليدوية أعلاه تبقى للأسماء/البوتات. (<span id="cpCnt">${S.P.length}/${CFG.maxPlayers}</span>)</p>
+<h3>${ic("shuffle")}إدارة اللاعبين</h3><div id="ctlRoster"></div><p class="tip">غيّر فريق أي لاعب أو اطرده — حتى أثناء اللعب. إذا خرج الليدر أو المعتمد من فريقه يُختار بديله تلقائياً.</p>
 <h3>${ic("flag")}اللعبة</h3><button class="hb" style="width:100%;margin-bottom:6px" data-a="skipT">${ic("skip")}تخطي الدور</button>
 <div class="row"><input id="cw" placeholder="تلميح يدوي"><input id="cnn" type="number" min="0" max="9" value="1" style="max-width:62px"></div><button class="hb" style="width:100%;margin-bottom:6px" data-a="mClue">${ic("mega")}تعيين التلميح للدور الحالي</button>
 <div class="row"><input id="cfn" type="number" min="1" max="25" placeholder="رقم البطاقة"><button class="hb" data-a="mFlip">قلب</button></div>
@@ -544,7 +581,7 @@ ${tg("markMode","الكليك يعمل تحديد بدل القلب")}
 <p class="tip">التحديد ≠ اعتماد: البطاقة تُعلَّم كمرشّحة وتبقى مقلوبة اللون، وأصوات الشات تبقى ظاهرة عليها. كليك يمين على أي بطاقة = تحديد سريع.</p>
 <h3>${ic("clock")}المؤقت (ثانية)</h3><div class="tg2"><span>مهلة التلميح</span><div style="display:flex;flex-direction:column;align-items:center;gap:2px"><button class="hb" data-a="tm" data-t="clueTime" data-d="1">▲</button><b>${CFG.clueTime}</b><button class="hb" data-a="tm" data-t="clueTime" data-d="-1">▼</button></div></div><div class="tg2"><span>وقت الجولة</span><div style="display:flex;flex-direction:column;align-items:center;gap:2px"><button class="hb" data-a="tm" data-t="guessTime" data-d="1">▲</button><b>${CFG.guessTime}</b><button class="hb" data-a="tm" data-t="guessTime" data-d="-1">▼</button></div></div>
 <p class="tip">عدّاد واحد للجولة: يبدأ مع بداية الدور ويكمل من نفس الرقم بعد التلميح وبعد كل بطاقة معتمدة — لا إعادة ضبط.</p>
-<h3>${ic("sliders")}خيارات</h3>${tg("manual","القلب بالنقر على البطاقة")}`;drawChatPick()}
+<h3>${ic("sliders")}خيارات</h3>${tg("manual","القلب بالنقر على البطاقة")}`;drawRoster()}
 /* ===== صفحة الدخول (الهاتف): رابط واحد للجميع، والهوية من حساب iCG1 ===== */
 let joinIdent=null;
 function joinBoot(){
@@ -690,6 +727,22 @@ if(Q.get("r"))joinBoot();else{S.page="lobby";render()}
 .cpk:disabled{opacity:.45;cursor:not-allowed}
 .emp3{display:flex;align-items:center;gap:7px;justify-content:center;padding:12px 8px;border-radius:10px;background:rgba(255,255,255,.04);border:1px dashed rgba(110,170,255,.3);color:#8fa6d4;font:700 12.5px Tajawal;text-align:center}
 .emp3 .ic{width:16px;height:16px;flex:none;stroke-width:2}
+.ctl .seg3{display:flex;align-items:center;gap:5px;margin:0 0 6px;font:700 12.5px Tajawal;color:var(--mut)}
+.ctl .seg3 span{flex:1}
+.ctl .seg3 button,.rr .seg button{padding:5px 10px;border-radius:9px;font:800 12px Tajawal;background:rgba(255,255,255,.06);border:1px solid rgba(120,175,255,.3);color:#cfdcf5;transition:.15s}
+.ctl .seg3 button:hover,.rr .seg button:hover{background:rgba(120,175,255,.2)}
+.ctl .seg3 button.on{background:#2a6fd6;border-color:#2a6fd6;color:#fff}
+.ctl .seg3 button.red.on,.rr .seg button.r.on{background:linear-gradient(135deg,var(--red),var(--red2));border-color:var(--red);color:#fff}
+.ctl .seg3 button.blue.on,.rr .seg button.b.on{background:linear-gradient(135deg,var(--blue),var(--blue2));border-color:var(--blue);color:#fff}
+.rg{margin-bottom:8px}.rg>small{display:block;margin:0 2px 4px;font:800 11px Tajawal;color:var(--mut)}
+.rr{display:flex;align-items:center;gap:7px;padding:5px 7px;margin-bottom:4px;border-radius:11px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);border-right:3px solid rgba(255,255,255,.2)}
+.rr.red{border-right-color:var(--red)}.rr.blue{border-right-color:var(--blue)}
+.rr .rn{flex:1;min-width:0;display:flex;align-items:center;gap:4px;font:800 13px Tajawal;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.rr .rn i{display:inline-flex;color:#ffd166;flex:none}.rr .rn .ic{width:13px;height:13px}
+.rr .seg{display:flex;gap:3px;flex:none}.rr .seg button{padding:4px 7px;font-size:11px}
+.rr .kx{flex:none;display:grid;place-items:center;min-width:26px;height:26px;padding:0 6px;border-radius:8px;border:1px solid rgba(255,120,150,.5);color:#ffb3c6;background:transparent;font:800 11px Tajawal;transition:.15s}
+.rr .kx:hover{background:rgba(255,80,120,.2)}.rr .kx.cf{background:#d6334f;border-color:#d6334f;color:#fff}
+.rr .kx .ic{width:14px;height:14px;stroke-width:2.6}
 </style>
 </body>
 </html>
