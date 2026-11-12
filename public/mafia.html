@@ -400,7 +400,7 @@ let hb;const heart=on=>{clearInterval(hb);if(on)hb=setInterval(()=>{tone(62,.16,
 const fan=()=>[523,659,784,1047,1319].forEach((f,i)=>tone(f,.5,i*.13,.12,"triangle")),sting=()=>{tone(110,1,0,.2,"sawtooth");tone(116,1,0,.15,"sawtooth")};
 
 /* ===== المنصة: منطق اللعبة ===== */
-var G={ph:"join",st:"",rd:0,P:[],cfg:{auto:true,mafia:1,doctor:1,elder:1,tDec:25,tDay:120,tVote:40,manual:0,invest:true,reveal:false},nt:{mv:{}},logs:[],chat:[],mchat:[],votes:{},out:[],tEnd:0,tTot:0,win:null,res:null,pause:false,crit:false,fresh:new Set(),hit:null,usedInv:false};
+var G={ph:"join",st:"",rd:0,P:[],cfg:{auto:true,mafia:1,doctor:1,elder:1,tDec:25,tDay:120,tVote:40,manual:0,invest:true,reveal:false},nt:{mv:{}},logs:[],chat:[],mchat:[],votes:{},out:[],tEnd:0,tTot:0,win:null,res:null,pause:false,crit:false,fresh:new Set(),hit:null,usedInv:false,lastDoc:0,lastEld:0};
 const pl=id=>G.P.find(p=>p.id===id),alive=()=>G.P.filter(p=>p.alive),ofr=r=>alive().filter(p=>p.role===r);
 const NIGHT=["nightfall","mafia","m_sleep","doctor","d_sleep","elder","e_sleep","op1","op2","op3"],DUR={nightfall:2.2,m_sleep:1,d_sleep:1,e_sleep:1,op1:2.4,op2:2,op3:5,res:4};
 function qrImg(u){try{const q=qrcode(0,"M");q.addData(u);q.make();return`<img alt="QR" src="${q.createDataURL(6,2)}">`}catch(e){return`<span style="color:#111;font-weight:800;padding:8px">استخدم الرابط</span>`}}
@@ -423,7 +423,7 @@ function privFor(p){const o={t:"priv",to:p.id,role:p.role,muted:p.muted?1:0,aliv
 const privSend=p=>SY.tx(privFor(p));
 /* اللوحة لا تستقبل الحالة إلا بعد أن تُثبت نفسها بمفتاح الغرفة — لا تُبث هوية أي لاعب لمجرد من يملك الرابط */
 let HOSTOK=0;
-function hostSync(){if(!HOSTOK)return;tx("host",{t:"hv",k:HK,ph:G.ph,st:G.st,rd:G.rd,tl:Math.max(0,G.tEnd-Date.now())/1000,pa:G.pause?1:0,cfg:G.cfg,pn:plan(),min:CFG.min,mx:CFG.max,P:G.P.map(p=>({i:p.id,n:p.name,r:p.role,a:p.alive?1:0,b:p.bot?1:0,rd:p.ready?1:0,m:p.muted?1:0})),nt:G.nt,mc:G.mchat.slice(-30),dc:G.chat.slice(-40),out:G.out,vv:G.votes,vc:vcount(),due:G.cfg.manual&&G.due===G.rd+G.st?1:0,lg:G.logs.slice(-40),win:G.win,link:link("p")})}
+function hostSync(){if(!HOSTOK)return;tx("host",{t:"hv",k:HK,ph:G.ph,st:G.st,rd:G.rd,ld:G.lastDoc||0,le:G.lastEld||0,tl:Math.max(0,G.tEnd-Date.now())/1000,pa:G.pause?1:0,cfg:G.cfg,pn:plan(),min:CFG.min,mx:CFG.max,P:G.P.map(p=>({i:p.id,n:p.name,r:p.role,a:p.alive?1:0,b:p.bot?1:0,rd:p.ready?1:0,m:p.muted?1:0})),nt:G.nt,mc:G.mchat.slice(-30),dc:G.chat.slice(-40),out:G.out,vv:G.votes,vc:vcount(),due:G.cfg.manual&&G.due===G.rd+G.st?1:0,lg:G.logs.slice(-40),win:G.win,link:link("p")})}
 const lg=x=>{G.logs.push(x)};
 /* --- المراحل --- */
 /* النقاش لا يُمحى بين الجولات: اللوحة تُعيد رسم السجل المحفوظ بدل أن تُفرَّغ */
@@ -451,10 +451,10 @@ function enter(ph,st){const A=alive();
 function resolveKill(){const mv=Object.values(G.nt.mv).filter(t=>pl(t)&&pl(t).alive);let t;if(mv.length){const c={};mv.forEach(x=>c[x]=(c[x]||0)+1);const mx=Math.max(...Object.values(c));t=sh(Object.keys(c).filter(k=>c[k]===mx))[0]}else{const c=alive().filter(p=>p.role!=="mafia");t=c[rnd(c.length)].id}
  /* لا أثر للضحية على اللوحة ليلاً: لا وميض ولا صوت — النتيجة تُكشف في op3 فقط */
  G.nt.kill=t;lg("المافيا اختارت: "+pl(t).name)}
-function resolveOp(){const k=pl(G.nt.kill),saved=G.nt.kill===G.nt.protect;G.res=saved?{ok:false}:{ok:true,id:k.id,name:k.name};
- if(!saved){k.alive=false;G.hit=k.id;G.out.push({n:k.name,d:G.rd,w:"قتل"});privSend(k);lg(k.name+" قُتل");const i=G.P.indexOf(k),n=G.P.length;killSnd(seatPos(i,n).pan);tone(110,.8,0,.2,"sawtooth")}else{G.hit=null;lg("الدكتور أنقذ "+k.name);tone(660,.4,0,.1,"triangle")}}
+function resolveOp(){const k=pl(G.nt.kill),saved=G.nt.kill===G.nt.protect;G.res=saved?{ok:false,saved:true}:{ok:true,id:k.id,name:k.name};
+ if(!saved){k.alive=false;G.hit=k.id;G.out.push({n:k.name,d:G.rd,w:"قتل"});privSend(k);lg(k.name+" قُتل");const i=G.P.indexOf(k),n=G.P.length;killSnd(seatPos(i,n).pan);tone(110,.8,0,.2,"sawtooth")}else{G.hit=null;lg("فشلت عملية القتل: الدكتور حمى "+k.name+" بنجاح — نجا الجميع");tone(660,.4,0,.1,"triangle")}}
 function resolveVote(){const c={};let sk=0;Object.values(G.votes).forEach(t=>{if(t==="skip")sk++;else c[t]=(c[t]||0)+1});const mx=Math.max(0,...Object.values(c)),tops=Object.keys(c).filter(k=>c[k]===mx);
- if(mx>0&&tops.length===1&&sk<mx){const p=pl(tops[0]);p.alive=false;G.out.push({n:p.name,d:G.rd,w:"تصويت"});privSend(p);G.res={ej:true,name:p.name,id:p.id,role:G.cfg.reveal?p.role:null};lg("أُقصي بالتصويت: "+p.name);tone(90,.8,0,.25,"sawtooth")}else{G.res={ej:false,tie:mx>0};lg("لم يُقصَ أحد")}}
+ if(mx>0&&tops.length===1&&sk<mx){const p=pl(tops[0]);p.alive=false;G.out.push({n:p.name,d:G.rd,w:"تصويت"});privSend(p);G.res={ej:true,name:p.name,id:p.id,role:p.role==="mafia"?"mafia":p.role==="joker"?"joker":"citizen"};lg("أُقصي بالتصويت: "+p.name+(p.role==="mafia"?" (كُشف: مافيا)":" (ظهر كمواطن)"));tone(90,.8,0,.25,"sawtooth")}else{G.res={ej:false,tie:mx>0};lg("لم يُقصَ أحد")}}
 /* خطوة لا صاحب لها (دكتور/شايب خرجا): تُلغى من الليل فلا ينتظر أحد مؤثراً بلا معنى */
 function idleStep(s){if(s==="doctor"||s==="d_sleep")return!ofr("doctor").length;
  if(s==="elder"||s==="e_sleep")return!ofr("elder").length;
@@ -516,9 +516,9 @@ function onAct(m){const p=pl(m.pid);if(!p||!p.alive)return;const t=pl(m.target),
  else if(k==="protect"&&G.ph==="night"&&G.st==="doctor"&&p.role==="doctor"&&t&&t.alive){G.nt.protect=t.id;hostSync();tx(p.id,{t:"ack",x:"سيحميه الدكتور: "+t.name});
   /* قرار الدكتور واحد: لا يُنتظر بقية الوقت بعد أن يختار */
   if(ofr("doctor").length)setTimeout(()=>{if(G.st==="doctor")next()},800)}
- else if((k==="silence"||k==="invest")&&G.ph==="night"&&G.st==="elder"&&p.role==="elder"&&t&&t.alive&&t.id!==p.id){
+ else if((k==="silence"||k==="invest")&&G.ph==="night"&&G.st==="elder"&&p.role==="elder"&&t&&t.alive&&(k==="silence"||t.id!==p.id)){
   if(k==="invest"){if(!G.cfg.invest||G.usedInv)return;G.usedInv=true;G.nt.invest=t.id;G.nt.silence=null;tx(p.id,{t:"priv",role:p.role,alive:1,note:"نتيجة التحقيق: "+t.name+(t.role==="mafia"?" من المافيا!":" ليس من المافيا")});lg("الشايب حقّق في "+t.name)}
-  else{G.nt.silence=t.id;tx(p.id,{t:"ack",x:"سيُسكَت: "+t.name});if(!G.cfg.invest||G.usedInv)setTimeout(()=>{if(G.st==="elder")next()},800)}hostSync()}
+  else{G.nt.silence=t.id;tx(p.id,{t:"ack",x:t.id===p.id?"ستُسكِت نفسك في نقاش الغد":"سيُسكَت: "+t.name});if(!G.cfg.invest||G.usedInv)setTimeout(()=>{if(G.st==="elder")next()},800)}hostSync()}
  else if(k==="vote"&&G.ph==="day"&&G.st==="vote"){if(m.target==="skip")G.votes[p.id]="skip";
   /* الصوت غير الصالح يُرد بصريح السبب: تجاهله بصمت يعني أن القرية «لم تُقصِ أحداً» دون أن تعرف لماذا */
   else if(t&&t.alive&&t.id!==p.id)G.votes[p.id]=t.id;
@@ -650,11 +650,12 @@ function view(){const s=P.pub;
  if(s.ph==="night"){const st=s.st,a=P.act;
   if(st==="mafia"&&P.role==="mafia"&&a&&a.k==="mafia")return wrap("mafia",`${tbar()}<h1>${ic("knife","f")} غرفة المافيا</h1><p>${P.mates.length?"زميلك: "+P.mates.map(esc).join("، "):"أنت وحدك"}</p><div class="pb"><div class="chat" id="cl" data-empty="لا رسائل بعد — ابدأ النقاش">${P.mchat.map(line).join("")}</div><div class="row"><input class="inp" id="ci" maxlength="100" placeholder="اتفقوا على الضحية" autocomplete="off"><button class="btn r" data-a="sendM" aria-label="إرسال">${ic("send")}</button></div><p>اختر الضحية (إذا اتفقتما ينتهي الوقت مبكراً):</p>${tgs(a,"kill",a.my)}</div>`);
   if(st==="doctor"&&P.role==="doctor"&&a&&a.k==="doctor")return wrap("doctor",`${tbar()}<h1>${ic("cross","f")} من تحمي الليلة؟</h1><p>يمكنك حماية نفسك</p><div class="pb">${tgs(a,"protect",a.my)}</div>`);
-  if(st==="elder"&&P.role==="elder"&&a&&a.k==="elder")return wrap("elder",`${tbar()}<h1>${ic("flame","f")} حكمة الشايب</h1><div class="pb"><div class="tabs" style="--ac:var(--eld)"><button class="${P.tab==="silence"?"on":""}" data-a="tab" data-t="silence">${ic("mute")} إسكات لاعب</button>${a.inv?`<button class="${P.tab==="invest"?"on":""}" data-a="tab" data-t="invest">${ic("search")} تحقيق (مرة)</button>`:""}</div><p>${P.tab==="silence"||!a.inv?"من تُسكِته في نقاش الغد؟":"من تريد التحقق من هويته؟ (مرة واحدة فقط)"}</p>${tgs(a,P.tab==="invest"&&a.inv?"invest":"silence",a.my)}</div>`);
-  if(["op1","op2","op3"].includes(st))return wrap("",`${tbar()}<h1>${ic("eye")}</h1><p>انظر إلى الشاشة الكبيرة…</p>`);
+  if(st==="elder"&&P.role==="elder"&&a&&a.k==="elder")return wrap("elder",`${tbar()}<h1>${ic("flame","f")} حكمة الشايب</h1><div class="pb"><div class="tabs" style="--ac:var(--eld)"><button class="${P.tab==="silence"?"on":""}" data-a="tab" data-t="silence">${ic("mute")} إسكات لاعب</button>${a.inv?`<button class="${P.tab==="invest"?"on":""}" data-a="tab" data-t="invest">${ic("search")} تحقيق (مرة)</button>`:""}</div><p>${P.tab==="silence"||!a.inv?"من تُسكِته في نقاش الغد؟ يمكنك إسكات نفسك أيضاً":"من تريد التحقق من هويته؟ (مرة واحدة فقط)"}</p>${tgs(a,P.tab==="invest"&&a.inv?"invest":"silence",a.my)}${(P.tab==="silence"||!a.inv)?`<button class="tt ${a.my===P.pid?"sel":""}" style="--ac:var(--eld);margin-top:8px" data-a="act" data-k="silence" data-t="${P.pid}"><span>🤫 إسكات نفسي (أنا)</span></button>`:""}</div>`);
+  if(st==="op3")return wrap("",`${tbar()}<h1>${s.res&&s.res.ok?ic("skull"):ic("cross","f")}</h1><p>${s.res&&s.res.ok?esc(s.res.name)+" خرج من اللعبة":"فشلت العملية — نجا الجميع الليلة"}</p>`);
+  if(["op1","op2"].includes(st))return wrap("",`${tbar()}<h1>${ic("eye")}</h1><p>انظر إلى الشاشة الكبيرة…</p>`);
   return wrap("night",`${tbar()}<div class="zz">${ic("moon","f")}</div><h1>الليل…</h1><p>أغمض عينيك ولا تفتحهما حتى يطلع الصباح</p>${P.notes.length?`<div class="note2">${esc(P.notes[P.notes.length-1])}</div>`:""}`)}
  if(s.ph==="day"){if(s.st==="vote"&&P.act&&P.act.k==="vote")return wrap("",`${tbar()}<h1>${ic("vote")} صوّت</h1><p>من تظنه من المافيا؟</p><div class="pb">${tgs(P.act,"vote",P.act.my)}<button class="tt ${P.act.my==="skip"?"sel":""}" style="--ac:#666" data-a="act" data-k="vote" data-t="skip"><span>تجاوز (لا أحد)</span></button></div>`);
-  if(s.st==="res")return wrap("",`${tbar()}<h1>${s.res&&s.res.ej?"أُقصي "+esc(s.res.name):"لم يُقصَ أحد"}</h1><p>انظر إلى الشاشة</p>`);
+  if(s.st==="res")return wrap("",`${tbar()}<h1>${s.res&&s.res.ej?"أُقصي "+esc(s.res.name):"لم يُقصَ أحد"}</h1>${s.res&&s.res.ej&&s.res.role?`<p>كان: ${RL[s.res.role].n}</p>`:""}<p>انظر إلى الشاشة</p>`);
   return wrap("",`${tbar()}<h1>${ic("sun")} النقاش</h1>${s.crit?`<div class="note2">المواجهة الأخيرة: خطأ واحد وتفوز المافيا</div>`:""}<div class="pb">${mbar(s)}<div class="chat" id="cl" data-empty="لا رسائل بعد — ابدأ النقاش">${P.dchat.map(line).join("")}</div>${P.muted?`<div class="note2">${ic("mute")} أُسكِتّ في هذه الجولة. لا يمكنك الكلام.</div>`:`<div class="row"><input class="inp" id="ci" maxlength="140" placeholder="تكلّم مع القرية" autocomplete="off"><button class="btn p" data-a="sendD" aria-label="إرسال">${ic("send")}</button></div>`}${P.notes.length?`<div class="note2">${esc(P.notes[P.notes.length-1])}</div>`:""}</div>`)}
  return wrap("",`<p>…</p>`)}
 function reveal(){const r=P.role;if(!r)return wrap("",`${tbar()}<h1>${ic("load","spin")}</h1><p>جاري استلام دورك…</p>`);
@@ -933,11 +934,12 @@ ${tile("joker","إذا طُرد بالتصويت يفوز وحده. وإذا ق�
 ${tile("citizen","الباقون. يبحثون عن المافيا بالنقاش والتصويت.",`<b style="font:800 30px var(--dsp)">${Math.max(0,pn.ct)}</b><span>لاعب</span>`)}
 </div><div class="dst">${seg.map(s=>`<i style="width:${n?s[1]/n*100:0}%;background:${s[0]}"></i>`).join("")}</div><div class="lgd2">${seg.map(s=>`<span style="--c:${s[0]}">${s[2]} ${s[1]}</span>`).join("")}<span style="--c:#fff">الحد الأدنى ${v.min} لاعبين</span></div>
 ${join?(pn.err?`<div class="msg2 er">${pn.err}</div>`:`<div class="msg2 ok">التوزيع جاهز: ${n} لاعبين</div>`):""}</div>
-<div class="pn2"><h3>${ic("clock")} سير اللعبة والأوقات</h3><div class="g3">${tm("مهلة القرار لكل دور","tDec")}${tm("وقت النقاش","tDay")}${tm("وقت التصويت","tVote")}<div class="tm2"><span>تقدّم يدوي (المدير ينقل المراحل)</span>${sw("manual",!!c.manual,1)}</div>${rl("تحقيق الشايب (مرة)","invest")}${rl("كشف دور المُقصى","reveal")}${rl("الجوكر لا يفوز في اليوم الأول","jokerD1")}${rl("التحقيق كل ليلتين","det2")}</div>
-<div class="hint">${c.manual?"وضع يدوي: لا تنتقل أي مرحلة تلقائياً — تنقلها أنت، وتظهر المهلة كتنبيه فقط.":"وضع تلقائي: تنتقل المرحلة فور اكتمال كل القرارات المطلوبة، ومهلة القرار تحمي من لاعب لا يقرر."} لم تعد هناك أوقات طويلة لكل دور: بقي وقت النقاش ووقت التصويت.</div></div>
+<div class="pn2"><h3>${ic("clock")} سير اللعبة والأوقات</h3><div class="g3">${tm("مهلة القرار لكل دور","tDec")}${tm("وقت النقاش","tDay")}${tm("وقت التصويت","tVote")}<div class="tm2"><span>تقدّم يدوي (المدير ينقل المراحل)</span>${sw("manual",!!c.manual,1)}</div>${rl("تحقيق الشايب (مرة)","invest")}${rl("الجوكر لا يفوز في اليوم الأول","jokerD1")}${rl("التحقيق كل ليلتين","det2")}</div>
+<div class="hint">${c.manual?"وضع يدوي: لا تنتقل أي مرحلة تلقائياً — تنقلها أنت، وتظهر المهلة كتنبيه فقط.":"وضع تلقائي: تنتقل المرحلة فور اكتمال كل القرارات المطلوبة، ومهلة القرار تحمي من لاعب لا يقرر."} لم تعد هناك أوقات طويلة لكل دور: بقي وقت النقاش ووقت التصويت.</div>
+<div class="hint">قواعد ثابتة: الدكتور والشايب لا يستخدمان قدرتهما في ليلتين متتاليتين (استخدام ← راحة ← استخدام)، وتُحفظ حالة الراحة فلا تتجاوز بتحديث الصفحة. عند الإقصاء بالتصويت تُكشف المافيا وحدها، ويظهر البقية (دكتور/شايب/محقق/مواطن) كمواطن.</div></div>
 <div class="pn2"><h3>${ic("users")} اللاعبون (${n}) — أحياء ${al} · خارج ${n-al}${v.P.filter(p=>p.m&&p.a).length?` · صامت ${v.P.filter(p=>p.m&&p.a).length}`:""}</h3><div class="pls2">${v.P.map(p=>`<div class="pc2 ${p.r||""} ${p.a?"":"d"} ${p.m&&p.a?"mu":""}"><span class="nn">${esc(p.n)}</span>${v.ph==="reveal"&&p.rd?ic("check"):""}${p.m?`<i class="muic" title="تحت الصمت هذه الجولة">${ic("mute")}</i>`:""}${p.a?"":'<em class="outb">خرج</em>'}<span class="rl">${p.r?RL[p.r].n:"—"}</span>${join?`<button class="kk" data-a="kick" data-id="${p.i}" aria-label="طرد">${ic("x")}</button>`:""}</div>`).join("")||"<p>لا يوجد لاعبون بعد</p>"}</div>${v.out&&v.out.length?`<div class="outsum">${v.out.map(o=>`<span>${esc(o.n)}<i>${o.w} · ${o.d}</i></span>`).join("")}</div>`:""}</div>
 ${dcs?`<div class="pn2"><h3>${ic("vote")} القرارات الآن</h3>${dcs}</div>`:""}
-${v.ph==="night"||v.ph==="day"?`<div class="pn2"><h3>${ic("knife")} كواليس الليلة (للمدير فقط)</h3><p>اقتراحات المافيا: ${Object.entries(v.nt.mv||{}).map(([a,b])=>nm(a)+" ← "+nm(b)).join(" · ")||"—"}<br>الضحية: <b>${v.nt.kill?nm(v.nt.kill):"—"}</b> · يحميه الدكتور: <b>${v.nt.protect?nm(v.nt.protect):"—"}</b> · إسكات الشايب: <b>${v.nt.silence?nm(v.nt.silence):"—"}</b> · تحقيق الشايب: <b>${v.nt.invest?nm(v.nt.invest):"—"}</b> · تحقيق المحقق: <b>${v.nt.det?nm(v.nt.det):"—"}</b></p><div class="lg">${(v.mc||[]).slice().reverse().map(l=>`<span><b>${esc(l[0])}</b> ${esc(l[1])}</span>`).join("")||"<i>لا رسائل بعد</i>"}</div>
+${v.ph==="night"||v.ph==="day"?`<div class="pn2"><h3>${ic("knife")} كواليس الليلة (للمدير فقط)</h3><p>اقتراحات المافيا: ${Object.entries(v.nt.mv||{}).map(([a,b])=>nm(a)+" ← "+nm(b)).join(" · ")||"—"}<br>الضحية: <b>${v.nt.kill?nm(v.nt.kill):"—"}</b> · يحميه الدكتور: <b>${v.nt.protect?nm(v.nt.protect):"—"}</b> · إسكات الشايب: <b>${v.nt.silence?nm(v.nt.silence):"—"}</b> · تحقيق الشايب: <b>${v.nt.invest?nm(v.nt.invest):"—"}</b> · تحقيق المحقق: <b>${v.nt.det?nm(v.nt.det):"—"}</b><br>حالة القدرة: الدكتور <b style="color:${(v.ld>0&&(v.rd-v.ld)<2)?"#ff9aa6":"#7dffb0"}">${(v.ld>0&&(v.rd-v.ld)<2)?"راحة الليلة":"جاهز"}</b> · الشايب <b style="color:${(v.le>0&&(v.rd-v.le)<2)?"#ff9aa6":"#7dffb0"}">${(v.le>0&&(v.rd-v.le)<2)?"راحة الليلة":"جاهز"}</b></p><div class="lg">${(v.mc||[]).slice().reverse().map(l=>`<span><b>${esc(l[0])}</b> ${esc(l[1])}</span>`).join("")||"<i>لا رسائل بعد</i>"}</div>
 <div class="mcp"><input class="mcx" id="mx" maxlength="140" placeholder="رسالة إلى شات المافيا — لا يقرأها غيرهم"><select id="mto" aria-label="المستقبِل"><option value="">شات المافيا</option>${v.P.filter(p=>p.a).map(p=>`<option value="${p.i}">خاص: ${esc(p.n)}</option>`).join("")}</select><button class="hb2" data-a="msnd">${ic("send")} إرسال</button><button class="hb2 qk" data-a="msnd" data-x="خلصتوا؟">خلصتوا؟</button></div></div>
 <div class="pn2"><h3>${ic("users")} نقاش القرية (مباشر)</h3><div class="lg">${(v.dc||[]).slice(-20).reverse().map(l=>`<span><b>${esc(l[0])}</b> ${esc(l[1])}</span>`).join("")||"<i>لم يتكلم أحد بعد</i>"}</div></div>`:""}
 <div class="pn2"><h3>${ic("clock")} السجل</h3><div class="lg">${v.lg.slice().reverse().map(x=>`<span>${esc(x)}</span>`).join("")||"—"}</div></div></div>`};
@@ -979,7 +981,7 @@ if(MODE==="h"){
 if(MODE!=="s")return;
 const _deal=deal;deal=function(){const e=_deal();if(!e){dbEvents("deal",{players:G.P.length,m:plan().m})}return e};
 const _rg=resetGame;resetGame=function(){if(DB.ready)del("mafia_roles","room_code=eq."+encodeURIComponent(ROOM));_rg()};
-const _op=resolveOp;resolveOp=function(){_op();if(G.res)dbEvents("kill",{saved:G.res.ok!==false})};
+const _op=resolveOp;resolveOp=function(){_op();if(G.res)dbEvents("kill",{saved:G.res.ok===false,round:G.rd})};
 const _rv=resolveVote;resolveVote=function(){_rv();if(G.res&&G.res.ej)dbEvents("exile",{})};
 const _eg=endGame;endGame=function(w){const r=_eg(w);dbMatch();dbEvents("end",{win:w,rounds:G.rd});
  parentNote({type:"icg:mafia:end",room:ROOM,winner:w,rounds:G.rd,
@@ -1262,3 +1264,42 @@ if(MODE==="h"){
 .pc2 .muic .ic{width:12px;height:12px;stroke-width:2.8}
 .pc2.mu{border-color:#c77dff55}
 </style>
+<script>
+/* ===== V8: تناوب قدرات الدكتور والشايب — استخدام ← راحة ← استخدام =====
+   الحالة تُربط بالاستخدام الفعلي للقدرة (G.nt) لا بمجرد دخول الدور، وتبقى في المنصة
+   المرجعية (الشاشة) فتُعاد مزامنتها عند كل تحديث/إعادة اتصال للجوال ولا تُتجاوز. */
+(function(){
+const docRest=()=>G.lastDoc>0&&(G.rd-G.lastDoc)<2;
+const eldRest=()=>G.lastEld>0&&(G.rd-G.lastEld)<2;
+/* تُسجَّل ليلة الاستخدام عند نهاية الليل (قبل تصفير G.nt) — تلتقط قرار اللاعب والبوت معاً */
+const _sn8=startNight;startNight=function(){if(G.nt){if(G.nt.protect)G.lastDoc=G.rd;if(G.nt.silence||G.nt.invest)G.lastEld=G.rd}_sn8()};
+const _deal8=deal;deal=function(){G.lastDoc=0;G.lastEld=0;return _deal8()};
+const _rg8=resetGame;resetGame=function(){G.lastDoc=0;G.lastEld=0;return _rg8()};
+/* ليلة الراحة: قائمة أهداف فارغة + علم راحة — يُعاد حسابها عند كل privSend/مزامنة */
+const _pf8=privFor;privFor=function(p){const o=_pf8(p);if(o.act){if(o.act.k==="doctor"&&docRest()){o.act.tg=[];o.act.rest=1}else if(o.act.k==="elder"&&eldRest()){o.act.tg=[];o.act.inv=0;o.act.rest=1}}return o};
+/* منع الاستخدام في ليلة الراحة حتى لو وصل قرار مُزوَّر من الجوال */
+const _oa8=onAct;onAct=function(m){const p=pl(m.pid),k=m.kind;
+ if(p&&p.alive&&G.ph==="night"){
+  if(k==="protect"&&G.st==="doctor"&&p.role==="doctor"&&docRest()){tx(p.id,{t:"nack",x:"أنت في راحة الليلة — استخدمتَ الحماية الليلة الماضية. تعود قدرتك الليلة القادمة."});privSend(p);return}
+  if((k==="silence"||k==="invest")&&G.st==="elder"&&p.role==="elder"&&eldRest()){tx(p.id,{t:"nack",x:"أنت في راحة الليلة — استخدمتَ قدرتك الليلة الماضية. تعود قدرتك الليلة القادمة."});privSend(p);return}}
+ return _oa8(m)};
+if(MODE==="s"){
+ /* البوت يقرر داخل enter مباشرة: في ليلة الراحة نُلغي قراره حتى لا يتجاوز التناوب */
+ const _en8=enter;enter=function(ph,st){_en8(ph,st);if(G.ph==="night"){
+  if(st==="doctor"&&docRest()&&ofr("doctor").length){G.nt.protect=null;lg("الدكتور في راحة الليلة (حمى لاعباً الليلة الماضية)")}
+  if(st==="elder"&&eldRest()&&ofr("elder").length){G.nt.silence=null;G.nt.invest=null;lg("الشايب في راحة الليلة (استخدم قدرته الليلة الماضية)")}}};
+ const _dur8=dur;dur=function(ph,st){if(ph==="night"&&((st==="doctor"&&docRest()&&ofr("doctor").length)||(st==="elder"&&eldRest()&&ofr("elder").length)))return 3;return _dur8(ph,st)};
+ const _co8=coreH;coreH=function(){if(G.ph==="night"){
+  if(G.st==="doctor"&&docRest()&&ofr("doctor").length)return`<div class="big" style="color:#2fe0bb">${ic("cross","f")}</div><h2>الدكتور في راحة</h2><p>حمى لاعباً الليلة الماضية — لا حماية الليلة</p>`;
+  if(G.st==="elder"&&eldRest()&&ofr("elder").length)return`<div class="big" style="color:#f0c25a">${ic("flame","f")}</div><h2>الشايب في راحة</h2><p>استخدم قدرته الليلة الماضية — يستريح الليلة</p>`}
+  return _co8()};
+}
+if(MODE==="p"){
+ const _v8=view;view=function(){const s=P.pub,a=P.act;
+  if(s&&P.joined&&s.ph==="night"&&a&&a.rest){
+   if(a.k==="doctor"&&P.role==="doctor")return wrap("doctor",`${tbar()}<h1>${ic("cross","f")} ليلة راحة</h1><p>حميتَ لاعباً الليلة الماضية. لا يمكنك الحماية الليلة — تعود قدرتك الليلة القادمة.</p>`);
+   if(a.k==="elder"&&P.role==="elder")return wrap("elder",`${tbar()}<h1>${ic("flame","f")} ليلة راحة</h1><p>استخدمتَ قدرتك الليلة الماضية. تستريح الليلة — تعود قدرتك الليلة القادمة.</p>`)}
+  return _v8()};
+}
+})();
+</script>
