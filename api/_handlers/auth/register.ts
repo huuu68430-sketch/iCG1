@@ -33,6 +33,8 @@ export default async function handler(req: any, res: any) {
 
   // Best-effort profile upsert (service role)
   await supabaseAdmin.from('profiles').upsert({ username: uname, avatar_url: '', created_at: new Date().toISOString() });
+  // الحساب الجديد وصل بعد تحقّق شات كيك → موثّق
+  await supabaseAdmin.from('users').update({ is_verified: true }).eq('id', userId);
 
   const { data: user } = await supabaseAdmin
     .from('users')
@@ -44,5 +46,14 @@ export default async function handler(req: any, res: any) {
   const jwt = signJwt({ sub: user.id, username: user.kick_username, jti });
   const csrf = generateCsrf();
   setSessionCookies(res, jwt, csrf);
-  return res.status(201).json({ user });
+
+  /* الجلسة تُسجَّل في القاعدة — وإلا رفضها /api/me بعد الدخول */
+  const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+  const { error: sessErr } = await supabaseAdmin.rpc('register_session', {
+    p_jti: jti, p_user_id: user.id, p_username: user.kick_username, p_expires_at: expiresAt,
+  });
+  if (sessErr) return res.status(500).json({ error: 'تعذّر إنشاء الجلسة' });
+  // مفتاح اللعبة (تجزئة كلمة السر) يعود لصاحب الحساب الجديد فقط — هو من برهن
+  // كلمة السر في هذه اللحظة، ولا يُقرأ من قاعدة البيانات في المتصفح أبداً.
+  return res.status(201).json({ user, game_key: password_hash });
 }

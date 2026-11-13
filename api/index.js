@@ -14123,7 +14123,7 @@ var require_bcrypt = __commonJS({
   "node_modules/bcrypt/bcrypt.js"(exports, module) {
     var path = __require("path");
     var bindings = require_node_gyp_build2()(path.resolve(__dirname));
-    var crypto6 = __require("crypto");
+    var crypto7 = __require("crypto");
     var promises = require_promises();
     function genSaltSync(rounds, minor) {
       if (!rounds) {
@@ -14136,7 +14136,7 @@ var require_bcrypt = __commonJS({
       } else if (minor !== "b" && minor !== "a") {
         throw new Error('minor must be either "a" or "b"');
       }
-      return bindings.gen_salt_sync(minor, rounds, crypto6.randomBytes(16));
+      return bindings.gen_salt_sync(minor, rounds, crypto7.randomBytes(16));
     }
     function genSalt(rounds, minor, cb) {
       let error;
@@ -14167,7 +14167,7 @@ var require_bcrypt = __commonJS({
           cb(error);
         });
       }
-      crypto6.randomBytes(16, function(error2, randomBytes) {
+      crypto7.randomBytes(16, function(error2, randomBytes) {
         if (error2) {
           cb(error2);
           return;
@@ -24280,15 +24280,27 @@ async function handler12(req, res) {
   if (!user.password_hash) return res.status(401).json({ error: "Invalid credentials" });
   const { ok: ok3, needsUpgrade } = await verifyPassword(password, user.password_hash);
   if (!ok3) return res.status(401).json({ error: "Invalid credentials" });
+  let gameKey = user.password_hash;
   if (needsUpgrade) {
-    const newHash = hashPasswordNew(password);
-    await supabaseAdmin.from("users").update({ password_hash: newHash }).eq("id", user.id);
+    gameKey = hashPasswordNew(password);
+    await supabaseAdmin.from("users").update({ password_hash: gameKey }).eq("id", user.id);
   }
   const jti = generateJti();
   const jwt = signJwt({ sub: user.id, username: user.kick_username, jti });
   const csrf = generateCsrf();
   setSessionCookies(res, jwt, csrf);
-  return res.status(200).json({ user: { id: user.id, kick_username: user.kick_username, display_name: user.display_name, avatar: user.avatar, points: user.points } });
+  const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1e3).toISOString();
+  const { error: sessErr } = await supabaseAdmin.rpc("register_session", {
+    p_jti: jti,
+    p_user_id: user.id,
+    p_username: user.kick_username,
+    p_expires_at: expiresAt
+  });
+  if (sessErr) return res.status(500).json({ error: "\u062A\u0639\u0630\u0651\u0631 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062C\u0644\u0633\u0629" });
+  return res.status(200).json({
+    user: { id: user.id, kick_username: user.kick_username, display_name: user.display_name, avatar: user.avatar, points: user.points },
+    game_key: gameKey
+  });
 }
 
 // api/_handlers/auth/register.ts
@@ -24315,218 +24327,25 @@ async function handler13(req, res) {
     return res.status(500).json({ error: "Failed to create user" });
   }
   await supabaseAdmin.from("profiles").upsert({ username: uname, avatar_url: "", created_at: (/* @__PURE__ */ new Date()).toISOString() });
+  await supabaseAdmin.from("users").update({ is_verified: true }).eq("id", userId);
   const { data: user } = await supabaseAdmin.from("users").select("id, kick_username, display_name, avatar, points").eq("id", userId).single();
   const jti = generateJti();
   const jwt = signJwt({ sub: user.id, username: user.kick_username, jti });
   const csrf = generateCsrf();
   setSessionCookies(res, jwt, csrf);
-  return res.status(201).json({ user });
+  const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1e3).toISOString();
+  const { error: sessErr } = await supabaseAdmin.rpc("register_session", {
+    p_jti: jti,
+    p_user_id: user.id,
+    p_username: user.kick_username,
+    p_expires_at: expiresAt
+  });
+  if (sessErr) return res.status(500).json({ error: "\u062A\u0639\u0630\u0651\u0631 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062C\u0644\u0633\u0629" });
+  return res.status(201).json({ user, game_key: password_hash });
 }
 
-// api/_handlers/kick/callback.ts
+// api/_handlers/auth/config-check.ts
 import crypto4 from "crypto";
-var SECRET = (process.env.SERVER_SECRET || "dev-secret").padEnd(32, "0").slice(0, 32);
-function decryptCookie(val) {
-  try {
-    const [ivB64, tagB64, encB64] = val.split(".");
-    const decipher = crypto4.createDecipheriv("aes-256-gcm", Buffer.from(SECRET), Buffer.from(ivB64, "base64url"));
-    decipher.setAuthTag(Buffer.from(tagB64, "base64url"));
-    let dec = decipher.update(encB64, "base64url", "utf8");
-    dec += decipher.final("utf8");
-    return JSON.parse(dec);
-  } catch {
-    return null;
-  }
-}
-async function handler14(req, res) {
-  const { code, state, error } = req.query || {};
-  if (error) {
-    return res.redirect(302, `/?kick_error=${encodeURIComponent(error)}`);
-  }
-  if (!code || !state) {
-    return res.redirect(302, "/?kick_error=missing_params");
-  }
-  const cookie = req.headers?.cookie || "";
-  const m = cookie.match(/(?:^|;\s*)oauth_cv=([^;]+)/);
-  if (!m) return res.redirect(302, "/?kick_error=no_session");
-  const data = decryptCookie(decodeURIComponent(m[1]));
-  if (!data || data.state !== state) {
-    return res.redirect(302, "/?kick_error=state_mismatch");
-  }
-  const clientId = process.env.KICK_CLIENT_ID;
-  const clientSecret = process.env.KICK_CLIENT_SECRET;
-  const redirectUri = process.env.KICK_REDIRECT_URI;
-  if (!clientId || !clientSecret || !redirectUri) {
-    return res.redirect(302, "/?kick_error=not_configured");
-  }
-  try {
-    const tokenRes = await fetch("https://id.kick.com/oauth/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: redirectUri,
-        client_id: clientId,
-        client_secret: clientSecret,
-        code_verifier: data.codeVerifier
-      })
-    });
-    if (!tokenRes.ok) return res.redirect(302, "/?kick_error=token_failed");
-    const tokenData = await tokenRes.json();
-    const accessToken = tokenData.access_token;
-    if (!accessToken) return res.redirect(302, "/?kick_error=no_token");
-    const userRes = await fetch("https://api.kick.com/public/v1/users", {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (!userRes.ok) return res.redirect(302, "/?kick_error=userinfo_failed");
-    const userData = await userRes.json();
-    const kickUser = userData?.data?.[0] || userData;
-    const kickUserId = String(kickUser?.user_id || kickUser?.id || "");
-    const kickUsername = kickUser?.name || kickUser?.username || kickUser?.slug || "";
-    const avatar = kickUser?.profile_picture || kickUser?.avatar || "";
-    if (!kickUserId || !kickUsername) {
-      return res.redirect(302, "/?kick_error=invalid_user");
-    }
-    let user = null;
-    const { data: byKickId } = await supabaseAdmin.from("users").select("id, kick_username, display_name, avatar, points, password_hash").eq("kick_user_id", kickUserId).maybeSingle();
-    if (byKickId) {
-      user = byKickId;
-    } else {
-      const { data: byUsername } = await supabaseAdmin.from("users").select("id, kick_username, display_name, avatar, points, password_hash, kick_user_id").ilike("kick_username", kickUsername).maybeSingle();
-      if (byUsername) {
-        if (!byUsername.kick_user_id) {
-          await supabaseAdmin.from("users").update({ kick_user_id: kickUserId, avatar: avatar || byUsername.avatar }).eq("id", byUsername.id);
-        }
-        user = { ...byUsername, kick_user_id: kickUserId };
-      } else {
-        const { data: newUser, error: uErr } = await supabaseAdmin.from("users").insert({ kick_user_id: kickUserId, kick_username: kickUsername.toLowerCase(), display_name: kickUsername, avatar, password_hash: "", is_verified: true }).select("id, kick_username, display_name, avatar, points").single();
-        if (uErr || !newUser) return res.redirect(302, "/?kick_error=create_failed");
-        user = newUser;
-        await supabaseAdmin.from("profiles").upsert({ username: kickUsername.toLowerCase(), avatar_url: avatar, created_at: (/* @__PURE__ */ new Date()).toISOString() });
-        await supabaseAdmin.from("leaderboard").insert([{ username: kickUsername.toLowerCase(), score: 0, wins: 0 }]);
-      }
-    }
-    const jti = crypto4.randomBytes(16).toString("hex");
-    const jwt = signJwt({ sub: user.id, username: user.kick_username, jti });
-    const csrf = generateCsrf();
-    const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-    res.setHeader("Set-Cookie", [
-      `icg1_session=${encodeURIComponent(jwt)}; Path=/; HttpOnly; SameSite=Lax${secure}; Max-Age=${7 * 24 * 3600}`,
-      `csrf_token=${encodeURIComponent(csrf)}; Path=/; SameSite=Lax${secure}; Max-Age=${7 * 24 * 3600}`,
-      "oauth_cv=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
-    ]);
-    return res.redirect(302, "/?kick_login=success");
-  } catch (e) {
-    return res.redirect(302, "/?kick_error=server_error");
-  }
-}
-
-// api/_handlers/kick/login.ts
-import crypto5 from "crypto";
-async function handler15(req, res) {
-  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
-  const clientId = process.env.KICK_CLIENT_ID;
-  const redirectUri = process.env.KICK_REDIRECT_URI;
-  if (!clientId || !redirectUri) return res.status(500).json({ error: "KICK not configured" });
-  const state = crypto5.randomBytes(32).toString("base64url");
-  const codeVerifier = crypto5.randomBytes(32).toString("base64url");
-  const codeChallenge = crypto5.createHash("sha256").update(codeVerifier).digest("base64url");
-  const secret = (process.env.SERVER_SECRET || "dev-secret").padEnd(32, "0").slice(0, 32);
-  const iv = crypto5.randomBytes(12);
-  const cipher = crypto5.createCipheriv("aes-256-gcm", Buffer.from(secret), iv);
-  let enc = cipher.update(JSON.stringify({ state, codeVerifier }), "utf8", "base64url");
-  enc += cipher.final("base64url");
-  const tag = cipher.getAuthTag().toString("base64url");
-  const cookieVal = `${iv.toString("base64url")}.${tag}.${enc}`;
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  res.setHeader("Set-Cookie", `oauth_cv=${encodeURIComponent(cookieVal)}; Path=/; HttpOnly; SameSite=Lax${secure}; Max-Age=300`);
-  const url2 = new URL("https://id.kick.com/oauth/authorize");
-  url2.searchParams.set("client_id", clientId);
-  url2.searchParams.set("redirect_uri", redirectUri);
-  url2.searchParams.set("response_type", "code");
-  url2.searchParams.set("scope", "user:read");
-  url2.searchParams.set("state", state);
-  url2.searchParams.set("code_challenge", codeChallenge);
-  url2.searchParams.set("code_challenge_method", "S256");
-  return res.redirect(302, url2.toString());
-}
-
-// api/_handlers/kick/proxy.ts
-var ALLOWED_HOSTS = /* @__PURE__ */ new Set(["kick.com", "www.kick.com", "botrix.live", "www.botrix.live"]);
-var MAX_BYTES = 15e5;
-var TIMEOUT_MS = 8e3;
-var BROWSER_HEADERS = {
-  "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-  accept: "application/json, text/plain, */*",
-  "accept-language": "en-US,en;q=0.9",
-  "cache-control": "no-cache"
-};
-async function handler16(req, res) {
-  if (req.method !== "GET" && req.method !== "HEAD") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-  const raw = typeof req.query?.endpoint === "string" ? req.query.endpoint : "";
-  if (!raw) {
-    return res.status(400).json({ error: "Missing endpoint" });
-  }
-  let target;
-  try {
-    target = new URL(raw);
-  } catch {
-    return res.status(400).json({ error: "Invalid endpoint" });
-  }
-  if (target.protocol !== "https:") {
-    return res.status(400).json({ error: "Invalid protocol" });
-  }
-  if (target.username || target.password) {
-    return res.status(400).json({ error: "Invalid endpoint" });
-  }
-  if (target.port && target.port !== "443") {
-    return res.status(403).json({ error: "Host not allowed" });
-  }
-  if (!ALLOWED_HOSTS.has(target.hostname.toLowerCase())) {
-    return res.status(403).json({ error: "Host not allowed" });
-  }
-  const path = target.pathname.replace(/^\/+/, "/");
-  if (!path.startsWith("/api/")) {
-    return res.status(403).json({ error: "Path not allowed" });
-  }
-  const upstreamUrl = `https://${target.hostname.toLowerCase()}${path}${target.search}`;
-  const refererHost = target.hostname.toLowerCase().includes("kick.com") ? "https://kick.com/" : `https://${target.hostname}/`;
-  try {
-    const upstream = await fetch(upstreamUrl, {
-      method: "GET",
-      // لا نتبع التحويلات: يمنع أي محاولة SSRF عبر Location إلى مضيف آخر.
-      redirect: "manual",
-      headers: {
-        ...BROWSER_HEADERS,
-        referer: refererHost,
-        origin: refererHost.replace(/\/$/, "")
-      },
-      signal: AbortSignal.timeout(TIMEOUT_MS)
-    });
-    if (!upstream.ok) {
-      return res.status(502).json({ error: "Upstream error", status: upstream.status });
-    }
-    const text = await upstream.text();
-    if (text.length > MAX_BYTES) {
-      return res.status(502).json({ error: "Upstream response too large" });
-    }
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      return res.status(502).json({ error: "Upstream returned invalid JSON" });
-    }
-    res.setHeader("Cache-Control", "public, max-age=30, s-maxage=60, stale-while-revalidate=300");
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    return res.status(200).json(parsed);
-  } catch (e) {
-    const timedOut = e?.name === "TimeoutError" || e?.name === "AbortError";
-    return res.status(timedOut ? 504 : 502).json({ error: timedOut ? "Upstream timeout" : "Bad gateway" });
-  }
-}
 
 // api/_lib/memberAuth.ts
 var MEMBER_COOKIE = "icg1_member";
@@ -24605,8 +24424,271 @@ function clientIp2(req) {
 }
 var clampText = (v, max) => String(v ?? "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, max);
 
-// api/_handlers/user/announcements.ts
+// api/_handlers/auth/config-check.ts
+var ALLOWED_KEYS = ["host_password", "site_password", "admin_password"];
+var timingEqual2 = (a, b) => {
+  const ha = crypto4.createHash("sha256").update(a).digest();
+  const hb = crypto4.createHash("sha256").update(b).digest();
+  return crypto4.timingSafeEqual(ha, hb);
+};
+async function readConfig(key2) {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { data, error } = await supabaseAdmin.from("app_config").select("value").eq("key", key2).maybeSingle();
+    if (error) return null;
+    const v = data?.value ? String(data.value).trim() : "";
+    return v || null;
+  } catch {
+    return null;
+  }
+}
+async function handler14(req, res) {
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  const ip = clientIp2(req);
+  const rl = await rateLimit(`config-check:${ip}`, 10, 300);
+  if (!rl.allowed) {
+    return res.status(rl.unavailable ? 503 : 429).json({
+      ok: false,
+      error: rl.unavailable ? "\u062A\u0639\u0630\u0651\u0631 \u0627\u0644\u062A\u062D\u0642\u0642 \u0627\u0644\u0622\u0646" : "\u0645\u062D\u0627\u0648\u0644\u0627\u062A \u0643\u062B\u064A\u0631\u0629. \u0627\u0646\u062A\u0638\u0631 \u0642\u0644\u064A\u0644\u0627\u064B."
+    });
+  }
+  const body2 = (typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {}) || {};
+  const key2 = String(body2.key || "").trim();
+  const fallbackKey = String(body2.fallback_key || "").trim();
+  const password = String(body2.password || "");
+  if (!ALLOWED_KEYS.includes(key2)) return res.status(400).json({ ok: false, error: "\u0637\u0644\u0628 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D" });
+  if (fallbackKey && !ALLOWED_KEYS.includes(fallbackKey)) return res.status(400).json({ ok: false, error: "\u0637\u0644\u0628 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D" });
+  if (!password) return res.status(401).json({ ok: false, error: "\u0643\u0644\u0645\u0629 \u0627\u0644\u0633\u0631 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D\u0629" });
+  const candidates = [];
+  const primary = await readConfig(key2);
+  if (primary) candidates.push(primary);
+  if (fallbackKey && fallbackKey !== key2) {
+    const fb = await readConfig(fallbackKey);
+    if (fb) candidates.push(fb);
+  }
+  if (!candidates.length) {
+    return res.status(503).json({ ok: false, error: "\u062A\u0639\u0630\u0651\u0631 \u0627\u0644\u062A\u062D\u0642\u0642 \u0627\u0644\u0622\u0646\u060C \u062D\u0627\u0648\u0644 \u0644\u0627\u062D\u0642\u0627\u064B" });
+  }
+  const ok3 = candidates.some((c) => timingEqual2(password, c));
+  if (!ok3) return res.status(401).json({ ok: false, error: "\u0643\u0644\u0645\u0629 \u0627\u0644\u0633\u0631 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D\u0629" });
+  return res.status(200).json({ ok: true });
+}
+
+// api/_handlers/kick/callback.ts
+import crypto5 from "crypto";
+var SECRET = (process.env.SERVER_SECRET || "dev-secret").padEnd(32, "0").slice(0, 32);
+function decryptCookie(val) {
+  try {
+    const [ivB64, tagB64, encB64] = val.split(".");
+    const decipher = crypto5.createDecipheriv("aes-256-gcm", Buffer.from(SECRET), Buffer.from(ivB64, "base64url"));
+    decipher.setAuthTag(Buffer.from(tagB64, "base64url"));
+    let dec = decipher.update(encB64, "base64url", "utf8");
+    dec += decipher.final("utf8");
+    return JSON.parse(dec);
+  } catch {
+    return null;
+  }
+}
+async function handler15(req, res) {
+  const { code, state, error } = req.query || {};
+  if (error) {
+    return res.redirect(302, `/?kick_error=${encodeURIComponent(error)}`);
+  }
+  if (!code || !state) {
+    return res.redirect(302, "/?kick_error=missing_params");
+  }
+  const cookie = req.headers?.cookie || "";
+  const m = cookie.match(/(?:^|;\s*)oauth_cv=([^;]+)/);
+  if (!m) return res.redirect(302, "/?kick_error=no_session");
+  const data = decryptCookie(decodeURIComponent(m[1]));
+  if (!data || data.state !== state) {
+    return res.redirect(302, "/?kick_error=state_mismatch");
+  }
+  const clientId = process.env.KICK_CLIENT_ID;
+  const clientSecret = process.env.KICK_CLIENT_SECRET;
+  const redirectUri = process.env.KICK_REDIRECT_URI;
+  if (!clientId || !clientSecret || !redirectUri) {
+    return res.redirect(302, "/?kick_error=not_configured");
+  }
+  try {
+    const tokenRes = await fetch("https://id.kick.com/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: redirectUri,
+        client_id: clientId,
+        client_secret: clientSecret,
+        code_verifier: data.codeVerifier
+      })
+    });
+    if (!tokenRes.ok) return res.redirect(302, "/?kick_error=token_failed");
+    const tokenData = await tokenRes.json();
+    const accessToken = tokenData.access_token;
+    if (!accessToken) return res.redirect(302, "/?kick_error=no_token");
+    const userRes = await fetch("https://api.kick.com/public/v1/users", {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!userRes.ok) return res.redirect(302, "/?kick_error=userinfo_failed");
+    const userData = await userRes.json();
+    const kickUser = userData?.data?.[0] || userData;
+    const kickUserId = String(kickUser?.user_id || kickUser?.id || "");
+    const kickUsername = kickUser?.name || kickUser?.username || kickUser?.slug || "";
+    const avatar = kickUser?.profile_picture || kickUser?.avatar || "";
+    if (!kickUserId || !kickUsername) {
+      return res.redirect(302, "/?kick_error=invalid_user");
+    }
+    let user = null;
+    const { data: byKickId } = await supabaseAdmin.from("users").select("id, kick_username, display_name, avatar, points, password_hash").eq("kick_user_id", kickUserId).maybeSingle();
+    if (byKickId) {
+      user = byKickId;
+    } else {
+      const { data: byUsername } = await supabaseAdmin.from("users").select("id, kick_username, display_name, avatar, points, password_hash, kick_user_id").ilike("kick_username", kickUsername).maybeSingle();
+      if (byUsername) {
+        if (!byUsername.kick_user_id) {
+          await supabaseAdmin.from("users").update({ kick_user_id: kickUserId, avatar: avatar || byUsername.avatar }).eq("id", byUsername.id);
+        }
+        user = { ...byUsername, kick_user_id: kickUserId };
+      } else {
+        const { data: newUser, error: uErr } = await supabaseAdmin.from("users").insert({ kick_user_id: kickUserId, kick_username: kickUsername.toLowerCase(), display_name: kickUsername, avatar, password_hash: "", is_verified: true }).select("id, kick_username, display_name, avatar, points").single();
+        if (uErr || !newUser) return res.redirect(302, "/?kick_error=create_failed");
+        user = newUser;
+        await supabaseAdmin.from("profiles").upsert({ username: kickUsername.toLowerCase(), avatar_url: avatar, created_at: (/* @__PURE__ */ new Date()).toISOString() });
+        await supabaseAdmin.from("leaderboard").insert([{ username: kickUsername.toLowerCase(), score: 0, wins: 0 }]);
+      }
+    }
+    const jti = crypto5.randomBytes(16).toString("hex");
+    const jwt = signJwt({ sub: user.id, username: user.kick_username, jti });
+    const csrf = generateCsrf();
+    const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+    res.setHeader("Set-Cookie", [
+      `icg1_session=${encodeURIComponent(jwt)}; Path=/; HttpOnly; SameSite=Lax${secure}; Max-Age=${7 * 24 * 3600}`,
+      `csrf_token=${encodeURIComponent(csrf)}; Path=/; SameSite=Lax${secure}; Max-Age=${7 * 24 * 3600}`,
+      "oauth_cv=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+    ]);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1e3).toISOString();
+    const { error: sessErr } = await supabaseAdmin.rpc("register_session", {
+      p_jti: jti,
+      p_user_id: user.id,
+      p_username: user.kick_username,
+      p_expires_at: expiresAt
+    });
+    if (sessErr) return res.redirect(302, "/?kick_error=session_failed");
+    return res.redirect(302, "/?kick_login=success");
+  } catch (e) {
+    return res.redirect(302, "/?kick_error=server_error");
+  }
+}
+
+// api/_handlers/kick/login.ts
+import crypto6 from "crypto";
+async function handler16(req, res) {
+  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+  const clientId = process.env.KICK_CLIENT_ID;
+  const redirectUri = process.env.KICK_REDIRECT_URI;
+  if (!clientId || !redirectUri) return res.status(500).json({ error: "KICK not configured" });
+  const state = crypto6.randomBytes(32).toString("base64url");
+  const codeVerifier = crypto6.randomBytes(32).toString("base64url");
+  const codeChallenge = crypto6.createHash("sha256").update(codeVerifier).digest("base64url");
+  const secret = (process.env.SERVER_SECRET || "dev-secret").padEnd(32, "0").slice(0, 32);
+  const iv = crypto6.randomBytes(12);
+  const cipher = crypto6.createCipheriv("aes-256-gcm", Buffer.from(secret), iv);
+  let enc = cipher.update(JSON.stringify({ state, codeVerifier }), "utf8", "base64url");
+  enc += cipher.final("base64url");
+  const tag = cipher.getAuthTag().toString("base64url");
+  const cookieVal = `${iv.toString("base64url")}.${tag}.${enc}`;
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  res.setHeader("Set-Cookie", `oauth_cv=${encodeURIComponent(cookieVal)}; Path=/; HttpOnly; SameSite=Lax${secure}; Max-Age=300`);
+  const url2 = new URL("https://id.kick.com/oauth/authorize");
+  url2.searchParams.set("client_id", clientId);
+  url2.searchParams.set("redirect_uri", redirectUri);
+  url2.searchParams.set("response_type", "code");
+  url2.searchParams.set("scope", "user:read");
+  url2.searchParams.set("state", state);
+  url2.searchParams.set("code_challenge", codeChallenge);
+  url2.searchParams.set("code_challenge_method", "S256");
+  return res.redirect(302, url2.toString());
+}
+
+// api/_handlers/kick/proxy.ts
+var ALLOWED_HOSTS = /* @__PURE__ */ new Set(["kick.com", "www.kick.com", "botrix.live", "www.botrix.live"]);
+var MAX_BYTES = 15e5;
+var TIMEOUT_MS = 8e3;
+var BROWSER_HEADERS = {
+  "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  accept: "application/json, text/plain, */*",
+  "accept-language": "en-US,en;q=0.9",
+  "cache-control": "no-cache"
+};
 async function handler17(req, res) {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+  const raw = typeof req.query?.endpoint === "string" ? req.query.endpoint : "";
+  if (!raw) {
+    return res.status(400).json({ error: "Missing endpoint" });
+  }
+  let target;
+  try {
+    target = new URL(raw);
+  } catch {
+    return res.status(400).json({ error: "Invalid endpoint" });
+  }
+  if (target.protocol !== "https:") {
+    return res.status(400).json({ error: "Invalid protocol" });
+  }
+  if (target.username || target.password) {
+    return res.status(400).json({ error: "Invalid endpoint" });
+  }
+  if (target.port && target.port !== "443") {
+    return res.status(403).json({ error: "Host not allowed" });
+  }
+  if (!ALLOWED_HOSTS.has(target.hostname.toLowerCase())) {
+    return res.status(403).json({ error: "Host not allowed" });
+  }
+  const path = target.pathname.replace(/^\/+/, "/");
+  if (!path.startsWith("/api/")) {
+    return res.status(403).json({ error: "Path not allowed" });
+  }
+  const upstreamUrl = `https://${target.hostname.toLowerCase()}${path}${target.search}`;
+  const refererHost = target.hostname.toLowerCase().includes("kick.com") ? "https://kick.com/" : `https://${target.hostname}/`;
+  try {
+    const upstream = await fetch(upstreamUrl, {
+      method: "GET",
+      // لا نتبع التحويلات: يمنع أي محاولة SSRF عبر Location إلى مضيف آخر.
+      redirect: "manual",
+      headers: {
+        ...BROWSER_HEADERS,
+        referer: refererHost,
+        origin: refererHost.replace(/\/$/, "")
+      },
+      signal: AbortSignal.timeout(TIMEOUT_MS)
+    });
+    if (!upstream.ok) {
+      return res.status(502).json({ error: "Upstream error", status: upstream.status });
+    }
+    const text = await upstream.text();
+    if (text.length > MAX_BYTES) {
+      return res.status(502).json({ error: "Upstream response too large" });
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return res.status(502).json({ error: "Upstream returned invalid JSON" });
+    }
+    res.setHeader("Cache-Control", "public, max-age=30, s-maxage=60, stale-while-revalidate=300");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    return res.status(200).json(parsed);
+  } catch (e) {
+    const timedOut = e?.name === "TimeoutError" || e?.name === "AbortError";
+    return res.status(timedOut ? 504 : 502).json({ error: timedOut ? "Upstream timeout" : "Bad gateway" });
+  }
+}
+
+// api/_handlers/user/announcements.ts
+async function handler18(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24641,7 +24723,7 @@ async function handler17(req, res) {
 }
 
 // api/_handlers/user/notifications.ts
-async function handler18(req, res) {
+async function handler19(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24678,7 +24760,7 @@ async function handler18(req, res) {
 }
 
 // api/_handlers/user/promo.ts
-async function handler19(req, res) {
+async function handler20(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24706,7 +24788,7 @@ async function handler19(req, res) {
 // api/_handlers/user/reports.ts
 var KINDS = ["\u0633\u0644\u0648\u0643 \u0645\u062E\u0627\u0644\u0641", "\u062A\u0639\u0644\u064A\u0642 \u0645\u0633\u064A\u0621", "\u063A\u0634 \u0641\u064A \u0644\u0639\u0628\u0629", "\u0627\u0646\u062A\u062D\u0627\u0644 \u062D\u0633\u0627\u0628", "\u0645\u062D\u062A\u0648\u0649 \u063A\u064A\u0631 \u0644\u0627\u0626\u0642", "\u0625\u0633\u0627\u0621\u0629 \u0644\u0645\u0633\u062A\u062E\u062F\u0645", "\u0623\u062E\u0631\u0649"];
 var STATUS_AR = { new: "\u062C\u062F\u064A\u062F", reviewing: "\u0642\u064A\u062F \u0627\u0644\u0645\u0631\u0627\u062C\u0639\u0629", accepted: "\u0645\u0642\u0628\u0648\u0644", rejected: "\u0645\u0631\u0641\u0648\u0636", closed: "\u0645\u063A\u0644\u0642" };
-async function handler20(req, res) {
+async function handler21(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24766,7 +24848,7 @@ async function handler20(req, res) {
 
 // api/_handlers/user/session.ts
 var cleanName = (v) => String(v ?? "").trim().toLowerCase().replace(/[^a-z0-9\u0600-\u06FF_\-.\s]/g, "").slice(0, 40);
-async function handler21(req, res) {
+async function handler22(req, res) {
   const method = req.method;
   if (method === "GET") {
     const m = await requireMember(req);
@@ -24802,7 +24884,7 @@ async function handler21(req, res) {
 
 // api/_handlers/user/store.ts
 var SAFE_ID = /^[A-Za-z0-9_\-]{1,64}$/;
-async function handler22(req, res) {
+async function handler23(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24853,7 +24935,7 @@ async function handler22(req, res) {
 var CATS = ["\u0645\u0634\u0643\u0644\u0629 \u062D\u0633\u0627\u0628", "\u0645\u0634\u0643\u0644\u0629 \u0645\u0634\u062A\u0631\u064A\u0627\u062A", "\u0645\u0634\u0643\u0644\u0629 \u0631\u0635\u064A\u062F", "\u0645\u0634\u0643\u0644\u0629 \u0644\u0639\u0628\u0629", "\u0628\u0644\u0627\u063A", "\u0627\u0642\u062A\u0631\u0627\u062D", "\u0645\u0634\u0643\u0644\u0629 \u062A\u0642\u0646\u064A\u0629"];
 var PRIS = ["\u0645\u0646\u062E\u0641\u0636\u0629", "\u0645\u062A\u0648\u0633\u0637\u0629", "\u0639\u0627\u0644\u064A\u0629"];
 var STATUS_AR2 = { new: "\u062C\u062F\u064A\u062F\u0629", reviewing: "\u0642\u064A\u062F \u0627\u0644\u0645\u0631\u0627\u062C\u0639\u0629", resolved: "\u062A\u0645 \u0627\u0644\u062D\u0644", closed: "\u0645\u063A\u0644\u0642\u0629" };
-async function handler23(req, res) {
+async function handler24(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24889,7 +24971,7 @@ async function loadCard(id) {
   const { data } = await supabaseAdmin.from("tournaments").select("*").eq("id", id).maybeSingle();
   return data;
 }
-async function handler24(req, res) {
+async function handler25(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
   if (req.method === "GET") {
@@ -24956,9 +25038,19 @@ async function handler24(req, res) {
   return json2(res, 405, { ok: false, error: "Method not allowed" });
 }
 
+// api/_handlers/user/game-key.ts
+async function handler26(req, res) {
+  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+  const session = await requireSession(req);
+  if (!session) return res.status(401).json({ ok: false, error: "\u0644\u0627 \u062A\u0648\u062C\u062F \u062C\u0644\u0633\u0629" });
+  const { data, error } = await supabaseAdmin.from("users").select("password_hash").eq("id", session.userId).maybeSingle();
+  if (error || !data?.password_hash) return res.status(404).json({ ok: false, error: "\u0644\u0627 \u064A\u0648\u062C\u062F \u0645\u0641\u062A\u0627\u062D" });
+  return res.status(200).json({ ok: true, game_key: String(data.password_hash) });
+}
+
 // api/_handlers/creators/leaderboard.ts
 var ALLOWED = ["lifetime", "monthly", "weekly"];
-async function handler25(req, res) {
+async function handler27(req, res) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -25001,20 +25093,22 @@ var routes = {
   "/auth/chat-verify": handler11,
   "/auth/login": handler12,
   "/auth/register": handler13,
-  "/kick": handler16,
-  "/kick/callback": handler14,
-  "/kick/login": handler15,
-  "/user/announcements": handler17,
-  "/user/notifications": handler18,
-  "/user/promo": handler19,
-  "/user/reports": handler20,
-  "/user/session": handler21,
-  "/user/store": handler22,
-  "/user/tickets": handler23,
-  "/user/tournaments": handler24,
-  "/creators/leaderboard": handler25
+  "/auth/config-check": handler14,
+  "/kick": handler17,
+  "/kick/callback": handler15,
+  "/kick/login": handler16,
+  "/user/announcements": handler18,
+  "/user/notifications": handler19,
+  "/user/promo": handler20,
+  "/user/reports": handler21,
+  "/user/session": handler22,
+  "/user/store": handler23,
+  "/user/tickets": handler24,
+  "/user/tournaments": handler25,
+  "/user/game-key": handler26,
+  "/creators/leaderboard": handler27
 };
-async function handler26(req, res) {
+async function handler28(req, res) {
   const wrapped = wrapRes(res);
   const route = typeof req.query?.route === "string" ? "/" + req.query.route : "/";
   const target = routes[route];
@@ -25055,5 +25149,5 @@ function wrapRes(res) {
   return proxied;
 }
 export {
-  handler26 as default
+  handler28 as default
 };

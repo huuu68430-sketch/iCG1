@@ -77,10 +77,11 @@ const frameMemCache = new Map<string, { frameId: string; frameUrl: string }>();
 const lastState: Record<string, 'ok' | 'unsynced' | 'missing'> = {};
 
 /**
- * يزامن مفتاح اللعبة مع المخزّن في قاعدة البيانات.
- * المتصفحات التي سجّلت الدخول قبل وجود هذا المفتاح كانت تدخل بلا إثبات،
- * والمتصفح الذي انتقل بين حسابين يجب ألا يحمل مفتاح الحساب السابق.
- * force = إعادة القراءة من قاعدة البيانات حتى لو زُومِن هذا الحساب في الجلسة الحالية.
+ * يزامن مفتاح اللعبة مع ما يخزّنه السيرفر.
+ * المفتاح (تجزئة كلمة سر الحساب) لا يُقرأ من قاعدة البيانات في المتصفح:
+ * كان أي زائر يقرأ تجزئات كل الحسابات ويفكّها (6 خانات + ملح معروف).
+ * المصدر الآن السيرفر: /api/user/game-key — يجيب صاحب الجلسة الحقيقية فقط.
+ * force = إعادة القراءة من السيرفر حتى لو زُومِن هذا الحساب في الجلسة الحالية.
  */
 export const syncGameKey = async (handle: string, force = false): Promise<string> => {
   if (!force && syncedHandle === handle) {
@@ -89,32 +90,28 @@ export const syncGameKey = async (handle: string, force = false): Promise<string
     return k;
   }
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('password_hash')
-      .eq('kick_username', handle)
-      .limit(1);
-    if (error) { syncedHandle = ''; lastState[handle] = 'unsynced'; return pairedKey(handle); }
-    const stored = String((data as any)?.[0]?.password_hash || '');
-    if (!stored) {
-      // لا حساب بهذا الاسم: المفتاح المحلي ليس مفتاحه — نُبقي وسام الحساب القديم كما هو
+    const r = await fetch('/api/user/game-key', { credentials: 'include' });
+    if (!r.ok) throw new Error('no-session');
+    const j = await r.json().catch(() => ({}));
+    const stored = String(j?.game_key || '');
+    if (!stored || !KEY_SHAPE.test(stored)) {
       syncedHandle = handle;
-      lastState[handle] = 'missing';
-      return '';
+      lastState[handle] = 'unsynced';
+      return pairedKey(handle);
     }
-    if (KEY_SHAPE.test(stored)) {
-      try {
-        localStorage.setItem('iabs_game_key', stored);
-        localStorage.setItem('iabs_game_key_for', handle);
-      } catch { /* التخزين ممتلئ */ }
-      syncedHandle = handle;
-      lastState[handle] = 'ok';
-      return stored;
-    }
-    syncedHandle = '';
+    try {
+      localStorage.setItem('iabs_game_key', stored);
+      localStorage.setItem('iabs_game_key_for', handle);
+    } catch { /* التخزين ممتلئ */ }
+    syncedHandle = handle;
+    lastState[handle] = 'ok';
+    return stored;
+  } catch {
+    // لا جلسة حقيقية (أو انقطاع): يبقى المفتاح المُوسَّم لهذا الحساب فقط
     lastState[handle] = 'unsynced';
-  } catch { /* القراءة غير مسموحة — يبقى المفتاح المحلي المُوسَم لهذا الحساب فقط */ }
-  return pairedKey(handle);
+    syncedHandle = '';
+    return pairedKey(handle);
+  }
 };
 
 /** الإطار المجهّز: من الكاش فوراً، ثم من قاعدة البيانات */

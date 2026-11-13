@@ -30,6 +30,8 @@ interface UserDashboardProps {
         points?: number;
     };
     onLogout?: () => void;
+    /** رجوع إلى ساحة الألعاب — اللوحة هي وجه العضو، وساحة الألعاب وجهته الثانية */
+    onHome?: () => void;
 }
 
 type DashView = 'home' | 'store' | 'locker' | 'rank' | 'settings';
@@ -290,7 +292,7 @@ const Spark: React.FC<{ seed?: number }> = ({ seed = 3 }) => {
     return <svg className="sp" viewBox="0 0 300 44" preserveAspectRatio="none"><path d={d} /></svg>;
 };
 
-export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout }) => {
+export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout, onHome }) => {
     const username = String(userData.kick_username || (userData as any).kickUsername || '').toLowerCase();
     const userId = userData.id;
 
@@ -977,6 +979,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
                             <span>{nextRank ? `الرتبة القادمة: ${nextRank[1]} (${fmt(nextRank[0])})` : 'أعلى رتبة'}</span>
                         </div>
                         <div className="md-acts">
+                            {onHome && (
+                                <button className="md-btn md-ghost" onClick={onHome}><Home size={17} /> ساحة الألعاب</button>
+                            )}
                             <button className="md-btn md-gold" onClick={() => go('store')}><ShoppingBag size={17} /> تصفّح المتجر</button>
                             <button className="md-btn md-ghost" onClick={() => go('rank')}><Trophy size={17} /> لوحة الصدارة</button>
                         </div>

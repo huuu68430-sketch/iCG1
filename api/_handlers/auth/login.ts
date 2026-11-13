@@ -28,14 +28,30 @@ export default async function handler(req: any, res: any) {
   if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
 
   // Lazy upgrade: SHA-256 legacy → scrypt
+  // المفتاح الذي يعود للمتصفح هو التجزئة النهائية في القاعدة — تُستعمل كإثبات
+  // ملكية الحساب داخل الألعاب (المافيا). ولا تُكشف إلا لصاحب الحساب الذي برهن
+  // كلمة سره الآن.
+  let gameKey = user.password_hash;
   if (needsUpgrade) {
-    const newHash = hashPasswordNew(password);
-    await supabaseAdmin.from('users').update({ password_hash: newHash }).eq('id', user.id);
+    gameKey = hashPasswordNew(password);
+    await supabaseAdmin.from('users').update({ password_hash: gameKey }).eq('id', user.id);
   }
 
   const jti = generateJti();
   const jwt = signJwt({ sub: user.id, username: user.kick_username, jti });
   const csrf = generateCsrf();
   setSessionCookies(res, jwt, csrf);
-  return res.status(200).json({ user: { id: user.id, kick_username: user.kick_username, display_name: user.display_name, avatar: user.avatar, points: user.points } });
+
+  /* الجلسة تُسجَّل في القاعدة — وإلا رفضها /api/me و requireSession بعد ذلك
+     (الكوكي وحده لا يكفي: لا بدّ من صفّ حيّ يمكن إلغاؤه). */
+  const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+  const { error: sessErr } = await supabaseAdmin.rpc('register_session', {
+    p_jti: jti, p_user_id: user.id, p_username: user.kick_username, p_expires_at: expiresAt,
+  });
+  if (sessErr) return res.status(500).json({ error: 'تعذّر إنشاء الجلسة' });
+
+  return res.status(200).json({
+    user: { id: user.id, kick_username: user.kick_username, display_name: user.display_name, avatar: user.avatar, points: user.points },
+    game_key: gameKey,
+  });
 }

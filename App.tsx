@@ -782,6 +782,7 @@ useEffect(() => {
         <div className="flex-1 w-full min-h-full flex flex-col animate-in slide-in-from-bottom-20 duration-1000">
           <UserDashboard
             onLogout={handleLogout}
+            onHome={() => setCurrentView('HOME')}
             userData={(() => {
               const stored = localStorage.getItem('iabs_user');
               return stored ? JSON.parse(stored) : { id: '', display_name: 'Guest', kick_username: 'guest' };
@@ -897,11 +898,17 @@ useEffect(() => {
           setUserRole(role);
           setIsAuthorized(true);
           const roomLink = new URLSearchParams(window.location.search).get('r') || readShortRoomCode();
-          /* الرابط الذي جلب الزائر (لوحة العضو ومنها المتجر) يبقى وجهته بعد الدخول */
-          const wanted = (initialParams.view !== 'ABOUT' && initialParams.view !== 'HOME')
+          /* رابط غرفة أو لعبة معيّنة يسبق كل شيء: العضو يدخل جولته مباشرة */
+          if (readCnRoomCode()) { setCurrentView('EMOJI_CODE'); return; }
+          if (roomLink) { setCurrentView('MAHMAH_GAME'); return; }
+          /* صاحب الإدارة ⇒ لوحة التحكم (والتحقّق في السيرفر — لا في التخزين المحلي) */
+          if (role === 'admin') { setCurrentView('ADMIN_PANEL'); return; }
+          /* العضو ⇒ صفحته الخاصة (لوحة العضو)، لا ساحة الألعاب.
+             (?view=لعبة محددة يبقى — رابط مباشر إلى لعبة) */
+          const explicit = (initialParams.view !== 'ABOUT' && initialParams.view !== 'HOME')
             ? initialParams.view
-            : (/^\/user-dashboard/i.test(window.location.pathname) ? 'USER_DASHBOARD' as ViewState : 'HOME');
-          setCurrentView(readCnRoomCode() ? 'EMOJI_CODE' : roomLink ? 'MAHMAH_GAME' : wanted);
+            : null;
+          setCurrentView(explicit || 'USER_DASHBOARD');
         }}
       />
     );

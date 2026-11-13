@@ -8,8 +8,6 @@ const sha256hex = async (input: string): Promise<string> => {
   return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
-const hashPassword = (pin: string) => sha256hex(pin + 'iABS_salt_2024');
-
 const SESSION_TTL = 12 * 60 * 60 * 1000; // 12 hours
 const MAX_ATTEMPTS = 5;
 const LOCK_MS = 90 * 1000;
@@ -50,14 +48,15 @@ const genCode = () => {
 /**
  * طلب التحقق المعلّق — يُخزَّن لكى يرجع الشخص من تبويب كيك (أو يعيد فتح
  * الصفحة) على نفس الكود ونفس العد، بدل ما يلاقي نفسه في أول الصفحة.
- * sessionStorage حصراً: كلمة السر تُحفظ مغسّولة فقط، وما لازم تبقى حيّة بعد
- * ما يتقفل التبويب أو تخلص المهلة.
+ * sessionStorage حصراً: كلمة السر تبقى حيّة حتى يكتمل التحقّق أو تخلص
+ * المهلة، وتُمحى فور إنشاء الحساب.
  */
 interface PendingVerify {
   name: string;
   kick: string;
   disc: string;
-  pinHash: string;
+  /** كلمة سر الحساب الجديدة — تُرسل للسيرفر عند إتمام التحقّق */
+  pin: string;
   avatar: string;
   code: string;
   issuedAt: number;
@@ -69,7 +68,7 @@ const readPendingVerify = (): PendingVerify | null => {
     const raw = sessionStorage.getItem(PENDING_VERIFY_KEY);
     if (!raw) return null;
     const p = JSON.parse(raw);
-    if (!p?.kick || !p?.code || !p?.pinHash || !p?.deadline) return null;
+    if (!p?.kick || !p?.code || !p?.pin || !p?.deadline) return null;
     if (Date.now() > Number(p.deadline)) { clearPendingVerify(); return null; }
     return p as PendingVerify;
   } catch { return null; }
@@ -100,9 +99,27 @@ const getDeviceSalt = (): string => {
   }
 };
 
-const buildSession = async (pin: string, role: 'admin' | 'user') => {
+/**
+ * جلسة الموقع في التخزين المحلي: علامة «مصرّح» + الدور + نهايتها.
+ * سرّها من سرّ الجهاز (عشوائي) — لا كلمة سر الإدارة ولا كلمة سر العضو:
+ * الصلاحيات الحقيقية كلها في كوكي HttpOnly يمنحه السيرفر.
+ */
+const deviceSecret = (): string => {
+  try {
+    let s = sessionStorage.getItem('iabs_device_secret');
+    if (!s) {
+      s = crypto.getRandomValues(new Uint8Array(24)).reduce((acc, b) => acc + b.toString(16).padStart(2, '0'), '');
+      sessionStorage.setItem('iabs_device_secret', s);
+    }
+    return s;
+  } catch {
+    return 'device';
+  }
+};
+
+const buildSession = async (role: 'admin' | 'user') => {
   const issuedAt = Date.now();
-  const pinHash = await sha256hex(pin + '|iABS_pin|');
+  const pinHash = await sha256hex(deviceSecret() + '|iABS_pin|');
   const token = await sha256hex(pinHash + '|' + issuedAt + '|' + getDeviceSalt());
   return { token, pinHash, issuedAt, expiresAt: issuedAt + SESSION_TTL, valid: true, role };
 };
@@ -146,7 +163,6 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
   const [curView, setCurView] = useState<ViewName>(adminOnly ? 'admin' : 'login');
   const [animClass, setAnimClass] = useState<'on' | 'out'>('on');
   const [role, setRole] = useState<'admin' | 'user'>('user');
-  const [targetPin, setTargetPin] = useState<string | null>(null);
 
   // Rate Limiting
   const [lockedUntil, setLockedUntil] = useState(0);
@@ -176,7 +192,7 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
     name: string;
     kick: string;
     disc: string;
-    pinHash: string;
+    pin: string;
     avatar: string;
   } | null>(null);
   const [verifyCode, setVerifyCode] = useState(`${CODE_PREFIX}000000`);
@@ -195,7 +211,6 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
   const [showAdminPin, setShowAdminPin] = useState(false);
   const [isAdminLoading, setIsAdminLoading] = useState(false);
   const [adminPinBad, setAdminPinBad] = useState(false);
-
   // Biometric Scan
   const [scanProgress, setScanProgress] = useState(0);
   const [isScanning, setIsScanning] = useState(false);
@@ -236,7 +251,8 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
     successSound.current = new Audio('https://assets.mixkit.co/active_storage/sfx/1114/1114-preview.mp3');
   }, []);
 
-  // Fetch Admin Password Config & Check Lock
+  // قفل المحاولات + قراءة حالة القفل — بلا أي سرّ في المتصفح:
+  // كلمات السر تُفحص في السيرفر وحده (لأنها تُقرأ من app_config بسرّ الخدمة).
   useEffect(() => {
     try {
       const lockRaw = localStorage.getItem(`auth_lock_${storageKey}`);
@@ -246,22 +262,7 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
         if (typeof lock.fails === 'number') setFails(lock.fails);
       }
     } catch (e) {}
-
-    const fetchConfig = async () => {
-      try {
-        const { data } = await supabase.from('app_config').select('value').eq('key', configKey).maybeSingle();
-        if (data?.value) {
-          setTargetPin(String(data.value).trim());
-        } else if (fallbackConfigKey) {
-          const { data: fb } = await supabase.from('app_config').select('value').eq('key', fallbackConfigKey).maybeSingle();
-          if (fb?.value) setTargetPin(String(fb.value).trim());
-        }
-      } catch (e) {
-        console.warn('[Auth] Remote config fetch failed:', e);
-      }
-    };
-    fetchConfig();
-  }, [configKey, fallbackConfigKey, storageKey]);
+  }, [storageKey]);
 
   // Golden floating embers animation
   useEffect(() => {
@@ -411,6 +412,8 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
   };
 
   // --- 1. USER LOGIN ---
+  /* التحقق كله في السيرفر: المتصفح لا يقرأ تجزئات كلمة السر من القاعدة ولا
+     يقارنها بنفسه — يستدعي /api/auth/login فيقبل أو يرفض. */
   const handleLoginSubmit = async (pinOverride?: string) => {
     const user = loginUser.trim().toLowerCase();
     const p = (pinOverride !== undefined ? pinOverride : loginPin.join('')).trim();
@@ -429,30 +432,29 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
 
     setIsLoginLoading(true);
     try {
-      const hashed = await hashPassword(p);
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('kick_username', user)
-        .eq('password_hash', hashed)
-        .maybeSingle();
-      if (error || !data) {
+      const r = await fetch('/api/auth/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: p }),
+      });
+      const j = await r.json().catch(() => ({}));
+
+      if (!r.ok || !j?.user) {
         setLoginPinBad(true);
         setTimeout(() => setLoginPinBad(false), 600);
-        showToast('اسم المستخدم أو كلمة السر غير صحيحة');
+        showToast(j?.error || 'اسم المستخدم أو كلمة السر غير صحيحة');
         setIsLoginLoading(false);
         return;
       }
 
-      // Fetch score
-      const { data: lbData } = await supabase
-        .from('leaderboard')
-        .select('score')
-        .eq('username', user)
-        .maybeSingle();
+      const data = j.user;
 
-      // مفتاح اللعبة: يُستخدم لإثبات ملكية الحساب في الألعاب (المافيا)، ولا يُرسل كما هو
-      localStorage.setItem('iabs_game_key', hashed);
+      // مفتاح اللعبة: تجزئة كلمة سر هذا الحساب وحده — من السيرفر، لصاحبه فقط
+      if (j.game_key) {
+        localStorage.setItem('iabs_game_key', String(j.game_key));
+        localStorage.setItem('iabs_game_key_for', user);
+      }
 
       localStorage.setItem(
         'iabs_user',
@@ -460,9 +462,8 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
           id: data.id,
           display_name: data.display_name || user,
           kick_username: data.kick_username,
-          discord: data.discord || undefined,
           avatar: data.avatar || undefined,
-          points: lbData?.score || 0
+          points: data.points || 0
         })
       );
 
@@ -528,7 +529,7 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
 
       await beginVerification(
         { name: name || kick, kick, disc, avatar: kickAvatar },
-        await hashPassword(p)
+        p
       );
       navigateTo('verify');
     } catch (err: any) {
@@ -546,19 +547,19 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
    */
   const beginVerification = async (
     acct: { name: string; kick: string; disc: string; avatar: string },
-    pinHash: string
+    pin: string
   ) => {
     const code = genCode();
     const issuedAt = Date.now();
     const deadline = issuedAt + VERIFY_WINDOW * 1000;
-    setPendingUser({ name: acct.name, kick: acct.kick, disc: acct.disc, pinHash, avatar: acct.avatar });
+    setPendingUser({ name: acct.name, kick: acct.kick, disc: acct.disc, pin, avatar: acct.avatar });
     setVerifyCode(code);
     setVerifyLeft(VERIFY_WINDOW);
     setVerifySuccess(false);
     setVerifyExpired(false);
     setChatFeed([]);
     verifyRef.current = { code, kick: acct.kick, deadline, done: false };
-    writePendingVerify({ ...acct, pinHash, code, issuedAt, deadline });
+    writePendingVerify({ ...acct, pin, code, issuedAt, deadline });
     // الشات يُفتح الآن، لا بعد ما يوصل العضو شاشة التحقق: الرسالة قد تصل وهو
     // بعدُ في تبويب كيك، والاتصال الباكر يضمن إنها تُلتقط وتُخزَّن.
     void chatService.connect('icg1');
@@ -568,7 +569,7 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
     if (!pendingUser) return;
     void beginVerification(
       { name: pendingUser.name, kick: pendingUser.kick, disc: pendingUser.disc, avatar: pendingUser.avatar },
-      pendingUser.pinHash
+      pendingUser.pin
     );
     showToast('كود جديد — أرسله في الشات', true);
   };
@@ -583,43 +584,54 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
     try {
       const finalAvatar = pendingUser.avatar || extraAvatar || '';
 
-      await supabase.from('users').insert({
-        kick_username: pendingUser.kick,
-        display_name: pendingUser.name,
-        discord: pendingUser.disc || '',
-        password_hash: pendingUser.pinHash,
-        avatar: finalAvatar,
-        is_verified: true
+      /* إنشاء الحساب في السيرفر: التجزئة (scrypt) تُحسب فيه، والصف يُنشأ
+         ذرّياً، والمتصفح لا يكتب في جدول المستخدمين ولا يقرأ تجزئات غيره. */
+      const r = await fetch('/api/auth/register', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: pendingUser.name,
+          username: pendingUser.kick,
+          password: pendingUser.pin,
+          discord: pendingUser.disc || '',
+        }),
       });
+      const j = await r.json().catch(() => ({}));
 
-      localStorage.setItem('iabs_game_key', pendingUser.pinHash);
+      if (!r.ok || !j?.user) {
+        setVerifySuccess(false);
+        showToast(j?.error || 'خطأ في استكمال التسجيل');
+        return;
+      }
+
+      // الصورة تُحفظ بعد الإنشاء (السيرفر ينشئ الحساب بلا صورة)
+      if (finalAvatar) {
+        try {
+          await supabase.from('users').update({ avatar: finalAvatar }).eq('kick_username', pendingUser.kick);
+        } catch (e) {}
+      }
 
       try {
-        await supabase.from('profiles').upsert({
-          username: pendingUser.kick,
-          avatar_url: finalAvatar,
-          role: 'user',
-          created_at: new Date().toISOString()
-        });
+        // الصف أنشأه السيرفر مع الحساب — هنا الصورة فقط
+        await supabase.from('profiles').update({ avatar_url: finalAvatar }).eq('username', pendingUser.kick);
       } catch (e) {}
 
-      try {
-        await supabase.from('leaderboard').insert([{
-          username: pendingUser.kick,
-          score: 0,
-          wins: 0
-        }]);
-      } catch (e) {}
+      // مفتاح اللعبة (تجزئة كلمة سر الحساب) — لصاحبه وحده
+      if (j.game_key) {
+        localStorage.setItem('iabs_game_key', String(j.game_key));
+        localStorage.setItem('iabs_game_key_for', pendingUser.kick);
+      }
 
       localStorage.setItem(
         'iabs_user',
         JSON.stringify({
-          id: pendingUser.kick,
-          display_name: pendingUser.name,
-          kick_username: pendingUser.kick,
+          id: j.user.id || pendingUser.kick,
+          display_name: j.user.display_name || pendingUser.name,
+          kick_username: j.user.kick_username || pendingUser.kick,
           discord: pendingUser.disc || undefined,
           avatar: finalAvatar || undefined,
-          points: 0
+          points: j.user.points || 0
         })
       );
       localStorage.setItem('iabs_device_registered', 'true');
@@ -629,6 +641,7 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
         navigateTo('scan');
       }, 1500);
     } catch (e: any) {
+      setVerifySuccess(false);
       showToast('خطأ في استكمال التسجيل');
     }
   };
@@ -763,7 +776,7 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
       clearPendingVerify();
       return;
     }
-    setPendingUser({ name: p.name, kick: p.kick, disc: p.disc, pinHash: p.pinHash, avatar: p.avatar });
+    setPendingUser({ name: p.name, kick: p.kick, disc: p.disc, pin: p.pin, avatar: p.avatar });
     setVerifyCode(p.code);
     setVerifyLeft(left);
     setVerifySuccess(false);
@@ -774,6 +787,11 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
   }, [adminOnly]);
 
   // --- 4. ADMIN LOGIN ---
+  /* البوابة تتكلم مع السيرفر وحده:
+     - بوابة الإدارة (/api/admin/login): كلمة السر تُفحص هناك، والجواب-session
+       (كوكي HttpOnly) هو ما يفتح لوحة التحكم.
+     - بوابة المستضيف (/api/auth/config-check): نعم/لا فقط.
+     كلمة السر لا تُقرأ من app_config في المتصفح أبداً. */
   const handleAdminSubmit = async (pinOverride?: string) => {
     if (Date.now() < lockedUntil) {
       showToast(`تم القفل مؤقتاً — انتظر ${Math.ceil((lockedUntil - Date.now()) / 1000)} ثانية`);
@@ -790,23 +808,19 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
 
     setIsAdminLoading(true);
     try {
-      let valid = false;
-      if (targetPin && c === targetPin.trim()) {
-        valid = true;
-      } else {
-        // Attempt fresh lookup
-        const { data } = await supabase.from('app_config').select('value').eq('key', configKey).maybeSingle();
-        if (data?.value && c === String(data.value).trim()) {
-          valid = true;
-          setTargetPin(String(data.value).trim());
-        } else if (fallbackConfigKey) {
-          const { data: fb } = await supabase.from('app_config').select('value').eq('key', fallbackConfigKey).maybeSingle();
-          if (fb?.value && c === String(fb.value).trim()) {
-            valid = true;
-            setTargetPin(String(fb.value).trim());
-          }
-        }
-      }
+      const url = adminOnly ? '/api/auth/config-check' : '/api/admin/login';
+      const payload = adminOnly
+        ? { key: configKey, fallback_key: fallbackConfigKey || undefined, password: c }
+        : { password: c };
+
+      const r = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json().catch(() => ({}));
+      const valid = adminOnly ? (r.ok && j?.ok === true) : (r.ok && !!j?.staff);
 
       if (valid) {
         clearFails();
@@ -820,7 +834,7 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
           setAdminPin(['', '', '', '', '', '']);
           adminInputs.current[0]?.focus();
         }, 600);
-        showToast('رمز القيادة غير صحيح');
+        showToast(j?.error || 'رمز القيادة غير صحيح');
       }
     } catch (e: any) {
       showToast(e.message || 'خطأ في التحقق من كلمة السر');
@@ -885,7 +899,8 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
     if (curView === 'ok') {
       window.dispatchEvent(new CustomEvent('icg1:authorized', { detail: { role } }));
       (async () => {
-        const session = await buildSession(targetPin || 'icg1_verified', role);
+        // الجلسة المحلية علامة تنفيس فقط — الصلاحيات الحقيقية في كوكي السيرفر
+        const session = await buildSession(role);
         localStorage.setItem(storageKey, JSON.stringify(session));
       })();
 
@@ -894,7 +909,7 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [curView, role, storageKey, targetPin, onSuccess]);
+  }, [curView, role, storageKey, onSuccess]);
 
   const bodyMoodClass = curView === 'verify' ? 'red' : curView === 'ok' ? 'green' : '';
 

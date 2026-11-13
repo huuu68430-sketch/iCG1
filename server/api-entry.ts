@@ -17,6 +17,7 @@ import chatVerifyIssue from '../api/_handlers/auth/chat-verify-issue';
 import chatVerify from '../api/_handlers/auth/chat-verify';
 import authLogin from '../api/_handlers/auth/login';
 import authRegister from '../api/_handlers/auth/register';
+import configCheck from '../api/_handlers/auth/config-check';
 
 import kickCallback from '../api/_handlers/kick/callback';
 import kickLogin from '../api/_handlers/kick/login';
@@ -30,6 +31,7 @@ import session from '../api/_handlers/user/session';
 import store from '../api/_handlers/user/store';
 import tickets from '../api/_handlers/user/tickets';
 import tournaments from '../api/_handlers/user/tournaments';
+import gameKey from '../api/_handlers/user/game-key';
 
 import creatorsLeaderboard from '../api/_handlers/creators/leaderboard';
 
@@ -49,6 +51,7 @@ const routes: Record<string, (req: any, res: any) => any> = {
   '/auth/chat-verify': chatVerify,
   '/auth/login': authLogin,
   '/auth/register': authRegister,
+  '/auth/config-check': configCheck,
 
   '/kick': kickProxy,
   '/kick/callback': kickCallback,
@@ -62,6 +65,7 @@ const routes: Record<string, (req: any, res: any) => any> = {
   '/user/store': store,
   '/user/tickets': tickets,
   '/user/tournaments': tournaments,
+  '/user/game-key': gameKey,
 
   '/creators/leaderboard': creatorsLeaderboard,
 };

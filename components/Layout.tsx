@@ -126,9 +126,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
                   </button>
                 )}
                 <button
-                  onClick={() => onChangeView(userRole === 'user' ? 'USER_DASHBOARD' as any : 'HOME')}
+                  onClick={() => onChangeView('HOME')}
                   className="p-1 bg-gradient-to-br from-[#f9e0a4] to-[#a97a30] text-[#1a1006] hover:brightness-110 transition-all rounded border border-[#e8be6e]/40 active:scale-95 shadow-[0_0_8px_rgba(232,190,110,0.3)]"
-                  title={userRole === 'user' ? "لوحة القيادة" : "الرئيسية"}
+                  title="ساحة الألعاب"
                 >
                   <Home size={10} />
                 </button>

@@ -118,6 +118,13 @@ export default async function handler(req: any, res: any) {
       'oauth_cv=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
     ]);
 
+    /* الجلسة تُسجَّل في القاعدة — وإلا رفضها /api/me بعد الدخول */
+    const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+    const { error: sessErr } = await supabaseAdmin.rpc('register_session', {
+      p_jti: jti, p_user_id: user.id, p_username: user.kick_username, p_expires_at: expiresAt,
+    });
+    if (sessErr) return res.redirect(302, '/?kick_error=session_failed');
+
     return res.redirect(302, '/?kick_login=success');
   } catch (e) {
     return res.redirect(302, '/?kick_error=server_error');
