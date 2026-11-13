@@ -356,7 +356,9 @@ const SY={id:rid(6),fns:[],bc:null,q:[],busy:false,busyAt:0,pending:false,timer:
    catch(e){this.lastFetch=0;netBad("تعذّر قراءة غرفة اللعبة — تأكد من تشغيل SQL الخاص بها")}
    this.busy=false;}
   else if(this.busy&&Date.now()-this.busyAt>20000)this.busy=false;
-  if(MODE==="s"&&++this.tickN%60===0)del("mafia_bus","room_code=eq."+encodeURIComponent(ROOM)+"&created_at=lt."+new Date(Date.now()-300000).toISOString());
+  /* تنظيف الصفوف القديمة عملية دورية؛ تشغيل DELETE كل ٤٢ ثانية كان يولّد
+     سجلاً حتى عندما لا توجد صفوف للحذف. كل دقيقتين كافية مع حد الاحتفاظ ٥ دقائق. */
+  if(MODE==="s"&&++this.tickN%180===0)del("mafia_bus","room_code=eq."+encodeURIComponent(ROOM)+"&created_at=lt."+new Date(Date.now()-300000).toISOString());
   this.flush()},
  resume(){NET.stop=0;NET.bad=0;this.lastFetch=0;this.lastRow=Date.now();if(DB.ready&&!this.busy)this.tick()},
  wake(){
