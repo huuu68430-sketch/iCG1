@@ -468,6 +468,7 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
         setHintLevel(0);
         setEntry(null);
         setOptions([]);
+        setIsShuffling(true);
         setPhase('SELECT_WORD');
         clearArt();
         const id = window.setTimeout(() => {
@@ -1419,6 +1420,15 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
                 {showUI && <DrawingToolbar activeTool={activeTool} onToolSelect={setActiveTool} />}
 
                 <div className="canvas-container" ref={containerRef}>
+                    {entry && (
+                        <div className="dr-hanging-word" aria-label={`الكلمة المطلوبة: ${entry.ar}`}>
+                            <span className="dr-hanging-rope" />
+                            <div className="dr-hanging-plaque">
+                                <span>الكلمة المطلوبة</span>
+                                <strong>{entry.ar}</strong>
+                            </div>
+                        </div>
+                    )}
                     <div
                         className="canvas-wrapper"
                         style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px)`, width: 1920 * zoom / 100, height: 1080 * zoom / 100 }}
@@ -1899,6 +1909,15 @@ const DR_STYLES = `
 .dr-hint-text { font-size:9px; font-weight:700; color:rgba(251,236,203,.5); }
 
 .dr-body { flex:1 1 auto; min-height:0; display:flex; position:relative; overflow:hidden; }
+.dr-hanging-word { position:absolute; z-index:540; top:8px; left:50%; display:flex; flex-direction:column; align-items:center; pointer-events:none;
+  transform-origin:top center; animation:drHangingSwing 4.2s ease-in-out infinite; filter:drop-shadow(0 10px 18px rgba(0,0,0,.42)); }
+.dr-hanging-rope { width:2px; height:42px; background:linear-gradient(90deg,rgba(249,224,164,.35),#e8be6e,rgba(169,122,48,.5)); }
+.dr-hanging-plaque { min-width:170px; padding:8px 18px 10px; display:flex; flex-direction:column; align-items:center; gap:2px; border-radius:12px 12px 18px 18px;
+  color:var(--cr); background:linear-gradient(145deg,rgba(42,26,8,.98),rgba(10,8,5,.98)); border:1px solid rgba(232,190,110,.62);
+  box-shadow:inset 0 1px 0 rgba(249,224,164,.15),0 0 20px rgba(232,190,110,.14); }
+.dr-hanging-plaque span { color:var(--g); font-size:8px; font-weight:900; letter-spacing:.12em; }
+.dr-hanging-plaque strong { color:#fff; font-size:16px; font-weight:900; white-space:nowrap; }
+@keyframes drHangingSwing { 0%,100% { transform:translateX(-50%) rotate(-1.4deg); } 50% { transform:translateX(-50%) rotate(1.4deg); } }
 .dr-timer-float { position:absolute; top:14px; inset-inline-end:16px; z-index:520; display:flex; flex-direction:column; align-items:center; gap:6px;
   padding:8px; border-radius:18px; background:rgba(20,13,6,.72); border:1px solid rgba(232,190,110,.18); backdrop-filter:blur(10px); }
 .dr-timer-meta { display:flex; gap:10px; font-size:10px; font-weight:900; color:var(--cr); }
