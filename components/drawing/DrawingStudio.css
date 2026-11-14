@@ -227,11 +227,17 @@
 
 .canvas-wrapper {
   position: absolute;
+  width: 1920px;
+  height: 1080px;
+  flex: none;
   box-shadow: 0 0 100px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(232, 190, 110, 0.18);
   transform-origin: top left;
 }
 
 .drawing-canvas {
+  width: 1920px;
+  height: 1080px;
+  max-width: none;
   background: white;
   cursor: crosshair;
   image-rendering: auto;
@@ -240,6 +246,9 @@
 
 .preview-canvas {
   position: absolute;
+  width: 1920px;
+  height: 1080px;
+  max-width: none;
   inset: 0;
   pointer-events: none;
 }
