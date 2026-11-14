@@ -917,8 +917,12 @@ begin
   end if;
   insert into public.user_frames (user_id, username, frame_id, is_equipped, source)
     values (v_uid, v_user, v_frame.id, false, 'purchase');
-  insert into public.transactions (user_id, amount, type, description)
-    values (v_uid, -v_price, 'PURCHASE', 'شراء: ' || v_frame.name || case when v_disc > 0 then ' (خصم ' || v_disc || '%)' else '' end);
+  -- قد يكون العضو قديماً وله profile/leaderboard بلا صف في users؛ لا تفشل
+  -- عملية الشراء بسبب عدم وجود user_id لسجل المعاملات.
+  if v_uid is not null then
+    insert into public.transactions (user_id, amount, type, description)
+      values (v_uid, -v_price, 'PURCHASE', 'شراء: ' || v_frame.name || case when v_disc > 0 then ' (خصم ' || v_disc || '%)' else '' end);
+  end if;
   if v_disc > 0 then
     insert into public.audit_logs (admin_username, action, details)
       values ('SYSTEM', 'VIP_DISCOUNT_APPLIED', jsonb_build_object('username', v_user, 'item', v_frame.name, 'discount', v_disc, 'paid', v_price));
