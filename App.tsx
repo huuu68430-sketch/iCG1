@@ -346,8 +346,10 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isOBSMode) {
       document.body.classList.add('obs-mode');
+      document.documentElement.classList.add('obs-mode');
     } else {
       document.body.classList.remove('obs-mode');
+      document.documentElement.classList.remove('obs-mode');
     }
   }, [isOBSMode]);
 

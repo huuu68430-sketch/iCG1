@@ -41,6 +41,13 @@ body.obs-mode {
   overflow: hidden !important;
 }
 
+html.obs-mode,
+html.obs-mode body,
+html.obs-mode #root {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 body.obs-mode * {
   scrollbar-width: none !important;
 }

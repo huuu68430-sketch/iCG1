@@ -51,7 +51,6 @@ interface RoundWinner { user: ChatUser; place: number; earned: number; }
 
 const DUR_CHOICES = [60, 90, 120, 180, 240, 300];
 const ROUND_CHOICES = [3, 5, 7, 10, 15];
-const FIRST_CHOICES = [1, 2, 3];
 const PLAYER_CHOICES = [20, 50, 100, 200];
 const SYNC_CHOICES: { label: string; ms: number }[] = [
     { label: 'سريع', ms: 600 },
@@ -246,7 +245,7 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
         maxPlayers: 100,
         roundDuration: 120,
         totalRounds: 7,
-        firstWins: 3,
+        firstWins: 1,
         pointsForWinner: 100,
         autoProgress: true,
         openGuessing: true,
@@ -274,7 +273,6 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
     const [activeTool, setActiveTool] = useState<ToolType>('pencil');
     const [brush, setBrush] = useState<BrushSettings>({ color: '#000000', size: 8, opacity: 1, hardness: 1, fillShape: false, stabilizer: 4 });
     const [zoom, setZoom] = useState(50);
-    const [canvasAspectCorrection, setCanvasAspectCorrection] = useState(1);
     const [showGrid, setShowGrid] = useState(false);
     const [showUI, setShowUI] = useState(true);
     const [showExport, setShowExport] = useState(false);
@@ -435,11 +433,6 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
     const fitToScreen = useCallback(() => {
         const box = containerRef.current;
         if (!box) return;
-        const canvas = canvasRef.current;
-        const canvasWidth = canvas?.offsetWidth || 1920;
-        const canvasHeight = canvas?.offsetHeight || 1080;
-        const aspectCorrection = Math.max(1, Math.min(4, (canvasHeight * (1920 / 1080)) / canvasWidth));
-        setCanvasAspectCorrection(aspectCorrection);
         const z = Math.floor(Math.min(box.clientWidth / 1920, box.clientHeight / 1080) * 100);
         const fittedZoom = Math.max(20, Math.min(150, z || 50));
         const fittedScale = fittedZoom / 100;
@@ -992,17 +985,6 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
                                 </div>
 
                                 <div className="dr-field">
-                                    <label>الفائزون في الجولة</label>
-                                    <div className="dr-choices">
-                                        {FIRST_CHOICES.map(f => (
-                                            <OptBtn key={f} active={config.firstWins === f} color={GOLD} onClick={() => setConfig({ ...config, firstWins: f })} sub={f === 1 ? 'الأسرع فقط' : f === 2 ? 'الأول والثاني' : 'أول ثلاثة'}>
-                                                {f}
-                                            </OptBtn>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="dr-field">
                                     <label>حد المشاركين</label>
                                     <div className="dr-choices">
                                         {PLAYER_CHOICES.map(p => (
@@ -1439,19 +1421,22 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
                 <div className="canvas-container" ref={containerRef}>
                     <div
                         className="canvas-wrapper"
-                        style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom / 100}) scaleX(${canvasAspectCorrection})`, width: 1920, height: 1080 }}
+                        style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px)`, width: 1920 * zoom / 100, height: 1080 * zoom / 100 }}
                     >
                         <canvas
                             ref={canvasRef}
                             className="drawing-canvas"
-                            style={{ width: 1920, height: 1080, maxWidth: 'none', aspectRatio: '16 / 9', cursor: activeTool === 'hand' ? 'grab' : activeTool === 'move' ? 'move' : 'crosshair' }}
+                            style={{ width: '100%', height: '100%', maxWidth: 'none', cursor: activeTool === 'hand' ? 'grab' : activeTool === 'move' ? 'move' : 'crosshair' }}
                             onPointerDown={handlePointerDown}
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onPointerLeave={handlePointerUp}
                         />
                         <canvas ref={previewCanvasRef} className="preview-canvas" width={1920} height={1080} />
-                        {showGrid && <div className="grid-overlay" style={{ pointerEvents: 'none' }} />}
+                        {showGrid && <div className="grid-overlay" style={{
+                            pointerEvents: 'none',
+                            backgroundSize: `${192 * zoom / 100}px ${108 * zoom / 100}px, ${192 * zoom / 100}px ${108 * zoom / 100}px, ${32 * zoom / 100}px ${32 * zoom / 100}px, ${32 * zoom / 100}px ${32 * zoom / 100}px`,
+                        }} />}
                     </div>
 
                     <div className="dr-timer-float">
@@ -1966,7 +1951,7 @@ const DR_STYLES = `
 .dr-exp-cancel:hover { color:var(--cr); }
 
 /* OBS */
-.dr-obs { position:relative; width:100%; height:100vh; display:flex; align-items:center; justify-content:center; background:transparent; overflow:hidden; }
+.dr-obs { position:fixed; inset:0; width:100vw; height:100dvh; min-height:100vh; display:flex; align-items:center; justify-content:center; background:transparent !important; overflow:hidden; }
 .dr-obs-canvas { width:min(100%, calc(100vh * 16 / 9)); aspect-ratio:16/9; position:relative; border-radius:14px; overflow:hidden;
   box-shadow:0 0 80px rgba(0,0,0,.55); }
 .dr-obs-canvas canvas { position:absolute; inset:0; width:100%; height:100%; }
