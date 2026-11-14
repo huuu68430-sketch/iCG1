@@ -24884,6 +24884,18 @@ async function handler22(req, res) {
 
 // api/_handlers/user/store.ts
 var SAFE_ID = /^[A-Za-z0-9_\-]{1,64}$/;
+function storeFailure(action, error) {
+  const code = String(error?.code || "UNKNOWN");
+  const detail = String(error?.message || "");
+  console.error(`[member-store] ${action} failed`, { code, detail });
+  if (code === "23502" && /user_frames|transactions/i.test(detail)) {
+    return `\u062A\u0639\u0630\u0651\u0631 ${action}: \u0642\u0627\u0639\u062F\u0629 \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A \u062A\u062D\u062A\u0627\u062C \u062A\u062D\u062F\u064A\u062B \u0645\u062E\u0632\u0646 \u0627\u0644\u0645\u0642\u062A\u0646\u064A\u0627\u062A (${code})`;
+  }
+  if (code === "PGRST202" || code === "42883") {
+    return `\u062A\u0639\u0630\u0651\u0631 ${action}: \u062F\u0627\u0644\u0629 \u0627\u0644\u0645\u062A\u062C\u0631 \u063A\u064A\u0631 \u0645\u062D\u062F\u062B\u0629 \u0641\u064A \u0642\u0627\u0639\u062F\u0629 \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A (${code})`;
+  }
+  return `\u062A\u0639\u0630\u0651\u0631 ${action} \u2014 \u0631\u0645\u0632 \u0627\u0644\u062E\u0637\u0623 ${code}`;
+}
 async function handler23(req, res) {
   const m = await requireMember(req);
   if (!m) return json2(res, 401, { ok: false, error: "\u0633\u062C\u0651\u0644 \u062F\u062E\u0648\u0644\u0643 \u0623\u0648\u0644\u0627\u064B" });
@@ -24911,7 +24923,10 @@ async function handler23(req, res) {
   if (!rl.allowed) return json2(res, rl.unavailable ? 503 : 429, { ok: false, error: "\u0645\u062D\u0627\u0648\u0644\u0627\u062A \u0643\u062B\u064A\u0631\u0629 \u2014 \u0627\u0646\u062A\u0638\u0631 \u0642\u0644\u064A\u0644\u0627\u064B" });
   if (action === "equip") {
     const { data: data2, error: error2 } = await supabaseAdmin.rpc("equip_frame", { p_username: m.username, p_frame_id: frameId });
-    if (error2) return json2(res, /تملك|لا تملك/.test(error2.message) ? 400 : 500, { ok: false, error: error2.message || "\u062A\u0639\u0630\u0651\u0631 \u0627\u0644\u062A\u062C\u0647\u064A\u0632" });
+    if (error2) {
+      const readable = /تملك|لا تملك/.test(error2.message);
+      return json2(res, readable ? 400 : 500, { ok: false, error: readable ? error2.message : storeFailure("\u062A\u062C\u0647\u064A\u0632", error2) });
+    }
     return json2(res, 200, { ok: true, equipped: data2 });
   }
   if (action !== "buy") return json2(res, 400, { ok: false, error: "\u0639\u0645\u0644\u064A\u0629 \u063A\u064A\u0631 \u0645\u0639\u0631\u0648\u0641\u0629" });
@@ -24919,7 +24934,7 @@ async function handler23(req, res) {
   if (error) {
     const msg = String(error.message || "");
     const readable = /منتج|نقاطك|تمتلك|سجل|غير موجود/.test(msg);
-    return json2(res, readable ? 400 : 500, { ok: false, error: readable ? msg : "\u062A\u0639\u0630\u0651\u0631 \u0625\u062A\u0645\u0627\u0645 \u0627\u0644\u0634\u0631\u0627\u0621" });
+    return json2(res, readable ? 400 : 500, { ok: false, error: readable ? msg : storeFailure("\u0634\u0631\u0627\u0621", error) });
   }
   const row = Array.isArray(data) ? data[0] : data;
   return json2(res, 200, {

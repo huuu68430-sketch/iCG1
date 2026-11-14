@@ -2,6 +2,21 @@ import { clampText, json, rateLimit, reqBody, requireMember, supabaseAdmin } fro
 
 const SAFE_ID = /^[A-Za-z0-9_\-]{1,64}$/;
 
+function storeFailure(action: 'شراء' | 'تجهيز', error: any) {
+    const code = String(error?.code || 'UNKNOWN');
+    const detail = String(error?.message || '');
+    // Keep database internals in server logs, but give the player a useful
+    // diagnostic code instead of the same generic toast for every failure.
+    console.error(`[member-store] ${action} failed`, { code, detail });
+    if (code === '23502' && /user_frames|transactions/i.test(detail)) {
+        return `تعذّر ${action}: قاعدة البيانات تحتاج تحديث مخزن المقتنيات (${code})`;
+    }
+    if (code === 'PGRST202' || code === '42883') {
+        return `تعذّر ${action}: دالة المتجر غير محدثة في قاعدة البيانات (${code})`;
+    }
+    return `تعذّر ${action} — رمز الخطأ ${code}`;
+}
+
 export default async function handler(req: any, res: any) {
     const m = await requireMember(req);
     if (!m) return json(res, 401, { ok: false, error: 'سجّل دخولك أولاً' });
@@ -34,7 +49,10 @@ export default async function handler(req: any, res: any) {
 
     if (action === 'equip') {
         const { data, error } = await supabaseAdmin.rpc('equip_frame', { p_username: m.username, p_frame_id: frameId });
-        if (error) return json(res, /تملك|لا تملك/.test(error.message) ? 400 : 500, { ok: false, error: error.message || 'تعذّر التجهيز' });
+        if (error) {
+            const readable = /تملك|لا تملك/.test(error.message);
+            return json(res, readable ? 400 : 500, { ok: false, error: readable ? error.message : storeFailure('تجهيز', error) });
+        }
         return json(res, 200, { ok: true, equipped: data });
     }
 
@@ -44,7 +62,7 @@ export default async function handler(req: any, res: any) {
     if (error) {
         const msg = String(error.message || '');
         const readable = /منتج|نقاطك|تمتلك|سجل|غير موجود/.test(msg);
-        return json(res, readable ? 400 : 500, { ok: false, error: readable ? msg : 'تعذّر إتمام الشراء' });
+        return json(res, readable ? 400 : 500, { ok: false, error: readable ? msg : storeFailure('شراء', error) });
     }
     const row: any = Array.isArray(data) ? data[0] : data;
     return json(res, 200, {
