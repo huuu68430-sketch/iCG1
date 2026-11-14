@@ -62,6 +62,7 @@ const SYNC_CHOICES: { label: string; ms: number }[] = [
 const PLACE_MULT = [1, 0.6, 0.35];
 const HINT_PENALTY = 30;
 const RESULTS_MS = 7000;
+const WINNER_RESULTS_MS = 3000;
 
 const GOLD = '#e8be6e';
 const CREAM = '#fbeccb';
@@ -273,6 +274,7 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
     const [activeTool, setActiveTool] = useState<ToolType>('pencil');
     const [brush, setBrush] = useState<BrushSettings>({ color: '#000000', size: 8, opacity: 1, hardness: 1, fillShape: false, stabilizer: 4 });
     const [zoom, setZoom] = useState(50);
+    const [canvasAspectCorrection, setCanvasAspectCorrection] = useState(1);
     const [showGrid, setShowGrid] = useState(false);
     const [showUI, setShowUI] = useState(true);
     const [showExport, setShowExport] = useState(false);
@@ -293,6 +295,7 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
         players: number; word: string; category: string; tier: DrawTier; winners: RoundWinner[];
         scores: Record<string, PlayerScore>;
     }>({ phase: 'SETUP', round: 1, timer: 0, totalRounds: config.totalRounds, players: 0, word: '', category: '', tier: 1, winners: [], scores: {} });
+    const [syncConnected, setSyncConnected] = useState(false);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const obsCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -342,7 +345,7 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
     /* --------------------------- قناة البث --------------------------- */
     // البث المباشر: لا يُرسل الاسم إلا بعد كشفه (نهاية الجولة أو كشف كامل)
     useEffect(() => {
-        if (isOBS || !channelRef.current) return;
+        if (isOBS || !syncConnected || !channelRef.current) return;
         const revealed = phase === 'RESULTS' || phase === 'FINALE' || hintLevel >= 3 || winners.length > 0;
         channelRef.current.send({
             type: 'broadcast',
@@ -361,7 +364,7 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
                 scores,
             },
         });
-    }, [isOBS, phase, round, timer, hintLevel, entry, winners, scores, participants.length, config.totalRounds]);
+    }, [isOBS, syncConnected, phase, round, timer, hintLevel, entry, winners, scores, participants.length, config.totalRounds]);
 
     useEffect(() => {
         const channel = supabase.channel('drawing_sync', { config: { broadcast: { self: true } } });
@@ -382,8 +385,16 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
                 };
                 img.src = payload.data;
             })
-            .subscribe((status: string) => { if (status === 'SUBSCRIBED') channelRef.current = channel; });
-        return () => { channel.unsubscribe(); channelRef.current = null; };
+            .subscribe((status: string) => {
+                if (status === 'SUBSCRIBED') {
+                    channelRef.current = channel;
+                    setSyncConnected(true);
+                } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                    if (channelRef.current === channel) channelRef.current = null;
+                    setSyncConnected(false);
+                }
+            });
+        return () => { channel.unsubscribe(); channelRef.current = null; setSyncConnected(false); };
     }, [isOBS]);
 
     // بث اللوحة للبث كل فترة
@@ -424,6 +435,11 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
     const fitToScreen = useCallback(() => {
         const box = containerRef.current;
         if (!box) return;
+        const canvas = canvasRef.current;
+        const canvasWidth = canvas?.offsetWidth || 1920;
+        const canvasHeight = canvas?.offsetHeight || 1080;
+        const aspectCorrection = Math.max(1, Math.min(4, (canvasHeight * (1920 / 1080)) / canvasWidth));
+        setCanvasAspectCorrection(aspectCorrection);
         const z = Math.floor(Math.min(box.clientWidth / 1920, box.clientHeight / 1080) * 100);
         const fittedZoom = Math.max(20, Math.min(150, z || 50));
         const fittedScale = fittedZoom / 100;
@@ -491,8 +507,9 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
         tone(520, 0.2, 'triangle');
         setTimeout(() => tone(700, 0.22, 'triangle'), 170);
         if (winnersRef.current.length) burst(LIVE);
-        if (cfgRef.current.autoProgress) {
-            advanceTimer.current = window.setTimeout(() => goNextRound(), RESULTS_MS);
+        if (winnersRef.current.length > 0 || cfgRef.current.autoProgress) {
+            const delay = winnersRef.current.length > 0 ? WINNER_RESULTS_MS : RESULTS_MS;
+            advanceTimer.current = window.setTimeout(() => goNextRound(), delay);
         }
     }, [goNextRound, tone, burst]);
     endRoundRef.current = endRound;
@@ -861,6 +878,8 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
 
     /* =========================== شاشة البث =========================== */
     if (isOBS) {
+        const obsRanked = Object.values(obsState.scores || {}).sort((a, b) => b.score - a.score || b.wins - a.wins);
+        const obsLeader = obsRanked[0] || null;
         const showWord = (obsState.phase === 'RESULTS' || obsState.phase === 'FINALE' || obsState.winners.length > 0) && obsState.word;
         return (
             <div className="dr-obs" dir="rtl">
@@ -896,10 +915,11 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
                         )}
                     </div>
                 )}
-                {obsState.phase === 'FINALE' && leader && (
+                {obsState.phase === 'FINALE' && obsLeader && (
                     <div className="dr-obs-champ">
                         <Trophy size={16} style={{ color: GOLD }} />
-                        <span>بطل الليلة: {ranked[0]?.user.username}</span>
+                        <ProAvatar url={obsLeader.user.avatar} username={obsLeader.user.username} size="w-10 h-10" className="dr-obs-champ-avatar" />
+                        <span>بطل الليلة: {obsLeader.user.username}</span>
                     </div>
                 )}
                 {obsState.phase === 'LOBBY' && (
@@ -1419,7 +1439,7 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
                 <div className="canvas-container" ref={containerRef}>
                     <div
                         className="canvas-wrapper"
-                        style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom / 100})`, width: 1920, height: 1080 }}
+                        style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom / 100}) scaleX(${canvasAspectCorrection})`, width: 1920, height: 1080 }}
                     >
                         <canvas
                             ref={canvasRef}
@@ -1965,6 +1985,7 @@ const DR_STYLES = `
 .dr-obs-winner-avatar { transform:scale(.8); margin:-3px; }
 .dr-obs-champ { position:absolute; top:22px; inset-inline-start:22px; display:flex; align-items:center; gap:8px; padding:10px 16px; border-radius:16px;
   font-size:14px; font-weight:900; color:var(--g); background:rgba(10,8,5,.72); border:1px solid rgba(232,190,110,.3); }
+.dr-obs-champ-avatar { transform:scale(.8); margin:-3px; }
 .dr-obs-lobby { display:flex; flex-direction:column; align-items:center; gap:12px; font-size:20px; font-weight:900; font-style:italic; color:var(--cr); }
 `;
 
