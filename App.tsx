@@ -767,7 +767,7 @@ useEffect(() => {
               localStorage.setItem('site_access_granted', JSON.stringify({ valid: true, role: 'user' }));
               setUserRole('user');
               setIsAuthorized(true);
-              setCurrentView('USER_DASHBOARD');
+              setCurrentView('HOME');
             }}
             onBack={() => {
               window.location.hash = '';
