@@ -19,7 +19,7 @@ begin
   select * into v_lb from public.leaderboard where lower(username) = v_user for update;
   if not found then raise exception 'لا يوجد سجل نقاط لهذا الحساب'; end if;
 
-  if exists (select 1 from public.user_frames where lower(username) = v_user and frame_id = p_frame_id) then
+  if exists (select 1 from public.user_frames uf where lower(uf.username) = v_user and uf.frame_id = p_frame_id) then
     raise exception 'تمتلك هذا المقتنى مسبقاً';
   end if;
 
