@@ -345,7 +345,7 @@ const SY={id:rid(6),fns:[],bc:null,q:[],busy:false,busyAt:0,pending:false,timer:
   if(!DB.ready)return;
   if(!this.busy&&!stopped()){
    /* كبح استهلاك Supabase: في الخمول (لوبي ساكن أو تبويب مخفي) استطلاع كل ٢.٥ث بدل ٧٠٠م.ث، وأي رسالة جديدة أو طور نشط يُرجع السرعة فوراً */
-   if(!this.wake()&&Date.now()-this.lastFetch<2500)return;
+   if(!this.wake()){const gap=this.deepIdle()?15000:6000;if(Date.now()-this.lastFetch<gap)return}
    this.busy=true;this.busyAt=Date.now();this.lastFetch=Date.now();
    try{const u=DB.url+"/rest/v1/mafia_bus?select=id,msg&room_code=eq."+encodeURIComponent(ROOM)+"&"+this.mine()+"&id=gt."+this.last+"&order=id.asc&limit=300";
     const r=await req(u,{headers:hdr()},7000);
@@ -370,6 +370,14 @@ const SY={id:rid(6),fns:[],bc:null,q:[],busy:false,busyAt:0,pending:false,timer:
   if(MODE==="p")return !P.pub||P.pub.ph!=="join";
   if(MODE==="s"||MODE==="h")return G.ph!=="join";
   return false},
+ /* خمول طويل: لا رسالة منذ دقائق والغرفة خالية ⇒ أبطأ استطلاع ممكن.
+    شاشة البث تستيقظ فوراً عبر نبضة «إيقاظ» عند بدء جولة جديدة. */
+ deepIdle(){
+  if(MODE==="p")return false;
+  if(document.hidden)return true;
+  if(Date.now()-this.lastRow<600000)return false;
+  if(MODE==="s"||MODE==="h")return !G.P.length&&(G.ph==="end"||G.ph==="join");
+  return false},
  rx(m){if(m&&m.f!==this.id)this.fns.forEach(f=>{try{f(m)}catch(e){}})},
  tx(m){m.f=this.id;m.u=rid(8);seen(m.u);try{this.bc&&this.bc.postMessage(m)}catch(e){}
   if(DB.ready){this.q.push(m);if(this.q.length>300)this.q.splice(0,this.q.length-300);this.flush()}},
@@ -382,9 +390,14 @@ const SY={id:rid(6),fns:[],bc:null,q:[],busy:false,busyAt:0,pending:false,timer:
   this.pending=false;
   if(this.q.length&&DB.ready)setTimeout(()=>this.flush(),400)}};
 /* ===== التجديد في قاعدة البيانات (الغرفة، الأدوار، الأحداث، النتيجة) ===== */
-const ROOMSTATE={t:0};
-function dbRoom(){if(!DB.ready||Date.now()-ROOMSTATE.t<2500)return;ROOMSTATE.t=Date.now();
- post("mafia_rooms",[{code:ROOM,host_handle:null,state:pubObj(),updated_at:new Date().toISOString()}],"code")}
+const ROOMSTATE={t:0,sig:""};
+function dbRoom(){if(!DB.ready||Date.now()-ROOMSTATE.t<2500)return;
+ /* الكتابة كانت كل ٢٫٥ ثانية حتى بلا أي تغيّر — أكبر مصدر سجلات في Supabase.
+    الآن: تُكتب الحالة فقط عند تغيّرها (عدّاد الوقت يُستثنى: يُحسب عند كل جهاز). */
+ const obj=pubObj(),sig=JSON.stringify(Object.assign({},obj,{tl:0}));
+ if(sig===ROOMSTATE.sig)return;
+ ROOMSTATE.t=Date.now();ROOMSTATE.sig=sig;
+ post("mafia_rooms",[{code:ROOM,host_handle:null,state:obj,updated_at:new Date().toISOString()}],"code")}
 /* الأدوار تبقى سرية: لا تُكتب أي هوية لاعب في قاعدة البيانات — الجدول القديم يُنظف عند كل لوبي جديد */
 function dbEvents(kind,payload){if(!DB.ready)return;post("mafia_events",[{room_code:ROOM,kind,payload:payload||{}}])}
 function dbMatch(){if(!DB.ready)return;

@@ -420,7 +420,15 @@ const cnPut=p=>{try{sb.from("cn_rooms").upsert({room_code:S.room,seed:S.seed,sta
 /* كبح استهلاك Supabase: النبضة كل ٢ث تصل للأجهزة عبر Realtime فوراً، أما كتابة قاعدة البيانات (للداخلين متأخراً) فتكفي كل ٥ث مع حفظ ختامي مؤجل */
 function cnSave(p){const floor=S.page==="game"?5000:15000;const n=Date.now(),d=n-cnLast;if(d>=floor){cnLast=n;cnPut(p);return}if(!cnT)cnT=setTimeout(()=>{cnT=0;cnLast=Date.now();cnPut(p)},floor-d)}
 function bcast(){if(!S.room)return;leadGate(false);const payload={t:"state",q:++S.seq,seed:S.seed,rev:S.rev,turn:S.turn,phase:S.phase,clue:S.clue,over:S.over&&S.over.t,st:S.page==="game",pg:S.page,tl:{end:S.tEnd,tot:S.tTot,clue:S.tClue},v:S.votes,mk:S.marks,leaders:{red:(lead("red")&&lead("red").name)||"",blue:(lead("blue")&&lead("blue").name)||""},appr:{red:(appr("red")&&appr("red").name)||"",blue:(appr("blue")&&appr("blue").name)||""},roster:S.P.reduce((a,p)=>{if(p.team)a[p.id]=p.team;return a},{}),joined:S.joined,at:Date.now()};SY.tx(payload);if(sb)cnSave(payload)}
-let hbN=0;setInterval(()=>{if(JOIN||!S.room)return;if(S.page==="game")bcast();else if(++hbN%3===0)bcast()},2000);
+let hbN=0,hbSig="",hbAt=0;
+/* كبح استهلاك Supabase: البث كان كل ثانيتين بلا تغيّر — والعدّاد عند كل جهاز
+   يُحسب من الوقت المطلق (tl.end) فلا يحتاج بثاً متكرراً. الآن: بثٌ عند تغيّر
+   الحالة فقط، ومزامنة كاملة كل ١٠ ثوانٍ احتياطاً لو فاتت رسالة. */
+const hbTick=()=>{if(JOIN||!S.room)return;
+ const sig=[S.turn,S.phase,S.rev.length,S.over?1:0,S.votes?Object.keys(S.votes).length:0,S.marks?Object.keys(S.marks).length:0,S.P.length,S.pg,S.joined.red?1:0,S.joined.blue?1:0].join("|");
+ const now=Date.now();
+ if(sig!==hbSig||now-hbAt>10000){hbSig=sig;hbAt=now;bcast()}};
+setInterval(hbTick,1000);
 /* ===== منطق اللعبة ===== */
 function startGame(){S.rev=[];S.turn=S.bd.start;S.phase="clue";S.clue=null;S.flips=0;S.votes={};S.uv={};S.marks={};S.over=null;S.all=false;S.log=[];S.P.forEach(p=>{p.c=0;p.v=0});logAdd(S.turn,`بدأت اللعبة · الفريق ${TN[S.turn]} يبدأ (9 بطاقات)`);resetTimer(CFG.guessTime);go("game");bcast()}
 function setClue(t,word,num){if(S.page!=="game"||S.over||S.phase!=="clue"||t!==S.turn)return"ليس دور فريقك";word=String(word).trim();if(!word||/\s/.test(word))return"التلميح كلمة واحدة فقط";if(!(num>=0&&num<=9))return"الرقم من 0 إلى 9";
@@ -697,10 +705,11 @@ ${cand()}
     if(anim||(wasL&&!isL))swap(paint);else paint()}
   /* القشرة تعيد إرسال الهوية كل ثانيتين حتى تصل. الإعادة بنفس الهوية يجب ألا تُعيد الرسم
      ولا تُعيد السحب من القاعدة — وإلا يُهدم حقل التلميح ويُغلق الكيبورد أثناء الكتابة */
+  const sendJoin=()=>{try{const r=role();if(r&&r.leader&&hh())SY.tx({t:"join",team:r.t,user:hh()})}catch(e){}};
   joinIdent=u=>{const h=String(u&&u.handle||"").trim();if(!h||h.length>32||/[\u0000-\u001f\s]/.test(h))return;
    const nm=String(u.name||"").trim().slice(0,32),av=String(u.avatar||"").slice(0,512);
    if(me&&me.handle===h&&me.name===nm){if(av&&me.avatar!==av)me.avatar=av;return}
-   me={handle:h,name:nm,avatar:av};sig="";pull();draw();
+   me={handle:h,name:nm,avatar:av};sig="";pull();draw();sendJoin();
    /* إشعار القشرة أنها أرسلت الهوية وصلت — تتوقف عن الإرسال كل ثانيتين */
    try{window.parent.postMessage({source:"icg-cn",type:"icg:cn:acked",handle:h},window.location.origin)}catch(e){}};
   SY.init(room);
@@ -709,7 +718,9 @@ ${cand()}
   pull();setInterval(()=>{if(!L.on)pull()},8000);
   setInterval(()=>{if(!me)draw()},600);
   setInterval(()=>{if(B)tickB()},500);
-  setInterval(()=>{const r=role();if(r&&r.leader&&hh())SY.tx({t:"join",team:r.t,user:hh()})},2500);
+  /* إشعار «وصلت» للليدر: يُرسَل فور دخوله (أعلاه)، ثم نبضة احتياطية كل ١٠ ثوانٍ
+     بدل كل ٢٫٥ ثانية — كانت أكبر مصدر رسائل Realtime في اللعبة. */
+  setInterval(sendJoin,10000);
   /* زر الخروج في رأس شاشة الجوال: يرجع لقشرة الموقع، ونفس الرابط يُعيد اللاعب لمقعده */
   document.addEventListener("click",e=>{if(!e.target.closest||!e.target.closest("#lx"))return;
     try{window.parent.postMessage({type:"codenames-exit"},"*")}catch(x){}});

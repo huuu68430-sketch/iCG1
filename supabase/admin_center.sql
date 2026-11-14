@@ -212,6 +212,10 @@ alter table public.promo_codes add column if not exists created_by text;
 -- المقتنيات: من أين جاء المقتنى (شراء عضو / منح إداري / مكافأة بطولة)
 alter table public.user_frames add column if not exists source     text not null default 'purchase';
 alter table public.user_frames add column if not exists granted_by text;
+-- user_frames.user_id قد يكون غائباً للحسابات القديمة التي لها profile فقط.
+alter table public.user_frames alter column user_id drop not null;
+drop index if exists public.user_frames_one_equipped;
+create unique index user_frames_one_equipped on public.user_frames (username) where is_equipped;
 
 -- الساحة: is_active = موقوفة، is_visible المخفي الموجود أصلاً
 alter table public.games add column if not exists is_active  boolean not null default true;

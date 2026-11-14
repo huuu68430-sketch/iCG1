@@ -26,7 +26,9 @@ comment on column public.frames.rarity is 'c = عادي، r = نادر، e = م�
 -- ----------------------------------------------------------------------------
 create table if not exists public.user_frames (
   id           uuid primary key default gen_random_uuid(),
-  user_id      uuid not null,
+  -- بعض اللاعبين لديهم profile/نقاط دون صف users (حسابات قديمة أو لاعبو الضيف).
+  -- اسم المستخدم هو مرجع الملكية الأساسي، لذلك لا تمنعهم من الشراء.
+  user_id      uuid,
   username     text not null,
   frame_id     text not null references public.frames(id) on delete cascade,
   is_equipped  boolean not null default false,
@@ -34,14 +36,18 @@ create table if not exists public.user_frames (
   unique (user_id, frame_id)
 );
 
+-- توافقاً مع الحسابات القديمة الموجودة في profiles من دون صف مطابق في users.
+alter table public.user_frames alter column user_id drop not null;
+
 comment on table public.user_frames is 'الإطارات التي اشتراها كل عضو';
 
 create index if not exists user_frames_user_idx  on public.user_frames (user_id);
 create index if not exists user_frames_frame_idx on public.user_frames (frame_id);
 
 -- إطار واحد مجهّز كحد أقصى لكل عضو
+drop index if exists public.user_frames_one_equipped;
 create unique index if not exists user_frames_one_equipped
-  on public.user_frames (user_id)
+  on public.user_frames (username)
   where is_equipped;
 
 -- ----------------------------------------------------------------------------

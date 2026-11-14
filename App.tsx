@@ -208,7 +208,10 @@ const App: React.FC = () => {
 
   // الواجهة الأولى (الموقع الشخصي) ما لها حاجة بقناة الشات ولا بقائمة الألعاب:
   // التأجيل يمنع Parse/Render منافس لتحميل واجهة الضيف، ويبقى كل شيء كما هو بعد أول نقرة.
-  const needsLiveBus = isOBSMode || hostRoute || currentView !== 'ABOUT';
+  /* وضع OBS = مصدر البث يحتاج اللعبة وحدها. الشات وكتالوج الألعاب والإعلانات
+     كانت تشتغل في الخلفية طوال البث بلا داعي — وكل واحد طلبات إلى Supabase.
+     إيقافها في وضع OBS يقلّل الاستهلاك بدرجة كبيرة. */
+  const needsLiveBus = !isOBSMode && (hostRoute || currentView !== 'ABOUT');
 
   useEffect(() => {
     if (needsLiveBus) loadGames();
@@ -358,6 +361,7 @@ const App: React.FC = () => {
   // تصنيف الأدمن كـ«مستخدم» بعد تسجيل الخروج أو بعد إعادة التحميل.
   useEffect(() => {
     if (readSession('site_access_granted')?.role === 'admin') return;
+    if (isOBSMode) return; // مصدر البث لا يحتاج استعادة الجلسة
     let alive = true;
     fetch('/api/me', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
@@ -396,6 +400,7 @@ const App: React.FC = () => {
   }, [needsLiveBus]);
 
   useEffect(() => {
+    if (isOBSMode) return; // مصدر البث لا يحتاج الإعلانات
     let retryTimer: any;
     let isActive = true;
 
@@ -451,12 +456,21 @@ const App: React.FC = () => {
     if (currentView === 'LEADERBOARD') {
       let retryTimer: any;
       let isActive = true;
+      /* كل تعديل على الصدارة أو الملف الشخصي كان يطلق جلباً كاملاً للوحة
+         (٣ طلبات) — ومع كل نقطة تُضاف يتضاعف الطلب. الدمج يجمع التغيّرات
+         في جلب واحد بعد سكون قصير. */
+      let refreshTimer: any = null;
+      const scheduleRefresh = () => {
+        if (!isActive) return;
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => { if (isActive) loadLeaderboard(true); }, 1500);
+      };
 
       const connectLeaderboard = () => {
         if (!isActive) return;
         const channel = supabase.channel('leaderboard_updates')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'leaderboard' }, () => loadLeaderboard(true))
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => loadLeaderboard(true))
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'leaderboard' }, scheduleRefresh)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, scheduleRefresh)
           .subscribe((status) => {
             if (status === 'CHANNEL_ERROR' && isActive) {
               console.warn('[App] Leaderboard channel error, reconnecting in 3s...');
@@ -471,6 +485,7 @@ const App: React.FC = () => {
       return () => {
         isActive = false;
         clearTimeout(retryTimer);
+        clearTimeout(refreshTimer);
         if (channel) supabase.removeChannel(channel);
       };
     }

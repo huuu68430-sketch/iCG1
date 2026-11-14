@@ -454,14 +454,17 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
         })().catch(() => { /* الجلسة اختيارية — الأقسام تبقى فارغة بلا خطأ */ });
     }, [username, ensureMember, refreshMember]);
 
-    // الإشعارات تُجلب من السيرفر فقط (ممنوع قراءتها من المتصفح)، فأقرب بديل للنشر اللحظي دورة هادئة
+    // الإشعارات تُجلب من السيرفر فقط (ممنوع قراءتها من المتصفح)، فأقرب بديل للنشر اللحظي دورة هادئة.
+    // الدورة كل ٥ دقائق بدل كل دقيقة: كل طلب هنا سجل في Supabase، والفرق بين دقيقة
+    // وخمس دقائق لا يُرى في الإشعارات — مع تخطّي الجولة إن كانت الصفحة مخفية.
     useEffect(() => {
         if (!memberReady) return;
         const id = window.setInterval(() => {
+            if (document.hidden) return;
             memberApi.notifications().then(r => {
                 if (r.ok) { setNotifs(r.notifications || []); setUnread(Number(r.unread) || 0); }
             });
-        }, 60000);
+        }, 300000);
         return () => window.clearInterval(id);
     }, [memberReady]);
 
@@ -725,6 +728,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
                 'ok'
             );
             reloadHistory();
+        } catch (error: any) {
+            notify(error?.message || 'تعذّر إتمام الشراء — حاول مرة أخرى', 'bad');
         } finally {
             setBusy(null);
         }
@@ -759,6 +764,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
             setOwnedFrames(prev => Array.from(new Set([...prev, frame.id])));
             setActiveFrameId(frame.id);
             notify(`تم تجهيز ${frame.name} — سيظهر في كل الألعاب`, 'ok');
+        } catch (error: any) {
+            notify(error?.message || 'تعذّر تجهيز الإطار — حاول مرة أخرى', 'bad');
         } finally {
             setBusy(null);
         }

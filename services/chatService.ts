@@ -12,12 +12,18 @@ type StatusCallback = (isConnected: boolean, error?: boolean, details?: string) 
  * روابط صور كيك موقّعة وتنتهي بعد دقائق، فتحديثها عند كل جلب يبقيها ظاهرة
  * في صفحات الموقع وعلى شاشة اللعبة بدون أيقونة مكسورة.
  */
+const avatarWrites = new Set<string>();
 const persistMemberAvatar = async (slug: string, url: string) => {
   if (!url || !/^https:\/\//.test(url) || isExpiredSignedUrl(url)) return;
   let raw: any = null;
   try { raw = JSON.parse(localStorage.getItem('iabs_user') || 'null'); } catch { return; }
   const mine = String(raw?.kick_username || raw?.id || '').toLowerCase().trim().replace(/^@+/, '');
   if (!mine || mine === 'guest' || mine !== slug) return;
+  /* الكتابة مرة واحدة لكل صورة في هذه الجلسة: إعادة الكتابة نفسها كل دقيقة
+     كانت من أكبر مصادر السجلات في Supabase بلا أي فائدة. */
+  const writeKey = `${slug}|${url}`;
+  if (avatarWrites.has(writeKey)) return;
+  avatarWrites.add(writeKey);
   try { localStorage.setItem('iabs_user', JSON.stringify({ ...raw, avatar: url })); } catch { /* التخزين ممتلئ */ }
   try { await supabase.from('users').update({ avatar: url }).eq('kick_username', slug); } catch { /* الصلاحيات تمنع */ }
   try { await supabase.from('profiles').update({ avatar_url: url }).eq('username', slug); } catch { /* الصلاحيات تمنع */ }
