@@ -490,7 +490,7 @@ begin
       values ('SYSTEM', 'VIP_DISCOUNT_APPLIED', jsonb_build_object('username', v_user, 'item', v_frame.name, 'discount', v_disc, 'paid', v_price));
   end if;
 
-  return query select v_frame.id, v_price, v_disc, v_lb.score - v_price;
+  return query select v_frame.id::text, v_price::integer, v_disc::integer, (v_lb.score - v_price)::integer;
 end $$;
 
 -- تجهيز إطار مملوك: سطر واحد مجهّز دائماً، والملف يتبعه.
