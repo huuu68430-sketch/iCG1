@@ -265,7 +265,7 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
     const [entry, setEntry] = useState<DrawEntry | null>(null);
     const [hintLevel, setHintLevel] = useState(0);
     const [winners, setWinners] = useState<RoundWinner[]>([]);
-    const [feed, setFeed] = useState<{ id: string; text: string; ok: boolean; user: string }[]>([]);
+    const [feed, setFeed] = useState<{ id: string; text: string; ok: boolean; user: string; player?: ChatUser }[]>([]);
     const [isShuffling, setIsShuffling] = useState(false);
     const [copied, setCopied] = useState(false);
 
@@ -343,7 +343,7 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
     // البث المباشر: لا يُرسل الاسم إلا بعد كشفه (نهاية الجولة أو كشف كامل)
     useEffect(() => {
         if (isOBS || !channelRef.current) return;
-        const revealed = phase === 'RESULTS' || phase === 'FINALE' || hintLevel >= 3;
+        const revealed = phase === 'RESULTS' || phase === 'FINALE' || hintLevel >= 3 || winners.length > 0;
         channelRef.current.send({
             type: 'broadcast',
             event: 'state_sync',
@@ -425,9 +425,22 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
         const box = containerRef.current;
         if (!box) return;
         const z = Math.floor(Math.min(box.clientWidth / 1920, box.clientHeight / 1080) * 100);
-        setZoom(Math.max(20, Math.min(150, z || 50)));
-        setPanOffset({ x: 0, y: 0 });
+        const fittedZoom = Math.max(20, Math.min(150, z || 50));
+        const fittedScale = fittedZoom / 100;
+        setZoom(fittedZoom);
+        setPanOffset({
+            x: Math.max(0, Math.round((box.clientWidth - 1920 * fittedScale) / 2)),
+            y: Math.max(0, Math.round((box.clientHeight - 1080 * fittedScale) / 2)),
+        });
     }, []);
+
+    useEffect(() => {
+        const box = containerRef.current;
+        if (!box || isOBS || phase !== 'DRAWING') return;
+        const observer = new ResizeObserver(fitToScreen);
+        observer.observe(box);
+        return () => observer.disconnect();
+    }, [fitToScreen, isOBS, phase]);
 
     /* ------------------------- تدفق الجولة ------------------------- */
     const clearArt = useCallback(() => {
@@ -507,7 +520,7 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
         winnersRef.current = [...winnersRef.current, w];
         setWinners(winnersRef.current);
         applyScore(user, earned);
-        setFeed(prev => [{ id: `${Date.now()}_${user.username}`, text: e?.ar || '', ok: true, user: user.username }, ...prev].slice(0, 14));
+        setFeed(prev => [{ id: `${Date.now()}_${user.username}`, text: e?.ar || '', ok: true, user: user.username, player: user }, ...prev].slice(0, 14));
         tone(660 + place * 120, 0.16, 'square', 0.04);
         burst(place === 1 ? GOLD : '#f9e0a4');
 
@@ -848,7 +861,7 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
 
     /* =========================== شاشة البث =========================== */
     if (isOBS) {
-        const showWord = (obsState.phase === 'RESULTS' || obsState.phase === 'FINALE') && obsState.word;
+        const showWord = (obsState.phase === 'RESULTS' || obsState.phase === 'FINALE' || obsState.winners.length > 0) && obsState.word;
         return (
             <div className="dr-obs" dir="rtl">
                 <div className="dr-obs-canvas">
@@ -868,12 +881,13 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
                 )}
                 {showWord && (
                     <div className="dr-obs-reveal">
-                        <span className="dr-obs-reveal-label">الكلمة</span>
+                        <span className="dr-obs-reveal-label">الإجابة الصحيحة هي</span>
                         <span className="dr-obs-reveal-word">{obsState.word}</span>
                         {obsState.winners.length > 0 && (
                             <div className="dr-obs-winners">
                                 {obsState.winners.map(w => (
                                     <span key={w.user.username} className="dr-obs-winner">
+                                        <ProAvatar url={w.user.avatar} username={w.user.username} size="w-10 h-10" className="dr-obs-winner-avatar" />
                                         <Medal size={12} style={{ color: w.place === 1 ? GOLD : w.place === 2 ? '#d8d8d8' : '#c98a4b' }} />
                                         {w.user.username}
                                     </span>
@@ -1410,11 +1424,11 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
                         <canvas
                             ref={canvasRef}
                             className="drawing-canvas"
+                            style={{ width: 1920, height: 1080, maxWidth: 'none', aspectRatio: '16 / 9', cursor: activeTool === 'hand' ? 'grab' : activeTool === 'move' ? 'move' : 'crosshair' }}
                             onPointerDown={handlePointerDown}
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onPointerLeave={handlePointerUp}
-                            style={{ cursor: activeTool === 'hand' ? 'grab' : activeTool === 'move' ? 'move' : 'crosshair' }}
                         />
                         <canvas ref={previewCanvasRef} className="preview-canvas" width={1920} height={1080} />
                         {showGrid && <div className="grid-overlay" style={{ pointerEvents: 'none' }} />}
@@ -1432,10 +1446,26 @@ export const DrawingChallenge: React.FC<DrawingChallengeProps> = ({ onHome, isOB
                         <div className="dr-feed">
                             {feed.map(f => (
                                 <div key={f.id} className={`dr-feed-row ${f.ok ? 'ok' : ''}`}>
+                                    {f.ok && f.player && <ProAvatar url={f.player.avatar} username={f.player.username} size="w-8 h-8" className="dr-feed-avatar" />}
                                     <span className="dr-feed-user">{f.user}</span>
                                     <span className="dr-feed-text">{f.ok ? 'أصاب ✓' : f.text}</span>
                                 </div>
                             ))}
+                        </div>
+                    )}
+
+                    {winners.length > 0 && entry && (
+                        <div className="dr-correct-card" role="status" aria-live="polite">
+                            <span className="dr-correct-label">الإجابة الصحيحة هي</span>
+                            <strong className="dr-correct-word">{entry.ar}</strong>
+                            <div className="dr-correct-winners">
+                                {winners.map(w => (
+                                    <div key={w.user.username} className="dr-correct-winner">
+                                        <ProAvatar url={w.user.avatar} username={w.user.username} size="w-10 h-10" className="dr-correct-avatar" />
+                                        <span>{w.user.username}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 
@@ -1872,10 +1902,19 @@ const DR_STYLES = `
   width:230px; pointer-events:none; }
 .dr-feed-row { display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:12px; font-size:10px; font-weight:900;
   background:rgba(20,13,6,.7); border:1px solid rgba(255,255,255,.06); animation:drSlide .3s ease-out; overflow:hidden; }
+.dr-feed-avatar { transform:scale(.78); transform-origin:center; margin:-3px; }
 .dr-feed-row.ok { border-color:rgba(75,224,122,.4); background:rgba(75,224,122,.1); }
 .dr-feed-user { color:var(--g); max-width:96px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .dr-feed-text { color:rgba(251,236,203,.6); margin-inline-start:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .dr-feed-row.ok .dr-feed-text { color:#8ef0ad; }
+.dr-correct-card { position:absolute; z-index:530; top:18px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:6px;
+  min-width:min(320px,calc(100% - 32px)); max-width:calc(100% - 32px); padding:12px 18px; border-radius:18px; text-align:center;
+  color:var(--cr); background:rgba(10,8,5,.86); border:1px solid rgba(75,224,122,.42); box-shadow:0 12px 40px rgba(0,0,0,.42); backdrop-filter:blur(12px); animation:drPop .35s ease-out; }
+.dr-correct-label { color:var(--g); font-size:10px; font-weight:900; }
+.dr-correct-word { color:#fff; font-size:clamp(18px,2.2vw,28px); font-weight:900; }
+.dr-correct-winners { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; }
+.dr-correct-winner { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:900; color:var(--cr); }
+.dr-correct-avatar { transform:scale(.82); margin:-3px; }
 .dr-reveal-ui { position:absolute; bottom:20px; inset-inline-start:20px; width:44px; height:44px; border-radius:15px; z-index:600; cursor:pointer;
   display:grid; place-items:center; color:var(--cr); background:rgba(232,190,110,.18); border:1px solid rgba(232,190,110,.4); backdrop-filter:blur(10px); }
 .dr-mini-div { width:1px; height:20px; background:rgba(232,190,110,.16); margin:0 4px; }
@@ -1923,6 +1962,7 @@ const DR_STYLES = `
 .dr-obs-winners { display:flex; gap:10px; justify-content:center; margin-top:8px; flex-wrap:wrap; }
 .dr-obs-winner { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:900; color:var(--cr);
   background:rgba(232,190,110,.12); border:1px solid rgba(232,190,110,.28); padding:4px 10px; border-radius:99px; }
+.dr-obs-winner-avatar { transform:scale(.8); margin:-3px; }
 .dr-obs-champ { position:absolute; top:22px; inset-inline-start:22px; display:flex; align-items:center; gap:8px; padding:10px 16px; border-radius:16px;
   font-size:14px; font-weight:900; color:var(--g); background:rgba(10,8,5,.72); border:1px solid rgba(232,190,110,.3); }
 .dr-obs-lobby { display:flex; flex-direction:column; align-items:center; gap:12px; font-size:20px; font-weight:900; font-style:italic; color:var(--cr); }
