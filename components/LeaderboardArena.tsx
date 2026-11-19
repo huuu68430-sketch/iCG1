@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Crown, Medal, RefreshCw, Search, Trophy, Users, Flame, Home, ChevronRight, Star,
     Skull, RotateCw, Image as ImageIcon, Flag, Keyboard, Bomb, Globe, Lock, Type, Brain,
-    Armchair, Coffee, PaintBucket, Footprints, Swords, ArrowUp, Gift, Timer, Volume2 } from 'lucide-react';
+    Armchair, Coffee, PaintBucket, Footprints, Swords, ArrowUp, Gift, Timer, Volume2, Spade } from 'lucide-react';
 import { ProAvatar } from './ProAvatar';
 import { gameLeaderboardService } from '../services/supabase';
 import { GAME_POINTS } from '../services/gameRewards';
@@ -40,6 +40,7 @@ const GAME_ICONS: Record<string, any> = {
     DRAWING_CHALLENGE: PaintBucket,
     GLASS_BRIDGE_V2: Footprints,
     EMOJI_CODE: Swords,
+    LIARS_DEN: Spade,
     HIGHER_LOWER: ArrowUp,
     FLOOR_IS_LAVA: Flame,
     RAFFLE: Gift,

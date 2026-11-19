@@ -9,8 +9,9 @@ import { chatService } from '../../services/chatService';
 import { awardPointsToMany } from '../../services/points';
 import { buildShortJoinLink, isShortRoomRoute, readShortRoomCode } from '../../utils/gameLink';
 import { isExpiredSignedUrl } from '../../utils/assets';
-import { isAdminSession, readMember, resolveMemberFrame, syncGameKey } from '../../services/memberIdentity';
+import { isAdminSession, readMember, resolveMemberFrame, syncGameKey, verifyAdminSession, resetAdminSession } from '../../services/memberIdentity';
 import { GlobalPasswordPage } from '../GlobalPasswordPage';
+import AdminLogin from '../AdminLogin';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const rndCode = (n: number) =>
@@ -81,6 +82,13 @@ export const MafiaGame: React.FC<MafiaGameProps> = ({ onHome }) => {
   const [keyNonce, setKeyNonce] = useState(0);
   const member = useMemo(() => readMember(), [tick]);
   const adminOk = useMemo(() => isAdminSession(), [tick]);
+  /* فحص الجلسة الإدارية في السيرفر مرة واحدة — التخزين المحلي لا يفتح وضع الإدارة */
+  const [adminReady, setAdminReady] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    verifyAdminSession().then(() => { if (alive) { setAdminReady(true); setTick(t => t + 1); } });
+    return () => { alive = false; };
+  }, []);
   const [frame, setFrame] = useState({ frameId: '', frameUrl: '' });
   const [liveAvatar, setLiveAvatar] = useState('');
 
@@ -276,18 +284,24 @@ export const MafiaGame: React.FC<MafiaGameProps> = ({ onHome }) => {
      لبوابة الدخول كل ثانيتين كانت تبدو له كـ«مشكلة دخول» ولا تنتهي. */
   const needLogin = mode === 'player' && !me;
 
-  /* ===== لوحة الإدارة: لأدمن الموقع فقط — أي مستخدم عادي ممنوع ===== */
+  /* ===== لوحة الإدارة: لأدمن الموقع فقط — الجلسة يثبتها السيرفر، لا المتصفح ===== */
   if (mode === 'admin' && !adminOk) {
+    if (!adminReady) {
+      return (
+        <div className="fixed inset-0 z-[9999] grid place-items-center bg-[#07060b]" style={{ direction: 'rtl' }}>
+          <div className="flex flex-col items-center gap-3 text-[#e8be6e]">
+            <span className="animate-pulse text-4xl">🎭</span>
+            <b className="text-lg tracking-widest">جارٍ التحقق من صلاحية الدخول…</b>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="fixed inset-0 z-[9999] overflow-auto bg-[#07060b]" style={{ direction: 'rtl' }}>
-        <GlobalPasswordPage
-          adminOnly
-          onSuccess={() => setTick(t => t + 1)}
-          title="لوحة إدارة المافيا"
-          subtitle="ADMIN ACCESS ONLY"
-          newTitle="كلمة سر الإدارة"
-          returningTitle="دخول الإدارة"
-        />
+        <AdminLogin onSuccess={() => {
+          resetAdminSession();
+          verifyAdminSession().then(() => setTick(t => t + 1));
+        }} />
       </div>
     );
   }

@@ -34,8 +34,25 @@ const readSession = (key: string): any | null => {
   return s;
 };
 
-export const isAdminSession = (): boolean =>
-  SESSION_KEYS.some(k => readSession(k)?.role === 'admin');
+/* صلاحية الإدارة يقررها السيرفر وحده (كوكي HttpOnly تُفحص في /api/admin/me).
+   التخزين المحلي لا يمنحها إطلاقاً — جلسة قديمة بدور أدمن في المتصفح لا تفتح شيئاً. */
+let adminVerified = false;
+let adminProbe: Promise<boolean> | null = null;
+
+export const verifyAdminSession = (): Promise<boolean> => {
+  if (!adminProbe) {
+    adminProbe = fetch('/api/admin/me', { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { adminVerified = !!j?.ok; return adminVerified; })
+      .catch(() => { adminVerified = false; return false; });
+  }
+  return adminProbe;
+};
+
+/** بعد دخول/خروج الإدارة: يُعاد الفحص من جديد بدل نتيجة الفحص السابقة */
+export const resetAdminSession = () => { adminProbe = null; adminVerified = false; };
+
+export const isAdminSession = (): boolean => adminVerified;
 
 const userRow = () => parse(localStorage.getItem('iabs_user'));
 
@@ -67,7 +84,7 @@ export const readMember = (): Omit<MemberIdentity, 'frameId' | 'frameUrl'> | nul
     avatar: String(u?.avatar || ''),
     gameKey,
     keyState: gameKey ? 'ok' : (lastState[handle] || 'unsynced'),
-    isAdmin: session.role === 'admin',
+    isAdmin: adminVerified,
   };
 };
 

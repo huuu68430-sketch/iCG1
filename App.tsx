@@ -9,11 +9,13 @@ import { GlobalPasswordPage } from './components/GlobalPasswordPage';
 import { PersonalSitePage } from './components/PersonalSitePage';
 import { adminApi } from './services/adminCenter';
 import { memberApi } from './services/memberApi';
+import { resetAdminSession } from './services/memberIdentity';
 
 /* كل شاشة ثقيلة تُحمَّل عند الطلب — الواجهة الأولى (الموقع الشخصي) ما عاد فيها أن تُحلِّل
    ثلاثين لعبة دفعة واحدة. Fallback شفاف: لا لمحة ولا تغيير في التصميم. */
 const FawazirGame = React.lazy(() => import('./components/FawazirGame').then(m => ({ default: m.FawazirGame })));
 const MusicalChairsGame = React.lazy(() => import('./components/MusicalChairsGame').then(m => ({ default: m.MusicalChairsGame })));
+const RussianDrawGame = React.lazy(() => import('./components/RussianDrawGame').then(m => ({ default: m.RussianDrawGame })));
 const MasaqilWar = React.lazy(() => import('./components/MasaqilWar').then(m => ({ default: m.MasaqilWar })));
 const BlurGuess = React.lazy(() => import('./components/BlurGuess').then(m => ({ default: m.BlurGuess })));
 const Roulette = React.lazy(() => import('./components/Roulette').then(m => ({ default: m.Roulette })));
@@ -37,6 +39,7 @@ const FloorIsLava = React.lazy(() => import('./components/FloorIsLava').then(m =
 const EmojiCode = React.lazy(() => import('./components/EmojiCode').then(m => ({ default: m.EmojiCode })));
 const HigherLowerGame = React.lazy(() => import('./components/HigherLowerGame').then(m => ({ default: m.HigherLowerGame })));
 const MafiaGame = React.lazy(() => import('./components/Mafia/MafiaGame').then(m => ({ default: m.MafiaGame })));
+const LiarsDenGame = React.lazy(() => import('./components/liarsDen/LiarsDenGame').then(m => ({ default: m.LiarsDenGame })));
 const LetterHexagonGame = React.lazy(() => import('./components/LetterHexagonGame').then(m => ({ default: m.LetterHexagonGame })));
 const BuzzerPad = React.lazy(() => import('./components/BuzzerPad').then(m => ({ default: m.BuzzerPad })));
 const SafeCode = React.lazy(() => import('./components/SafeCode').then(m => ({ default: m.SafeCode })));
@@ -51,14 +54,14 @@ const LeaderboardArena = React.lazy(() => import('./components/LeaderboardArena'
 import {
   Trophy, Play, Lock, User, Swords, Image as ImageIcon,
   RotateCw, Gift, Flag, Users2, Keyboard, Gem, Coffee,
-  PaintBucket, Sparkles, ShieldCheck, Zap, Armchair,
+  PaintBucket, Sparkles, Zap, Armchair,
   Maximize2, MonitorOff, CheckCircle2, AlertTriangle,
   Crown, Medal, Loader2, RefreshCw, ChevronRight, Video, Search,
   Sword, Globe, Brain, Vote, Bomb, Type, Footprints, Flame, Smile,
   ArrowUp, ArrowDown, Edit2, Save, Eye, EyeOff, Maximize, Minimize, Layout as LayoutIcon, X, LogIn, LogOut
 } from 'lucide-react';
 import { getAssetUrl } from './utils/assets';
-import { isCnRoomRoute, isShortRoomRoute, readCnRoomCode, readShortRoomCode } from './utils/gameLink';
+import { isCnRoomRoute, isLdRoomRoute, isShortRoomRoute, readCnRoomCode, readLdRoomCode, readShortRoomCode } from './utils/gameLink';
 import { chatService } from './services/chatService';
 import { supabase, leaderboardService, gamesService } from './services/supabase';
 import { OBSLinksModal } from './components/OBSLinksModal';
@@ -99,26 +102,31 @@ const App: React.FC = () => {
     const studioToken = !!(process.env.OBS_STUDIO_TOKEN && params.get('t') === process.env.OBS_STUDIO_TOKEN);
     const room = params.get('r') || readShortRoomCode();
     const cnRoom = readCnRoomCode();
+    const ldRoom = readLdRoomCode();
     const boardGame = (params.get('lb') || '').trim().toUpperCase();
     return {
       obs: params.get('obs') === 'true' || studioToken,
       room,
       cnRoom,
+      ldRoom,
       lb: boardGame,
       view: studioToken
         ? 'DRAWING_CHALLENGE'
-        : cnRoom
-          ? ('EMOJI_CODE' as ViewState)
-          : room
-            ? ('MAHMAH_GAME' as ViewState)
-            : (params.get('view') as ViewState) || 'ABOUT'
+        : ldRoom
+          ? ('LIARS_DEN' as ViewState)
+          : cnRoom
+            ? ('EMOJI_CODE' as ViewState)
+            : room
+              ? ('MAHMAH_GAME' as ViewState)
+              : (params.get('view') as ViewState) || 'ABOUT'
     };
   };
 
   const initialParams = getInitialParams();
   const [hostRoute, setHostRoute] = useState<boolean>(() => isHostRoute());
   const [hostUnlocked, setHostUnlocked] = useState<boolean>(() => !!readSession('host_access_granted'));
-  const [currentView, setCurrentView] = useState<ViewState | 'ADMIN_LOGIN' | 'ADMIN_PANEL' | 'HOST_GATE'>(() => {
+  const [currentView, setCurrentView] = useState<ViewState | 'ADMIN_LOGIN' | 'ADMIN_PANEL' | 'HOST_GATE' | 'SENIOR_ADMIN_GATE'>(() => {
+    if (isLdRoomRoute()) return 'LIARS_DEN';
     if (isCnRoomRoute()) return 'EMOJI_CODE';
     if (isShortRoomRoute()) return 'MAHMAH_GAME';
     const pathView = window.location.pathname.replace(/^\//, '').replace(/-/g, '_').toUpperCase();
@@ -133,7 +141,7 @@ const App: React.FC = () => {
   const pushedPath = useRef<string>('');
   useEffect(() => {
     // الروابط المختصرة (/m=CODE و /cn=CODE) تبقى كما هي حتى لا تنكسر عند التحديث
-    if ((currentView === 'MAHMAH_GAME' && isShortRoomRoute()) || (currentView === 'EMOJI_CODE' && isCnRoomRoute())) return;
+    if ((currentView === 'MAHMAH_GAME' && isShortRoomRoute()) || (currentView === 'EMOJI_CODE' && isCnRoomRoute()) || (currentView === 'LIARS_DEN' && isLdRoomRoute())) return;
     const path = '/' + String(currentView).toLowerCase().replace(/_/g, '-');
     // نحافظ على باراميترات رابط اللعبة (?r=CODE&m=player) حتى لا تضيع عند التحديث
     const search = window.location.search || '';
@@ -147,7 +155,7 @@ const App: React.FC = () => {
   // كتابة نفس الرابط، فيبدو أن الرجوع لا يعمل.
   useEffect(() => {
     const syncFromUrl = () => {
-      if (isHostRoute() || isShortRoomRoute() || isCnRoomRoute()) return;
+      if (isHostRoute() || isShortRoomRoute() || isCnRoomRoute() || isLdRoomRoute()) return;
       const path = window.location.pathname;
       if (path === pushedPath.current) return;
       const mapped = path.replace(/^\//, '').replace(/-/g, '_').toUpperCase();
@@ -169,26 +177,16 @@ const App: React.FC = () => {
     if (initialParams.obs) return true;
     return !!readSession('site_access_granted');
   });
-  const [userRole, setUserRole] = useState<'admin' | 'user'>(() => {
-    const adminSession = readSession('site_access_granted');
-    if (adminSession?.role === 'admin') return 'admin';
-    if (adminSession?.role === 'user') return 'user';
-    return 'user'; // ⚠️ لا أحد أدمن افتراضياً — الدخولالأدمن بالكلمة السر فقط
-  });
+  const [userRole, setUserRole] = useState<'admin' | 'user'>('user'); // لا أحد أدمن افتراضياً — الدور الإداري يثبته السيرفر وحده
 
   const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
   const [adminStaff, setAdminStaff] = useState<{ staff_name: string; role: string } | null>(null);
   const [adminChecked, setAdminChecked] = useState(false);
 
-  /* باب «الإدارة»: لا يظهر لأي عضو — فقط لمن كتب كلمة سر الإدارة فعلاً في هذا المتصفح:
-     جلسة موقع بدور أدمن، أو جلسة مشرف تحقّق منها السيرفر (نتيجة واحدة لكل تبويب).
-     التخزين المحلي لا يمنح صلاحية — اللوحة نفسها ما زالت تُفتح بالسيرفر وحده. */
-  const [adminDoor, setAdminDoor] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    if (readSession('site_access_granted')?.role === 'admin') return true;
-    return sessionStorage.getItem('icg1_admin_session') === '1';
-  });
+  /* باب «الإدارة»: لا يظهر لأي عضو — فقط لمن تحقّق السيرفر من جلسته الإدارية.
+     لا شيء في التخزين المحلي (محلي أو جلسة تبويب) يمنح الدور أو يفتح الباب. */
+  const [adminDoor, setAdminDoor] = useState<boolean>(false);
 
 
   const [activeAnnouncement, setActiveAnnouncement] = useState<string | null>(null);
@@ -360,14 +358,12 @@ const App: React.FC = () => {
   // جلسة الأدمن المحلية لا تُستبدل بحساب عضو: بدون هذا الحارس يُعيد /api/me
   // تصنيف الأدمن كـ«مستخدم» بعد تسجيل الخروج أو بعد إعادة التحميل.
   useEffect(() => {
-    if (readSession('site_access_granted')?.role === 'admin') return;
     if (isOBSMode) return; // مصدر البث لا يحتاج استعادة الجلسة
     let alive = true;
     fetch('/api/me', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!alive || !data?.user) return;
-        if (readSession('site_access_granted')?.role === 'admin') return;
         const u = data.user;
         localStorage.setItem('iabs_user', JSON.stringify({
           id: u.id,
@@ -500,10 +496,9 @@ useEffect(() => {
         setAdminChecked(true);
         if (r.ok && r.staff) {
           setAdminStaff(r.staff);
-          sessionStorage.setItem('icg1_admin_session', '1');
+          setUserRole('admin');
           setAdminDoor(true);
         } else {
-          sessionStorage.removeItem('icg1_admin_session');
           setCurrentView('ADMIN_LOGIN');
         }
     });
@@ -520,7 +515,7 @@ useEffect(() => {
     let alive = true;
     adminProbe.current.then(ok => {
       if (!alive || !ok) return;
-      sessionStorage.setItem('icg1_admin_session', '1');
+      setUserRole('admin');
       setAdminDoor(true);
     });
     return () => { alive = false; };
@@ -537,33 +532,15 @@ useEffect(() => {
 
   const handleAdminLogout = async () => {
     await adminApi.logout();
+    resetAdminSession();
     setAdminStaff(null);
     setAdminChecked(false);
-    sessionStorage.removeItem('icg1_admin_session');
+    setUserRole('user');
     adminProbe.current = null;
     setAdminDoor(false);
     // الخروج يُرجِع لصفحة الألعاب مباشرة: لا سبب لإبقاء من غادر اللوحة أمام بوابة فارغة.
     setCurrentView('HOME');
   };
-
-  // زر «الإدارة» في صفحة الألعاب: الجلسة الصالحة تُدخل اللوحة مباشرة، وغير ذلك صفحة الكلمة السر.
-  // الصلاحية يقررها السيرفر بالكوكي HttpOnly — لا شيء في المتصفح يمنحها.
-  const handleOpenAdmin = async () => {
-    const r = await adminApi.me();
-    if (r.ok && r.staff) {
-      setAdminStaff({ staff_name: r.staff.staff_name, role: r.staff.role });
-      setAdminChecked(true);
-      sessionStorage.setItem('icg1_admin_session', '1');
-      setAdminDoor(true);
-      setCurrentView('ADMIN_PANEL');
-    } else {
-      setAdminStaff(null);
-      setAdminChecked(false);
-      setCurrentView('ADMIN_LOGIN');
-    }
-  };
-
-
 
   const handleGoHome = () => {
     if (userRole === 'user') {
@@ -600,7 +577,7 @@ useEffect(() => {
 
     localStorage.removeItem('site_access_granted');
     localStorage.removeItem('iabs_user');
-    sessionStorage.removeItem('icg1_admin_session');
+    resetAdminSession();
     setIsAuthorized(false);
     setUserRole('user');
     setAdminDoor(false);
@@ -706,11 +683,26 @@ useEffect(() => {
         }
         return <AdminControlCenter staffName={adminStaff.staff_name} onLogout={handleAdminLogout} />;
       }
+      case 'SENIOR_ADMIN_GATE': return (
+        <GlobalPasswordPage
+          adminOnly
+          grantAdminSession
+          onBack={() => setCurrentView('HOME')}
+          onSuccess={() => {
+            resetAdminSession();
+            setAdminChecked(false);
+            setCurrentView('ADMIN_PANEL');
+          }}
+          title="الإدارة العليا"
+          subtitle="SENIOR ADMIN ACCESS — RESTRICTED"
+        />
+      );
       case 'ADMIN_LOGIN': return (
         <AdminLogin onBack={() => setCurrentView('HOME')} onSuccess={(staffName, role) => {
           setAdminStaff({ staff_name: staffName, role });
           setAdminChecked(true);
-          sessionStorage.setItem('icg1_admin_session', '1');
+          setUserRole('admin');
+          resetAdminSession();
           setAdminDoor(true);
           setCurrentView('ADMIN_PANEL');
         }} />
@@ -718,6 +710,7 @@ useEffect(() => {
       case 'FAWAZIR_SELECT': return <CategorySelect onSelect={handleCategorySelect} onBack={handleGoHome} />;
       case 'FAWAZIR_GAME': return <FawazirGame category={selectedCategory || 'ramadan'} onFinish={() => setCurrentView('LEADERBOARD')} onHome={handleGoHome} isOBS={obsMode} />;
       case 'MUSICAL_CHAIRS': return <MusicalChairsGame onHome={handleGoHome} isOBS={obsMode} />;
+      case 'RUSSIAN_ROULETTE': return <RussianDrawGame onHome={handleGoHome} isOBS={obsMode} />;
       case 'MASAQIL_WAR': return <MasaqilWar channelConnected={true} onHome={handleGoHome} isOBS={obsMode} />;
       case 'BLUR_GUESS': return <BlurGuess channelConnected={true} onHome={handleGoHome} isOBS={obsMode} />;
       case 'SPIN_WHEEL': return <Roulette channelConnected={true} onHome={handleGoHome} isOBS={obsMode} />;
@@ -742,6 +735,7 @@ useEffect(() => {
       case 'EMOJI_CODE': return <EmojiCode onHome={handleGoHome} isOBS={obsMode} />;
       case 'HIGHER_LOWER': return <HigherLowerGame onHome={handleGoHome} isOBS={obsMode} />;
       case 'MAHMAH_GAME': return <MafiaGame onHome={handleGoHome} />;
+      case 'LIARS_DEN': return <LiarsDenGame onHome={handleGoHome} />;
       case 'LETTER_GAME': return <LetterHexagonGame onHome={handleGoHome} isOBS={obsMode} onToggleOBSPreview={() => setShowObsPreview(!showObsPreview)} obsPreviewActive={showObsPreview} />;
       case 'BUZZER_PAD': return <BuzzerPad />;
       case 'SAFE_CODE': return <SafeCode onHome={() => setCurrentView('HOME')} isOBS={isOBSMode} />;
@@ -840,7 +834,7 @@ useEffect(() => {
             saveGamesOrder={saveGamesOrder}
             isSavingGames={isSavingGames}
             handleLogout={handleLogout}
-            onOpenAdmin={adminDoor || userRole === 'admin' ? handleOpenAdmin : undefined}
+            onOpenSeniorAdmin={adminDoor || userRole === 'admin' ? () => setCurrentView('SENIOR_ADMIN_GATE') : undefined}
           />
         );
       }
@@ -888,6 +882,18 @@ useEffect(() => {
     );
   }
 
+  // حانة الكذابين: المسرح ملء الشاشة، وجوال اللاعب (/ld=CODE) له زر خروج داخلي
+  if (isAuthorized && currentView === 'LIARS_DEN') {
+    const ldPhone = isLdRoomRoute() || ['p', 'player'].includes((new URLSearchParams(window.location.search).get('m') || '').toLowerCase());
+    return (
+      <div className="fixed inset-0 overflow-auto bg-black">
+        {renderContent(false)}
+        {!ldPhone && <GameBackButton fixed onHome={handleGoHome} />}
+        {tutorialLayer}
+      </div>
+    );
+  }
+
   // هاتف لاعب/ليدر كود نيمز: صفحة كاملة بدون واجهة الموقع (زر «خروج» داخل الشاشة نفسها)
   if (isAuthorized && currentView === 'EMOJI_CODE' && isCnRoomRoute()) {
     return (
@@ -914,12 +920,19 @@ useEffect(() => {
         onSuccess={(role) => {
           setUserRole(role);
           setIsAuthorized(true);
+          if (role === 'admin') resetAdminSession();
           const roomLink = new URLSearchParams(window.location.search).get('r') || readShortRoomCode();
           /* رابط غرفة أو لعبة معيّنة يسبق كل شيء: العضو يدخل جولته مباشرة */
+          if (readLdRoomCode()) { setCurrentView('LIARS_DEN'); return; }
           if (readCnRoomCode()) { setCurrentView('EMOJI_CODE'); return; }
           if (roomLink) { setCurrentView('MAHMAH_GAME'); return; }
-          /* صاحب الإدارة ⇒ لوحة التحكم (والتحقّق في السيرفر — لا في التخزين المحلي) */
-          if (role === 'admin') { setCurrentView('ADMIN_PANEL'); return; }
+          /* اللعبة التي ضغطها قبل البوابة تبقى وجهته بعد الدخول: المستضيف يدخل مسرحه
+             مباشرة (المافيا/الحانة…) بدل ما يُرمَى في لوحة التحكم أو صفحة الأعضاء */
+          const shellViews = ['HOME', 'USER_DASHBOARD', 'ADMIN_LOGIN', 'ADMIN_PANEL', 'LEADERBOARD'];
+          if (!shellViews.includes(currentView)) return;
+          /* صاحب الإدارة ⇒ ساحة الألعاب (المسرح والاستضافة)، لا لوحة التحكم.
+             لوحة الإدارة العليا تُفتح من زرها الخاص ببوابة كلمة السر. */
+          if (role === 'admin') { setCurrentView('HOME'); return; }
           /* العضو ⇒ صفحته الخاصة (لوحة العضو)، لا ساحة الألعاب.
              (?view=لعبة محددة يبقى — رابط مباشر إلى لعبة) */
           const explicit = (initialParams.view !== 'ABOUT' && initialParams.view !== 'HOME')

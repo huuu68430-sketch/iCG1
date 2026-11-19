@@ -35,6 +35,8 @@ import gameKey from '../api/_handlers/user/game-key';
 
 import creatorsLeaderboard from '../api/_handlers/creators/leaderboard';
 
+import ldHostRoom from '../api/_handlers/liars-den/host-room';
+
 const routes: Record<string, (req: any, res: any) => any> = {
   '/me': me,
   '/logout': logout,
@@ -68,6 +70,8 @@ const routes: Record<string, (req: any, res: any) => any> = {
   '/user/game-key': gameKey,
 
   '/creators/leaderboard': creatorsLeaderboard,
+
+  '/liars-den/host-room': ldHostRoom,
 };
 
 export default async function handler(req: any, res: any) {

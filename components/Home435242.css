@@ -344,6 +344,49 @@
   outline: none;
 }
 
+.icg1-page-435242 .cta-den {
+  margin-top: 14px;
+}
+
+.icg1-page-435242 .btn.den {
+  background: linear-gradient(180deg, rgba(48,27,12,.92), rgba(14,8,4,.94));
+  color: var(--cream);
+  border-color: rgba(232,190,110,.75);
+  box-shadow: 0 10px 30px rgba(0,0,0,.5), inset 0 0 22px rgba(232,190,110,.14);
+}
+
+.icg1-page-435242 .btn.den svg {
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+
+.icg1-page-435242 .btn.den .den-new {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(180deg, #ff8a5c, var(--hot));
+  padding: 2px 12px;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(239,91,60,.5);
+}
+
+.icg1-page-435242 .btn.den .den-new.off {
+  background: rgba(120,120,120,.9);
+  box-shadow: none;
+}
+
+.icg1-page-435242 .btn.den.off {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.icg1-page-435242 .btn.den.off:hover {
+  transform: none;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
+}
+
 .icg1-page-435242 .stats {
   display: flex;
   gap: 14px;
@@ -466,7 +509,7 @@
 }
 
 .icg1-page-435242 .grid.hg {
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
 }
 
 /* Cards */
@@ -636,6 +679,13 @@
   box-shadow: 0 22px 50px rgba(0,0,0,.65), 0 0 44px rgba(239,91,60,.35);
 }
 
+/* حانة الكذابين: بطاقة بنفس حجم البطاقتين فوقها، تتوسط الصف تحتهم */
+.icg1-page-435242 .hot.featured {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc(50% - 10px);
+}
+
 .icg1-page-435242 .new {
   position: absolute;
   top: 14px;
@@ -674,6 +724,13 @@
   .icg1-page-435242 nav.center-nav,
   .icg1-page-435242 .sh small {
     display: none;
+  }
+  .icg1-page-435242 .grid.hg {
+    grid-template-columns: 1fr;
+  }
+  .icg1-page-435242 .hot.featured {
+    width: auto;
+    justify-self: stretch;
   }
   .icg1-page-435242 .cn {
     display: none;

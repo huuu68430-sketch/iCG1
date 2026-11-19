@@ -3,7 +3,7 @@ import {
     X, Copy, Check, Sparkles, Armchair, Swords,
     Image as ImageIcon, Zap, Gift, Flag, Users2,
     Keyboard, Gem, Coffee, PaintBucket, ExternalLink, AlertTriangle, Shield, TrendingUp, Eye,
-    CheckCircle2, Share2, Monitor, Layout as LayoutIcon, Globe, Info, ShieldOff, Vote
+    CheckCircle2, Share2, Monitor, Layout as LayoutIcon, Globe, Info, ShieldOff, Vote, Spade
 } from 'lucide-react';
 import { ViewState } from '../types';
 
@@ -22,6 +22,7 @@ const GAMES: GameLink[] = [
     { id: 'FAWAZIR_GAME', label: 'الفوازير', icon: Sparkles },
     { id: 'MUSICAL_CHAIRS', label: 'الكراسي الموسيقية', icon: Armchair },
     { id: 'MASAQIL_WAR', label: 'حرب المصاقيل', icon: Swords },
+    { id: 'LIARS_DEN', label: 'حانة الكذابين', icon: Spade },
     { id: 'BLUR_GUESS', label: 'تخمين الصورة', icon: ImageIcon },
     { id: 'SPIN_WHEEL', label: 'الروليت', icon: Zap },
     { id: 'RAFFLE', label: 'سحب الجوائز', icon: Gift },

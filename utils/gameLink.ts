@@ -33,3 +33,22 @@ export const isCnRoomRoute = (): boolean =>
 
 export const buildCnJoinLink = (code: string): string =>
   `${window.location.origin}/cn=${String(code || '').trim().toUpperCase()}`;
+
+/**
+ * رابط هاتف حانة الكذابين: /ld=ROOMCODE
+ * الشاشة الكبيرة تبقى على /liars-den?r=CODE.
+ */
+const SHORT_LD_PATH = /^\/ld=([a-z0-9]{3,12})$/i;
+
+export const readLdRoomCode = (): string => {
+  if (typeof window === 'undefined') return '';
+  const match = window.location.pathname.match(SHORT_LD_PATH);
+  return match ? match[1].toUpperCase() : '';
+};
+
+export const isLdRoomRoute = (): boolean =>
+  typeof window !== 'undefined' && SHORT_LD_PATH.test(window.location.pathname);
+
+export const buildLdJoinLink = (code: string): string =>
+  `${window.location.origin}/ld=${String(code || '').trim().toUpperCase()}`;
+

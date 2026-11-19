@@ -147,6 +147,9 @@ export interface GlobalPasswordPageProps {
   configKey?: string;
   fallbackConfigKey?: string;
   adminOnly?: boolean;
+  /** بوابة إدارية تمنح جلسة إدارة حقيقية (كوكي السيرفر) — لا مجرد نعم/لا */
+  grantAdminSession?: boolean;
+  onBack?: () => void;
 }
 
 type ViewName = 'login' | 'register' | 'verify' | 'admin' | 'scan' | 'ok';
@@ -158,7 +161,9 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
   subtitle,
   configKey = 'admin_password',
   fallbackConfigKey,
-  adminOnly = false
+  adminOnly = false,
+  grantAdminSession = false,
+  onBack
 }) => {
   const [curView, setCurView] = useState<ViewName>(adminOnly ? 'admin' : 'login');
   const [animClass, setAnimClass] = useState<'on' | 'out'>('on');
@@ -808,10 +813,13 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
 
     setIsAdminLoading(true);
     try {
-      const url = adminOnly ? '/api/auth/config-check' : '/api/admin/login';
-      const payload = adminOnly
-        ? { key: configKey, fallback_key: fallbackConfigKey || undefined, password: c }
-        : { password: c };
+      /* بوابة تمنح جلسة إدارة حقيقية تمر على /api/admin/login (كوكي HttpOnly).
+         بوابات نعم/لا (المستضيف) تبقى على config-check بلا جلسة. */
+      const useAdminLogin = !adminOnly || grantAdminSession;
+      const url = useAdminLogin ? '/api/admin/login' : '/api/auth/config-check';
+      const payload = useAdminLogin
+        ? { password: c }
+        : { key: configKey, fallback_key: fallbackConfigKey || undefined, password: c };
 
       const r = await fetch(url, {
         method: 'POST',
@@ -820,20 +828,24 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
         body: JSON.stringify(payload),
       });
       const j = await r.json().catch(() => ({}));
-      const valid = adminOnly ? (r.ok && j?.ok === true) : (r.ok && !!j?.staff);
+      const valid = useAdminLogin ? (r.ok && !!j?.staff) : (r.ok && j?.ok === true);
 
       if (valid) {
         clearFails();
         setRole('admin');
         navigateTo('scan');
       } else {
-        registerFail();
-        setAdminPinBad(true);
-        setTimeout(() => {
-          setAdminPinBad(false);
-          setAdminPin(['', '', '', '', '', '']);
-          adminInputs.current[0]?.focus();
-        }, 600);
+        /* حد المحاولات أو انقطاع القاعدة ليس «كلمة خاطئة»: لا يُحسب فشلاً
+           حتى لا يُقفل المتصفح صاحب الكلمة الصحيحة وهو ينتظر فتح العداد */
+        if (r.status === 401) {
+          registerFail();
+          setAdminPinBad(true);
+          setTimeout(() => {
+            setAdminPinBad(false);
+            setAdminPin(['', '', '', '', '', '']);
+            adminInputs.current[0]?.focus();
+          }, 600);
+        }
         showToast(j?.error || 'رمز القيادة غير صحيح');
       }
     } catch (e: any) {
@@ -1400,6 +1412,11 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
                 <svg className="i"><use href="#arrowr" /></svg> العودة لتسجيل المستخدم
               </button>
             )}
+            {adminOnly && onBack && (
+              <button type="button" className="ghost back" onClick={onBack}>
+                <svg className="i"><use href="#arrowr" /></svg> العودة للألعاب
+              </button>
+            )}
             <div className="emb">
               <svg className="i"><use href="#crown" /></svg>
             </div>
@@ -1407,7 +1424,7 @@ export const GlobalPasswordPage: React.FC<GlobalPasswordPageProps> = ({
             <div className="sub">{subtitle || 'RESTRICTED COMMAND INTERFACE'}</div>
             <div className="panel" style={{ textAlign: 'center' }}>
               <p className="mut" style={{ marginBottom: '18px' }}>
-                أدخل رمز القيادة المكوّن من 6 خانات
+                {grantAdminSession ? 'أدخل كلمة سر الإدارة العليا المكوّنة من 6 خانات' : 'أدخل رمز القيادة المكوّن من 6 خانات'}
               </p>
               <div className="pinw">
                 <div className={`pin ${adminPinBad ? 'bad' : ''}`} id="a-pin">

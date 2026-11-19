@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import './Home435242.css';
 import { BASE_ICONS, GAME_DETAILS } from './home435242Icons';
-import { Search, X, Edit2, Save, LogOut, Loader2, Play, ShieldCheck } from 'lucide-react';
+import { Search, X, Edit2, Save, LogOut, Loader2, Play, Crown } from 'lucide-react';
 import { HelpOrb } from './tutorial/HelpOrb';
 
 interface Home435242Props {
@@ -17,11 +17,11 @@ interface Home435242Props {
   saveGamesOrder?: () => void;
   isSavingGames?: boolean;
   handleLogout?: () => void;
-  onOpenAdmin?: () => void | Promise<void>;
+  onOpenSeniorAdmin?: () => void;
 }
 
 // Exact games requested by user - any other games removed
-const ALLOWED_HOT_IDS = ['MAHMAH_GAME', 'EMOJI_CODE'];
+const ALLOWED_HOT_IDS = ['MAHMAH_GAME', 'EMOJI_CODE', 'LIARS_DEN'];
 
 const ALLOWED_REGULAR_IDS = [
   'LETTER_GAME',       // حروف مع منصور
@@ -31,6 +31,7 @@ const ALLOWED_REGULAR_IDS = [
   'SAFE_CODE',         // فك الشفرة
   'TRUTH_OR_LIE',      // صادق أم كذاب
   'MUSICAL_CHAIRS',    // الكرسي الموسيقي
+  'RUSSIAN_ROULETTE',  // السحب الروسي
   'SPIN_WHEEL',        // الروليت
   'FLAG_QUIZ',         // الأعلام
   'HIGHER_LOWER',      // أعلى أم أقل
@@ -55,18 +56,10 @@ export const Home435242: React.FC<Home435242Props> = ({
   saveGamesOrder,
   isSavingGames,
   handleLogout,
-  onOpenAdmin
+  onOpenSeniorAdmin
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [search, setSearch] = useState('');
-  const [isAdminChecking, setIsAdminChecking] = useState(false);
-
-  // الزر لا يمنح صلاحية: السيرفر يقرر بالجلسة، وإلا تفتح صفحة كلمة السر
-  const openAdmin = async () => {
-    if (!onOpenAdmin || isAdminChecking) return;
-    setIsAdminChecking(true);
-    try { await onOpenAdmin(); } finally { setIsAdminChecking(false); }
-  };
 
   // Floating Gold Particle Animation from 435242.html
   useEffect(() => {
@@ -178,6 +171,14 @@ export const Home435242: React.FC<Home435242Props> = ({
     };
   }, [catalog, filteredGames, search]);
 
+  const denGame = useMemo(() => catalog.find(g => g.view_id === 'LIARS_DEN'), [catalog]);
+
+  /* المافيا وكود نيمز جنباً إلى جنب، وحانة الكذابين بطاقة عريضة تحتهما */
+  const orderedHot = useMemo(() => [
+    ...hotGames.filter(g => g.view_id !== 'LIARS_DEN'),
+    ...hotGames.filter(g => g.view_id === 'LIARS_DEN'),
+  ], [hotGames]);
+
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -200,11 +201,11 @@ export const Home435242: React.FC<Home435242Props> = ({
           {onOpenStore && (
             <button type="button" onClick={onOpenStore} title="متجر الأوسمة والإطارات">المتجر</button>
           )}
-          {onOpenAdmin && (
-            <button type="button" onClick={openAdmin} className="admin-nav" disabled={isAdminChecking}
-              title="مركز تحكم الإدارة">
-              {isAdminChecking ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
-              <span>{isAdminChecking ? 'جارٍ التحقق…' : 'الإدارة'}</span>
+          {onOpenSeniorAdmin && (
+            <button type="button" onClick={onOpenSeniorAdmin} className="admin-nav"
+              title="الإدارة العليا — كلمة سر من 6 خانات">
+              <Crown size={15} />
+              <span>الإدارة العليا</span>
             </button>
           )}
           {isAuthorized && handleLogout && (
@@ -264,6 +265,20 @@ export const Home435242: React.FC<Home435242Props> = ({
             </a>
           </div>
 
+          {denGame && (
+            <div className="cta cta-den">
+              <button
+                type="button"
+                className={`btn den${denGame.stopped ? ' off' : ''}`}
+                onClick={() => { if (!denGame.stopped) onSelectGame('LIARS_DEN'); }}
+              >
+                <svg viewBox="0 0 64 64" aria-hidden="true" dangerouslySetInnerHTML={{ __html: denGame.svgContent }} />
+                <span>{denGame.title}</span>
+                {denGame.stopped ? <i className="den-new off">متوقفة</i> : <i className="den-new">جديد</i>}
+              </button>
+            </div>
+          )}
+
           <div className="stats">
             <div>
               <b>{catalog.length}</b>
@@ -316,12 +331,12 @@ export const Home435242: React.FC<Home435242Props> = ({
               <h2>ألعاب جديدة</h2>
             </div>
             <div className="grid hg" id="hot">
-              {hotGames.map((game) => {
+              {orderedHot.map((game) => {
                 const { title, desc, svgContent } = game;
                 return (
                   <a
                     key={game.id || game.view_id}
-                    className={`card hot${game.stopped ? ' off' : ''}`}
+                    className={`card hot${game.view_id === 'LIARS_DEN' ? ' featured' : ''}${game.stopped ? ' off' : ''}`}
                     href="#"
                     onClick={(e) => {
                       e.preventDefault();

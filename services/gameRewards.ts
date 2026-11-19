@@ -25,8 +25,10 @@ export const GAME_POINTS: Record<string, { match: number; round: number }> = {
     DRAWING_CHALLENGE: { match: 180, round: 60 },
     // بقاء وتحمل
     MUSICAL_CHAIRS: { match: 200, round: 50 },
+    RUSSIAN_ROULETTE: { match: 220, round: 50 },
     GLASS_BRIDGE_V2: { match: 220, round: 50 },
     MAHMAH_GAME: { match: 250, round: 40 },
+    LIARS_DEN: { match: 200, round: 35 },
 };
 
 export const DEFAULT_POINTS = { match: 120, round: 35 };

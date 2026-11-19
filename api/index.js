@@ -5899,7 +5899,7 @@ var require_helpers = __commonJS({
       crypto.getRandomValues(array);
       return Array.from(array, dec2hex).join("");
     }
-    async function sha256(randomString) {
+    async function sha2562(randomString) {
       const encoder = new TextEncoder();
       const encodedData = encoder.encode(randomString);
       const hash = await crypto.subtle.digest("SHA-256", encodedData);
@@ -5912,7 +5912,7 @@ var require_helpers = __commonJS({
         console.warn("WebCrypto API is not supported. Code challenge method will default to use plain instead of sha256.");
         return verifier;
       }
-      const hashed = await sha256(verifier);
+      const hashed = await sha2562(verifier);
       return btoa(hashed).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
     }
     var PKCE_FLOW_ID_PATTERN = /^[a-zA-Z0-9_-]{8,64}$/;
@@ -14123,7 +14123,7 @@ var require_bcrypt = __commonJS({
   "node_modules/bcrypt/bcrypt.js"(exports, module) {
     var path = __require("path");
     var bindings = require_node_gyp_build2()(path.resolve(__dirname));
-    var crypto7 = __require("crypto");
+    var crypto8 = __require("crypto");
     var promises = require_promises();
     function genSaltSync(rounds, minor) {
       if (!rounds) {
@@ -14136,7 +14136,7 @@ var require_bcrypt = __commonJS({
       } else if (minor !== "b" && minor !== "a") {
         throw new Error('minor must be either "a" or "b"');
       }
-      return bindings.gen_salt_sync(minor, rounds, crypto7.randomBytes(16));
+      return bindings.gen_salt_sync(minor, rounds, crypto8.randomBytes(16));
     }
     function genSalt(rounds, minor, cb) {
       let error;
@@ -14167,7 +14167,7 @@ var require_bcrypt = __commonJS({
           cb(error);
         });
       }
-      crypto7.randomBytes(16, function(error2, randomBytes) {
+      crypto8.randomBytes(16, function(error2, randomBytes) {
         if (error2) {
           cb(error2);
           return;
@@ -22875,7 +22875,8 @@ var GAME_POINTS = {
   // بقاء وتحمل
   MUSICAL_CHAIRS: { match: 200, round: 50 },
   GLASS_BRIDGE_V2: { match: 220, round: 50 },
-  MAHMAH_GAME: { match: 250, round: 40 }
+  MAHMAH_GAME: { match: 250, round: 40 },
+  LIARS_DEN: { match: 200, round: 35 }
 };
 
 // api/_handlers/admin/data.ts
@@ -25093,6 +25094,45 @@ async function handler27(req, res) {
   }
 }
 
+// api/_handlers/liars-den/host-room.ts
+import crypto7 from "crypto";
+var ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+var sha256 = (s) => crypto7.createHash("sha256").update(s).digest("hex");
+var randCode = () => Array.from({ length: 6 }, () => ALPHABET[crypto7.randomInt(ALPHABET.length)]).join("");
+async function handler28(req, res) {
+  if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
+  if (!isSupabaseConfigured) return json(res, 503, { error: "\u062A\u0639\u0630\u0651\u0631 \u0627\u0644\u0627\u062A\u0635\u0627\u0644 \u0628\u0642\u0627\u0639\u062F\u0629 \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A" });
+  if (!verifyOrigin(req)) return json(res, 403, { error: "bad_origin" });
+  const admin = await requireAdmin(req).catch(() => null);
+  const hostHandle = admin ? `admin:${String(admin.staff.staff_name || "").toLowerCase().trim()}`.slice(0, 60) : `guest:${crypto7.randomBytes(6).toString("hex")}`;
+  const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+  if (admin) {
+    await supabaseAdmin.from("ld_rooms").update({ status: "closed", updated_at: nowIso }).eq("host_handle", hostHandle).neq("status", "closed");
+  }
+  let code = "";
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const cand = randCode();
+    const { data } = await supabaseAdmin.from("ld_rooms").select("code").eq("code", cand).maybeSingle();
+    if (!data) {
+      code = cand;
+      break;
+    }
+  }
+  if (!code) return json(res, 500, { error: "code_exhausted" });
+  const hostToken = crypto7.randomBytes(24).toString("hex");
+  const expiresAt = new Date(Date.now() + 6 * 3600 * 1e3).toISOString();
+  const { error } = await supabaseAdmin.from("ld_rooms").insert({
+    code,
+    host_handle: hostHandle,
+    host_th: sha256(hostToken),
+    status: "lobby",
+    expires_at: expiresAt
+  });
+  if (error) return json(res, 500, { error: "room_create_failed" });
+  if (admin) await audit(admin.staff.staff_name, "LD_HOST_ROOM", { code });
+  return json(res, 200, { code, host_token: hostToken, expires_at: expiresAt });
+}
+
 // server/api-entry.ts
 var routes = {
   "/me": handler,
@@ -25121,9 +25161,10 @@ var routes = {
   "/user/tickets": handler24,
   "/user/tournaments": handler25,
   "/user/game-key": handler26,
-  "/creators/leaderboard": handler27
+  "/creators/leaderboard": handler27,
+  "/liars-den/host-room": handler28
 };
-async function handler28(req, res) {
+async function handler29(req, res) {
   const wrapped = wrapRes(res);
   const route = typeof req.query?.route === "string" ? "/" + req.query.route : "/";
   const target = routes[route];
@@ -25164,5 +25205,5 @@ function wrapRes(res) {
   return proxied;
 }
 export {
-  handler28 as default
+  handler29 as default
 };

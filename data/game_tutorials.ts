@@ -15,6 +15,7 @@ import { mapGuesser } from './tutorials/mapGuesser';
 import { typingRace } from './tutorials/typingRace';
 import { safeCode } from './tutorials/safeCode';
 import { truthOrLie } from './tutorials/truthOrLie';
+import { liarsDen } from './tutorials/liarsDen';
 
 const ALL: GameTutorial[] = [
   mafia,
@@ -33,6 +34,7 @@ const ALL: GameTutorial[] = [
   typingRace,
   safeCode,
   truthOrLie,
+  liarsDen,
 ];
 
 export const GAME_TUTORIALS: Record<string, GameTutorial> = Object.fromEntries(

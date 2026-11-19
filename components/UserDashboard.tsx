@@ -352,12 +352,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
     }, []);
 
     /* ===== دخول الألعاب المباشرة: يتحقق من آخر غرفة ومن أن العضو ليدر فيها ===== */
-    const [live, setLive] = useState<{ checking: boolean; cn: string; mafia: string }>({ checking: false, cn: '', mafia: '' });
+    const [live, setLive] = useState<{ checking: boolean; cn: string; mafia: string; ld: string }>({ checking: false, cn: '', mafia: '', ld: '' });
 
     const checkLive = useCallback(async () => {
         setLive(s => ({ ...s, checking: true }));
         const alive = (iso?: string | null) => !!iso && Date.now() - new Date(iso).getTime() < LIVE_ROOM_TTL;
-        let cn = '', mafia = '';
+        let cn = '', mafia = '', ld = '';
         try {
             const { data } = await supabase
                 .from('cn_rooms')
@@ -379,7 +379,16 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
             const st: any = row?.state ?? {};
             if (row && !st.res && !st.win && alive(row.updated_at)) mafia = String(row.code).toUpperCase();
         } catch { /* الشبكة مقطوعة */ }
-        const next = { checking: false, cn, mafia };
+        try {
+            const { data } = await supabase
+                .from('ld_rooms_live')
+                .select('code,host_handle,updated_at')
+                .order('updated_at', { ascending: false })
+                .limit(1);
+            const row: any = data?.[0];
+            if (row && sameUser(row.host_handle, username) && alive(row.updated_at)) ld = String(row.code).toUpperCase();
+        } catch { /* الجدول لم يُنشأ بعد */ }
+        const next = { checking: false, cn, mafia, ld };
         setLive(next);
         return next;
     }, [username]);
@@ -388,17 +397,19 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
         if (view === 'home' && username) checkLive();
     }, [view, username, checkLive]);
 
-    const enterLive = async (kind: 'cn' | 'mafia') => {
-        const cur = (live.cn || live.mafia) ? live : await checkLive();
-        const code = kind === 'cn' ? cur.cn : cur.mafia;
+    const enterLive = async (kind: 'cn' | 'mafia' | 'ld') => {
+        const cur = (live.cn || live.mafia || live.ld) ? live : await checkLive();
+        const code = kind === 'cn' ? cur.cn : kind === 'ld' ? cur.ld : cur.mafia;
         if (code) {
-            window.location.assign(`${window.location.origin}/${kind === 'cn' ? 'cn' : 'm'}=${code}`);
+            window.location.assign(`${window.location.origin}/${kind === 'cn' ? 'cn' : kind === 'ld' ? 'ld' : 'm'}=${code}`);
             return;
         }
         notify(
             kind === 'cn'
                 ? 'ما أنت ليدر في آخر غرفة كود نيمز، أو أن اللعبة انتهت'
-                : 'لا توجد غرفة مافيا نشطة الآن',
+                : kind === 'ld'
+                    ? 'لا توجد غرفة حانة كذابين مفتوحة باسمك'
+                    : 'لا توجد غرفة مافيا نشطة الآن',
             'bad'
         );
     };
@@ -406,10 +417,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
     useEffect(() => {
         // صفة المدير تُقرأ من السيرفر (جلسة حقيقية) — لا مخزون محلي يمنح صلاحيات
         let alive = true;
-        if (sessionStorage.getItem('icg1_admin_session') === '1') setIsAdmin(true);
-        else adminApi.me().then(r => {
+        adminApi.me().then(r => {
             if (!alive || !r.ok) return;
-            sessionStorage.setItem('icg1_admin_session', '1');
             setIsAdmin(true);
         }).catch(() => { /* لا شيء */ });
         return () => {
@@ -1034,6 +1043,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ userData, onLogout
                                 <small>{live.mafia ? `الغرفة النشطة ${live.mafia}` : live.checking ? 'جارٍ التحقق…' : 'لا توجد غرفة مافيا نشطة'}</small>
                             </div>
                             <button className="md-btn md-gold" onClick={() => enterLive('mafia')} disabled={live.checking}>دخول</button>
+                        </div>
+                        <div className="md-row">
+                            <div className="md-ico"><Shield size={17} /></div>
+                            <div className="md-row-tx">
+                                <b>حانة الكذابين</b>
+                                <small>{live.ld ? `الغرفة النشطة ${live.ld}` : live.checking ? 'جارٍ التحقق…' : 'لا توجد غرفة مفتوحة باسمك'}</small>
+                            </div>
+                            <button className="md-btn md-gold" onClick={() => enterLive('ld')} disabled={live.checking}>دخول</button>
                         </div>
                     </div>
                 </section>

@@ -28,7 +28,9 @@ export const BASE_ICONS: Record<string, string> = {
   brand: `<path class="g" d="M10 46l6-24 16 14 16-14 6 24z"/><circle class="g" cx="10" cy="18" r="4"/><circle class="g" cx="32" cy="14" r="5"/><circle class="g" cx="54" cy="18" r="4"/><rect class="t" x="10" y="46" width="44" height="8" rx="2"/>`,
   vote: `<rect class="t" x="12" y="16" width="40" height="40" rx="6"/><path class="s" d="M12 28h40"/><path class="g" d="M22 10h20v8H22z"/><path class="s" d="M22 40l6 6 14-14"/>`,
   bridge: `<rect class="t" x="12" y="12" width="18" height="16" rx="3"/><rect class="g" x="34" y="12" width="18" height="16" rx="3"/><rect class="g" x="12" y="36" width="18" height="16" rx="3"/><rect class="t" x="34" y="36" width="18" height="16" rx="3"/><path class="s" d="M8 8v48M56 8v48"/><circle class="s" cx="32" cy="32" r="4"/>`,
-  lava: `<path class="g" d="M12 54L26 22h12l14 32z"/><path class="t" d="M24 22c0 8 4 12 8 12s8-4 8-12"/><path class="s" d="M20 14c-4-4-4-10 0-12 2 4 6 6 6 8-2 2-4 2-6-4z"/><path class="s" d="M36 12c-3-4-3-8 0-10 2 3 5 5 5 7-1 2-3 2-5-4z"/><path class="s" d="M6 54h52"/>`
+  lava: `<path class="g" d="M12 54L26 22h12l14 32z"/><path class="t" d="M24 22c0 8 4 12 8 12s8-4 8-12"/><path class="s" d="M20 14c-4-4-4-10 0-12 2 4 6 6 6 8-2 2-4 2-6-4z"/><path class="s" d="M36 12c-3-4-3-8 0-10 2 3 5 5 5 7-1 2-3 2-5-4z"/><path class="s" d="M6 54h52"/>`,
+  den: `<path class="t" d="M32 6C22 14 16 21 16 29a10 10 0 0 0 16 8 10 10 0 0 0 16-8c0-8-6-15-16-23z"/><path class="g" d="M32 37c-2 8-6 12-12 16M32 37c2 8 6 12 12 16"/><path class="s" d="M26 53h12"/><path class="g" d="M49 8l2.5 5.5L57 16l-5.5 2.5L49 24l-2.5-5.5L41 16l5.5-2.5z"/>`,
+  revolver: `<rect class="t" x="3" y="22" width="30" height="9" rx="2"/><path class="s" d="M8 22v-5h5"/><circle class="g" cx="37" cy="27" r="11"/><circle class="dk" cx="37" cy="21" r="2.2"/><circle class="dk" cx="42.5" cy="25" r="2.2"/><circle class="dk" cx="42.5" cy="30.5" r="2.2"/><circle class="dk" cx="37" cy="33.5" r="2.2"/><circle class="dk" cx="31.5" cy="30.5" r="2.2"/><circle class="dk" cx="31.5" cy="25" r="2.2"/><path class="t" d="M46 32l9 20h-11l-5-16z"/><path class="s" d="M33 38q1 9 10 8"/><path class="s" d="M45 16l7-6 3 4-6 5"/><path class="s" d="M3 31h22"/>`
 };
 
 export const GAME_DETAILS: Record<string, { title: string; desc: string; iconKey: string; isHot?: boolean }> = {
@@ -42,6 +44,12 @@ export const GAME_DETAILS: Record<string, { title: string; desc: string; iconKey
     title: "كود نيمز",
     desc: "فريقان وكلمات سرية. لمّح بذكاء وخلّ فريقك يخمّن صح.",
     iconKey: "code",
+    isHot: true
+  },
+  LIARS_DEN: {
+    title: "حانة الكذابين",
+    desc: "أربعة على الطاولة… ورصاصة واحدة تنتظر الكذّاب",
+    iconKey: "den",
     isHot: true
   },
   SAFE_CODE: {
@@ -78,6 +86,11 @@ export const GAME_DETAILS: Record<string, { title: string; desc: string; iconKey
     title: "الكرسي الموسيقي",
     desc: "اجلس قبل ما تتوقف الموسيقى.",
     iconKey: "chair"
+  },
+  RUSSIAN_ROULETTE: {
+    title: "السحب الروسي",
+    desc: "طلقة واحدة في الخزنة… اكتب «دخول» وجرّب حظك على الطاولة.",
+    iconKey: "revolver"
   },
   SPIN_WHEEL: {
     title: "الروليت",

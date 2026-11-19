@@ -64,6 +64,7 @@ export type ViewState =
   | 'LETTER_GAME'
   | 'HIGHER_LOWER'
   | 'MAHMAH_GAME'
+  | 'LIARS_DEN'
   | 'BUZZER_PAD'
   | 'ABOUT'
   | 'USER_AUTH'
