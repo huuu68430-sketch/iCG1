@@ -434,7 +434,8 @@ async function round(){pile.clear();table='KQA'[rnd(3)];netEv({t:'a',k:'round'})
   pile.userData.last=cards;claim={p,k:cards.length};const q=$('#claim');q.textContent=`${p.name} يدّعي ${cards.length} × ${NM[table]}`;q.classList.add('on');
   await sleep(430+rnd(370));turn=nextAlive(turn)}}
 async function game(){let first=true;while(1){
-  if(!first)await waitNextMatch();first=false;
+  if(!first){if(matchPending)matchPending=false;else{backToLobby();await new Promise(r=>{hostGo=r})}}
+  first=false;
   S.forEach(p=>{p.alive=true;p.pulls=0;p.bullet=rnd(6);p.g.quaternion.copy(p.q0);p.g.position.y=0;p.hand=[];p.ln=0;p.up.rotation.x=0;p.arms.forEach(a=>{a.cur.copy(a.rest);ik(a,a.cur)})});starter=rnd(4);netEv({t:'a',k:'reset'});$('#win').style.display='none';
   callWins=[0,0,0,0];roundsPlayed=0;
   while(alive().length>1)await round();const w=alive()[0];$('#claim').classList.remove('on');pile.clear();faceCut(w.i,9000);
@@ -442,9 +443,9 @@ async function game(){let first=true;while(1){
   post({type:'icg:ld:winner',seat:w.i,calls:callWins.slice(),rounds:roundsPlayed,matchId:matchId});
   await sleep(5200)}}
 const QS=new URLSearchParams(location.search);
-let ROOM=(QS.get('room')||'').toUpperCase(),JOIN='',matchId='',nextMatch=null,matchPending=false,startPending=false;
+let ROOM=(QS.get('room')||'').toUpperCase(),JOIN='',matchId='',matchPending=false,startPending=false;
 function post(m){try{parent.postMessage(Object.assign({source:'icg-ld-host'},m),location.origin)}catch(e){}}
-let menuMode=true,started=false,lobbyOn=false,cd=0,cdTimer=null,lbN=0;
+let menuMode=true,started=false,lobbyOn=false,cd=0,cdTimer=null,hostGo=null;
 const ENM={A:'ACE',K:'KING',Q:'QUEEN',J:'JOKER'};
 function tableCard(k){$('#tc').innerHTML=`<div class="tcw"><div class="tcc"><img src="${FU[k]}" alt=""><div class="bk"></div><div class="sh"></div></div><div class="tct"><small>TABLE CARD</small><b>${ENM[k]}</b></div></div>`}
 const CH=[['♠','#e8c07a','The Mastermind'],['♥','#e0584a','The Jewel'],['♦','#6ec6a0','The Doctor'],['♣','#b8c46a','The General']],LT=['','شخصية واحدة','شخصيتان','3 شخصيات','4 شخصيات'];
@@ -469,29 +470,33 @@ function enterLobby(){
   try{if(window.QRCode&&!$('#qr').firstChild)new QRCode($('#qr'),{text:JOIN,width:220,height:220,colorDark:'#1a1005',colorLight:'#f6e7c8',correctLevel:QRCode.CorrectLevel.M})}catch(e){}
   LB.upd();
 }
-function begin(){if(started||startPending)return;startPending=true;post({type:'icg:ld:startreq'})}
+function begin(){if(started||startPending||!S.some(p=>p.human))return;startPending=true;LB.upd();post({type:'icg:ld:startreq'})}
 function onStartAck(d){
   if(started)return;started=true;startPending=false;matchId=String((d&&d.matchId)||'');
   clearTimeout(cdTimer);cd=0;$('#go').style.display='none';
   menuMode=false;$('#menu').classList.add('gone');document.body.classList.add('play');
-  game();
+  if(hostGo){const r=hostGo;hostGo=null;r()}else game();
 }
-/* قد تصل إشارة المباراة القادمة أثناء عرض الفائز (قبل أن ننتظرها) — لا تُفقد الإشارة */
-function waitNextMatch(){if(matchPending){matchPending=false;return Promise.resolve()}return new Promise(r=>{nextMatch=r})}
-function onMatch(d){matchId=String((d&&d.matchId)||'');if(nextMatch){const r=nextMatch;nextMatch=null;r()}else matchPending=true}
+/* وضع البث OBS يكمل تلقائياً بين المباريات؛ غير ذلك فالبدء بيد المستضيف دائماً */
+function onMatch(d){matchId=String((d&&d.matchId)||'');matchPending=true}
+function backToLobby(){
+  started=false;startPending=false;cd=0;clearTimeout(cdTimer);
+  $('#go').style.display='none';$('#win').style.display='none';
+  menuMode=true;$('#menu').classList.remove('gone');document.body.classList.remove('play');
+  lobbyOn=true;LB.upd();netPush();
+}
 
-function countdown(){if(cd||started)return;let n=5;const g=$('#go');g.style.display='flex';cd=1;
+function countdown(){if(cd||started)return;let n=5;const g=$('#go');g.style.display='flex';cd=1;LB.upd();
   (function t(){if(started){cd=0;g.style.display='none';return}
+    if(!S.some(p=>p.human)){cd=0;g.style.display='none';LB.upd();return}
     if(!n){cd=0;g.style.display='none';begin();return}
     g.innerHTML=`<small>THE GAME BEGINS</small><div>${n}</div>`;n--;cdTimer=setTimeout(t,1000)})()}
 const LB={upd(){const n=S.filter(p=>p.human).length;$('#cnt').textContent=n+' / 4';S.forEach((p,i)=>{const e=$('#sl'+i);if(!e)return;e.classList.toggle('on',p.human);e.classList.toggle('bot',!p.human&&n>=1);e.querySelector('.st').textContent=p.human?'✓ '+p.name:(n>=1?'بوت جاهز':'شاغر')});
  $('#seg').innerHTML=S.map(p=>`<i class="${p.human?'on':''}"></i>`).join('');
- $('#left').textContent=n<4?(n>=1?'البوتات تملأ المقاعد وتلعب فوراً':'باقي '+LT[4-n]):'اكتمل العدد!';
- const st=$('#startNow');if(st)st.disabled=n<1||started;
- /* يبدأ اللعب تلقائياً فور دخول أول لاعب — البوتات تملأ الباقي وتلعب معه بلا انتظار */
- if(n>=1&&lobbyOn&&!started&&!startPending){if(!cd)countdown();else if(n!==lbN){clearTimeout(cdTimer);cd=0;countdown()}}
+ /* لا بدء تلقائي: مهما كان عدد الداخلين (1–4) فالمستضيف هو من يضغط «ابدأ الآن» */
+ $('#left').textContent=n>=1?(n<4?'البوتات جاهزون — اضغط «ابدأ الآن» عندما تجهز':'اكتمل العدد — اضغط «ابدأ الآن»'):'باقي '+LT[4-n];
  if(n<1&&cd&&!started){cd=0;clearTimeout(cdTimer);$('#go').style.display='none'}
- lbN=n}};
+ const st=$('#startNow');if(st){st.disabled=n<1||started||startPending||!!cd;st.textContent=cd?'يبدأ اللعب…':'ابدأ الآن'}}};
 
 /* تحديث المقاعد من قاعدة البيانات — الهوية والحجز في السيرفر */
 function applySeats(list){
@@ -532,12 +537,12 @@ addEventListener('message',ev=>{
   else if(d.type==='icg:ld:seats')applySeats(d.seats);
   else if(d.type==='icg:ld:act')applyAct(d.seat,d.tid,d.act);
   else if(d.type==='icg:ld:startack')onStartAck(d);
-  else if(d.type==='icg:ld:startfail'){startPending=false;$log('تعذّر بدء المباراة — أعد المحاولة')}
+  else if(d.type==='icg:ld:startfail'){startPending=false;LB.upd();$log('تعذّر بدء المباراة — أعد المحاولة')}
   else if(d.type==='icg:ld:match')onMatch(d);
 });
 
 $('#go1').onclick=enterLobby;
-const sn=$('#startNow');if(sn)sn.onclick=begin;
+const sn=$('#startNow');if(sn)sn.onclick=()=>{if(started||startPending||cd)return;if(S.some(p=>p.human))countdown()};
 if(ROOM)setCfg({code:ROOM});else LB.upd();
 post({type:'icg:ld:ready',code:ROOM});
 

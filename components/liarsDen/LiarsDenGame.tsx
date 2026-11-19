@@ -320,10 +320,6 @@ export const LiarsDenGame: React.FC<LiarsDenGameProps> = ({ onHome }) => {
       if (r.duplicate) flash('النتيجة محفوظة مسبقاً');
       else if ((r.human_count || 0) < 2) flash('انتهت المباراة — تدريب بلا نقاط');
       else flash(gained > 0 ? `انتهت المباراة — أُضيفت ${gained} نقطة` : 'انتهت المباراة');
-      const next = newMatchId();
-      const s = await ldApi.startMatch(c, ht, next);
-      matchRef.current = s.match_id || next;
-      postToFrame({ type: 'icg:ld:match', matchId: matchRef.current });
     } catch (e: any) {
       flash(ldErrorText(String(e?.message || '')));
     } finally {

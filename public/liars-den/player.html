@@ -380,7 +380,7 @@ function exitGame(){post({type:'icg:ld:leave'});post({type:'icg:ld:exit'})}
 $('#exitw').onclick=exitGame;$('#exitg').onclick=exitGame;
 $('#chg').onclick=()=>{post({type:'icg:ld:leave'});seat=-1;myTurn=false;show('pick');resetEnter();renderPick()};
 // ---- wait
-function renderWait(){const c=CH[seat];$('#wav').innerHTML=av(seat);$('#wtg').textContent=c.en;$('#wnm').textContent=name+' · '+c.n;const n=seats.filter(s=>s.taken).length;$('#wch').innerHTML=CH.map((x,i)=>`<div class="chip ${seats[i]&&seats[i].taken?'on':''}" style="--c:${x.a}">${SU[i]}</div>`).join('');$('#wst').textContent=n<4?`بانتظار اللاعبين (${n}/4)`:'اكتمل العدد… تبدأ اللعبة'}
+function renderWait(){const c=CH[seat];$('#wav').innerHTML=av(seat);$('#wtg').textContent=c.en;$('#wnm').textContent=name+' · '+c.n;const n=seats.filter(s=>s.taken).length;$('#wch').innerHTML=CH.map((x,i)=>`<div class="chip ${seats[i]&&seats[i].taken?'on':''}" style="--c:${x.a}">${SU[i]}</div>`).join('');$('#wst').textContent=n<4?`بانتظار اللاعبين (${n}/4) — البدء بيد المستضيف`:'اكتمل العدد — بانتظار بدء المستضيف'}
 // ---- game HUD
 function renderGame(){if(!G)return;const c=CH[G.me],p=G.pl[G.me];document.documentElement.style.setProperty('--a',c.a);
  $('#mi').innerHTML=av(G.me,'30 20 140 150');$('#mn').textContent=name;$('#mp').innerHTML=[0,1,2,3,4,5].map(k=>`<i class="${k<p.pulls?'u':''}"></i>`).join('');
@@ -409,7 +409,7 @@ function onData(m){switch(m.t){
  case'denied':seat=-1;started=false;resetEnter();show('pick');renderPick();ov('⛔','المقعد محجوز','اختر مقعداً آخر',2500);break;
  case'ok':seat=m.seat;resetEnter();started=!!m.started;if(started){show('game')}else{show('wait');renderWait()}break;
  case'start':started=true;if(seat>=0){show('game');if(G)renderGame()}break;
- case'st':if(seat<0||!m.pl)break;G=m;G.me=seat;if(!G.hand)G.hand=[];V3.sync(m);if(m.go&&cur!='game')show('game');if(m.turn!==m.me||!m.alive)myTurn=false;if(wasAlive&&!m.alive&&m.go){ov('☠','طارت رصاصتك','تتفرّج على الباقين',3500);fx()}wasAlive=m.alive;renderGame();break;
+ case'st':if(seat<0||!m.pl)break;G=m;G.me=seat;if(!G.hand)G.hand=[];V3.sync(m);if(m.go&&cur!='game')show('game');if(!m.go&&started&&cur=='game'){started=false;show('wait');renderWait()}if(m.turn!==m.me||!m.alive)myTurn=false;if(wasAlive&&!m.alive&&m.go){ov('☠','طارت رصاصتك','تتفرّج على الباقين',3500);fx()}wasAlive=m.alive;renderGame();break;
  case'hand':if(G){G.hand=m.hand||[];renderGame()}break;
  case'a':V3.ev(m);break;
  case'turn':curTid=m.tid|0;if(m.seat===seat&&G&&G.alive){myTurn=true;canCall=m.canCall;timer(m.ms);vib([120,60,120]);renderGame()}break;
