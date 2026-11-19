@@ -542,13 +542,9 @@ useEffect(() => {
     setCurrentView('HOME');
   };
 
-  const handleGoHome = () => {
-    if (userRole === 'user') {
-      setCurrentView('USER_DASHBOARD');
-    } else {
-      setCurrentView('HOME');
-    }
-  };
+  // الخروج من أي لعبة يرجع لساحة الألعاب دائمًا — لا لوحة عضو ولا تسجيل خروج:
+  // لوحة العضو كانت تبدو كأنه طُرد من الحساب لمن بلا جلسة عضو.
+  const handleGoHome = () => setCurrentView('HOME');
 
   /* المتجر بقي داخل لوحة العضو (?tab=store) — لا زر له في شريط صفحة الألعاب */
 
